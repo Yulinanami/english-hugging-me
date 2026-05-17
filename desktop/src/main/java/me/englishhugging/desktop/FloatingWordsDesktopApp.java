@@ -2,6 +2,8 @@ package me.englishhugging.desktop;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -16,10 +18,13 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
 import javafx.scene.Cursor;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -28,11 +33,13 @@ import javafx.stage.FileChooser;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.Duration;
 import javafx.util.StringConverter;
 import me.englishhugging.core.AppSettings;
 import me.englishhugging.core.DisplayMode;
 import me.englishhugging.core.OverlayMode;
 import me.englishhugging.core.Phrase;
+import me.englishhugging.core.PlaybackMode;
 import me.englishhugging.core.Translation;
 import me.englishhugging.core.VocabularyJsonLoader;
 import me.englishhugging.core.WordEntry;
@@ -56,9 +63,13 @@ import java.util.UUID;
 public final class FloatingWordsDesktopApp extends Application {
     private final DesktopSettingsStore settingsStore = new DesktopSettingsStore();
     private final String overlayTitle = "English Hugging Me Overlay " + UUID.randomUUID();
+    private final String moveHandleTitle = "English Hugging Me Move Handle " + UUID.randomUUID();
+    private final String resizeHandleTitle = "English Hugging Me Resize Handle " + UUID.randomUUID();
 
     private AppSettings settings;
     private Stage overlayStage;
+    private Stage moveHandleStage;
+    private Stage resizeHandleStage;
     private Stage settingsStage;
     private StackPane overlayRoot;
     private TextFlow wordFlow;
@@ -66,12 +77,15 @@ public final class FloatingWordsDesktopApp extends Application {
     private WordEntry currentWord;
     private double dragOffsetX;
     private double dragOffsetY;
+    private double moveHandleDragOffsetX;
+    private double moveHandleDragOffsetY;
     private double resizeStartScreenX;
     private double resizeStartScreenY;
     private double resizeStartWidth;
     private double resizeStartHeight;
     private TrayIcon trayIcon;
     private Popup trayMenu;
+    private Timeline trayMenuWatcher;
 
     public static void main(String[] args) {
         launch(args);
@@ -82,10 +96,17 @@ public final class FloatingWordsDesktopApp extends Application {
         Platform.setImplicitExit(false);
         settings = settingsStore.load();
         overlayStage = createOverlayStage();
+        moveHandleStage = createMoveHandleStage();
+        resizeHandleStage = createResizeHandleStage();
         settingsStage = createSettingsStage();
 
         overlayStage.show();
+        moveHandleStage.show();
+        resizeHandleStage.show();
         WindowsClickThrough.hideFromTaskbar(overlayStage);
+        WindowsClickThrough.hideFromTaskbar(moveHandleStage);
+        WindowsClickThrough.hideFromTaskbar(resizeHandleStage);
+        syncControlHandlePositions();
         installTrayIcon();
         applyOverlayMode();
         reloadVocabulary();
@@ -98,6 +119,12 @@ public final class FloatingWordsDesktopApp extends Application {
         }
         if (settings != null) {
             settingsStore.save(settings);
+        }
+        if (moveHandleStage != null) {
+            moveHandleStage.close();
+        }
+        if (resizeHandleStage != null) {
+            resizeHandleStage.close();
         }
         removeTrayIcon();
     }
@@ -120,29 +147,6 @@ public final class FloatingWordsDesktopApp extends Application {
         wordFlow.maxWidthProperty().bind(overlayRoot.widthProperty().subtract(60));
         wordFlow.maxHeightProperty().bind(overlayRoot.heightProperty().subtract(40));
 
-        Label resizeHandle = new Label("◢");
-        resizeHandle.setTextFill(Color.rgb(220, 220, 220, 0.9));
-        resizeHandle.setStyle("-fx-cursor: se-resize;");
-        StackPane.setAlignment(resizeHandle, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(resizeHandle, new Insets(0, 0, -6, 0));
-        overlayRoot.getChildren().add(resizeHandle);
-        resizeHandle.setOnMousePressed(event -> {
-            resizeStartScreenX = event.getScreenX();
-            resizeStartScreenY = event.getScreenY();
-            resizeStartWidth = stage.getWidth();
-            resizeStartHeight = stage.getHeight();
-            event.consume();
-        });
-        resizeHandle.setOnMouseDragged(event -> {
-            double nextWidth = Math.max(260, resizeStartWidth + event.getScreenX() - resizeStartScreenX);
-            double nextHeight = Math.max(80, resizeStartHeight + event.getScreenY() - resizeStartScreenY);
-            stage.setWidth(nextWidth);
-            stage.setHeight(nextHeight);
-            settings.setWidth(nextWidth);
-            settings.setHeight(nextHeight);
-            settingsStore.save(settings);
-            event.consume();
-        });
         overlayRoot.setOnMousePressed(event -> {
             if (settings.getOverlayMode() != OverlayMode.DRAGGABLE) {
                 return;
@@ -159,6 +163,7 @@ public final class FloatingWordsDesktopApp extends Application {
             settings.setX(stage.getX());
             settings.setY(stage.getY());
             settingsStore.save(settings);
+            syncControlHandlePositions();
         });
 
         Scene scene = new Scene(overlayRoot, settings.getWidth(), settings.getHeight());
@@ -167,6 +172,121 @@ public final class FloatingWordsDesktopApp extends Application {
         stage.setMinWidth(260);
         stage.setMinHeight(80);
         return stage;
+    }
+
+    private Stage createMoveHandleStage() {
+        Stage stage = new Stage(StageStyle.TRANSPARENT);
+        stage.setTitle(moveHandleTitle);
+        stage.setAlwaysOnTop(true);
+
+        StackPane moveHandle = createMoveHandleNode();
+        moveHandle.setOnMousePressed(event -> {
+            moveHandleDragOffsetX = overlayStage.getX() - event.getScreenX();
+            moveHandleDragOffsetY = overlayStage.getY() - event.getScreenY();
+            event.consume();
+        });
+        moveHandle.setOnMouseDragged(event -> {
+            double nextX = event.getScreenX() + moveHandleDragOffsetX;
+            double nextY = event.getScreenY() + moveHandleDragOffsetY;
+            overlayStage.setX(nextX);
+            overlayStage.setY(nextY);
+            settings.setX(nextX);
+            settings.setY(nextY);
+            settingsStore.save(settings);
+            syncControlHandlePositions();
+            event.consume();
+        });
+
+        Scene scene = new Scene(moveHandle, 26, 26);
+        scene.setFill(Color.TRANSPARENT);
+        stage.setScene(scene);
+
+        overlayStage.xProperty().addListener((observable, oldValue, newValue) -> syncControlHandlePositions());
+        overlayStage.yProperty().addListener((observable, oldValue, newValue) -> syncControlHandlePositions());
+        overlayStage.widthProperty().addListener((observable, oldValue, newValue) -> syncControlHandlePositions());
+        overlayStage.heightProperty().addListener((observable, oldValue, newValue) -> syncControlHandlePositions());
+        return stage;
+    }
+
+    private StackPane createMoveHandleNode() {
+        GridPane dots = new GridPane();
+        dots.setHgap(4);
+        dots.setVgap(4);
+        dots.setAlignment(Pos.CENTER);
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 2; col++) {
+                dots.add(new Circle(2, Color.rgb(255, 255, 255, 0.72)), col, row);
+            }
+        }
+
+        StackPane handle = new StackPane(dots);
+        handle.setPickOnBounds(true);
+        handle.setMinSize(26, 26);
+        handle.setPrefSize(26, 26);
+        handle.setMaxSize(26, 26);
+        handle.setStyle("-fx-background-color: transparent; -fx-cursor: move;");
+        return handle;
+    }
+
+    private Stage createResizeHandleStage() {
+        Stage stage = new Stage(StageStyle.TRANSPARENT);
+        stage.setTitle(resizeHandleTitle);
+        stage.setAlwaysOnTop(true);
+
+        Pane resizeHandle = createResizeHandleNode();
+        resizeHandle.setOnMousePressed(event -> {
+            resizeStartScreenX = event.getScreenX();
+            resizeStartScreenY = event.getScreenY();
+            resizeStartWidth = overlayStage.getWidth();
+            resizeStartHeight = overlayStage.getHeight();
+            event.consume();
+        });
+        resizeHandle.setOnMouseDragged(event -> {
+            double nextWidth = Math.max(260, resizeStartWidth + event.getScreenX() - resizeStartScreenX);
+            double nextHeight = Math.max(80, resizeStartHeight + event.getScreenY() - resizeStartScreenY);
+            overlayStage.setWidth(nextWidth);
+            overlayStage.setHeight(nextHeight);
+            settings.setWidth(nextWidth);
+            settings.setHeight(nextHeight);
+            settingsStore.save(settings);
+            syncControlHandlePositions();
+            event.consume();
+        });
+
+        Scene scene = new Scene(resizeHandle, 28, 28);
+        scene.setFill(Color.TRANSPARENT);
+        stage.setScene(scene);
+        return stage;
+    }
+
+    private Pane createResizeHandleNode() {
+        Pane handle = new Pane();
+        handle.setPickOnBounds(true);
+        handle.setMinSize(28, 28);
+        handle.setPrefSize(28, 28);
+        handle.setMaxSize(28, 28);
+        handle.setStyle("-fx-background-color: transparent; -fx-cursor: se-resize;");
+        for (int i = 0; i < 3; i++) {
+            Line line = new Line(14 + i * 4, 23, 23, 14 + i * 4);
+            line.setStroke(Color.rgb(255, 255, 255, 0.68));
+            line.setStrokeWidth(1.4);
+            handle.getChildren().add(line);
+        }
+        return handle;
+    }
+
+    private void syncControlHandlePositions() {
+        if (overlayStage == null) {
+            return;
+        }
+        if (moveHandleStage != null) {
+            moveHandleStage.setX(overlayStage.getX() + overlayStage.getWidth() - 40);
+            moveHandleStage.setY(overlayStage.getY() + 14);
+        }
+        if (resizeHandleStage != null) {
+            resizeHandleStage.setX(overlayStage.getX() + overlayStage.getWidth() - 31);
+            resizeHandleStage.setY(overlayStage.getY() + overlayStage.getHeight() - 31);
+        }
     }
 
     private Stage createSettingsStage() {
@@ -193,7 +313,11 @@ public final class FloatingWordsDesktopApp extends Application {
             File selected = fileChooser.showOpenDialog(stage);
             if (selected != null) {
                 vocabularyPath.setText(selected.getAbsolutePath());
+                String previousPath = settings.getVocabularyPath();
                 settings.setVocabularyPath(selected.getAbsolutePath());
+                if (!previousPath.equals(settings.getVocabularyPath())) {
+                    settings.resetPlaybackProgress();
+                }
                 settingsStore.save(settings);
                 reloadVocabulary();
             }
@@ -201,7 +325,11 @@ public final class FloatingWordsDesktopApp extends Application {
 
         Button reloadVocabulary = new Button("重新加载词库");
         reloadVocabulary.setOnAction(event -> {
+            String previousPath = settings.getVocabularyPath();
             settings.setVocabularyPath(vocabularyPath.getText());
+            if (!previousPath.equals(settings.getVocabularyPath())) {
+                settings.resetPlaybackProgress();
+            }
             settingsStore.save(settings);
             reloadVocabulary();
         });
@@ -224,6 +352,27 @@ public final class FloatingWordsDesktopApp extends Application {
             settings.setDisplayMode(displayMode.getValue());
             settingsStore.save(settings);
             updateCurrentWord();
+        });
+
+        ComboBox<PlaybackMode> playbackMode = new ComboBox<>();
+        playbackMode.getItems().addAll(PlaybackMode.values());
+        playbackMode.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(PlaybackMode value) {
+                return playbackModeLabel(value);
+            }
+
+            @Override
+            public PlaybackMode fromString(String value) {
+                return null;
+            }
+        });
+        playbackMode.setValue(settings.getPlaybackMode());
+        playbackMode.setOnAction(event -> {
+            settings.setPlaybackMode(playbackMode.getValue());
+            settings.resetPlaybackProgress();
+            settingsStore.save(settings);
+            reloadVocabulary();
         });
 
         ComboBox<OverlayMode> overlayMode = new ComboBox<>();
@@ -322,25 +471,27 @@ public final class FloatingWordsDesktopApp extends Application {
         grid.add(reloadVocabulary, 1, 1);
         grid.add(new Label("显示内容："), 0, 2);
         grid.add(displayMode, 1, 2);
-        grid.add(new Label("悬浮行为："), 0, 3);
-        grid.add(overlayMode, 1, 3);
-        grid.add(new Label("切换间隔（秒）："), 0, 4);
-        grid.add(intervalSeconds, 1, 4);
-        grid.add(new Label("透明度："), 0, 5);
-        grid.add(opacity, 1, 5);
-        grid.add(new Label("单词颜色："), 0, 6);
-        grid.add(wordColor, 1, 6);
-        grid.add(new Label("词性颜色："), 0, 7);
-        grid.add(typeColor, 1, 7);
-        grid.add(new Label("释义颜色："), 0, 8);
-        grid.add(translationColor, 1, 8);
-        grid.add(new Label("短语颜色："), 0, 9);
-        grid.add(phraseColor, 1, 9);
-        grid.add(new Label("单词字号："), 0, 10);
-        grid.add(wordFontSize, 1, 10);
-        grid.add(new Label("释义字号："), 0, 11);
-        grid.add(detailFontSize, 1, 11);
-        grid.add(exit, 1, 12);
+        grid.add(new Label("播放顺序："), 0, 3);
+        grid.add(playbackMode, 1, 3);
+        grid.add(new Label("悬浮行为："), 0, 4);
+        grid.add(overlayMode, 1, 4);
+        grid.add(new Label("切换间隔（秒）："), 0, 5);
+        grid.add(intervalSeconds, 1, 5);
+        grid.add(new Label("透明度："), 0, 6);
+        grid.add(opacity, 1, 6);
+        grid.add(new Label("单词颜色："), 0, 7);
+        grid.add(wordColor, 1, 7);
+        grid.add(new Label("词性颜色："), 0, 8);
+        grid.add(typeColor, 1, 8);
+        grid.add(new Label("释义颜色："), 0, 9);
+        grid.add(translationColor, 1, 9);
+        grid.add(new Label("短语颜色："), 0, 10);
+        grid.add(phraseColor, 1, 10);
+        grid.add(new Label("单词字号："), 0, 11);
+        grid.add(wordFontSize, 1, 11);
+        grid.add(new Label("释义字号："), 0, 12);
+        grid.add(detailFontSize, 1, 12);
+        grid.add(exit, 1, 13);
 
         VBox root = new VBox(12, new Label("程序默认隐藏在右下角托盘；需要设置时，从托盘菜单打开此窗口。"), grid);
         root.setPadding(new Insets(16));
@@ -363,10 +514,24 @@ public final class FloatingWordsDesktopApp extends Application {
         if (scheduler != null) {
             scheduler.stop();
         }
-        scheduler = new WordScheduler(words, settings.getIntervalSeconds(), wordEntry -> Platform.runLater(() -> {
-            currentWord = wordEntry;
-            updateCurrentWord();
-        }));
+        scheduler = new WordScheduler(
+                words,
+                settings.getIntervalSeconds(),
+                settings.getPlaybackMode(),
+                settings.getNextWordIndex(),
+                settings.getShuffleOrder(),
+                settings.getShufflePosition(),
+                wordEntry -> Platform.runLater(() -> {
+                    currentWord = wordEntry;
+                    updateCurrentWord();
+                }),
+                (nextWordIndex, shuffleOrder, shufflePosition) -> {
+                    settings.setNextWordIndex(nextWordIndex);
+                    settings.setShuffleOrder(shuffleOrder);
+                    settings.setShufflePosition(shufflePosition);
+                    settingsStore.save(settings);
+                }
+        );
         scheduler.start();
     }
 
@@ -385,6 +550,7 @@ public final class FloatingWordsDesktopApp extends Application {
                 overlayStage.setHeight(requiredHeight);
                 settings.setHeight(requiredHeight);
                 settingsStore.save(settings);
+                syncControlHandlePositions();
             }
         });
     }
@@ -496,6 +662,7 @@ public final class FloatingWordsDesktopApp extends Application {
         if (trayMenu != null) {
             trayMenu.hide();
         }
+        stopTrayMenuWatcher();
 
         Label openSettings = trayMenuItem("打开设置");
         openSettings.setOnMouseClicked(event -> {
@@ -510,35 +677,63 @@ public final class FloatingWordsDesktopApp extends Application {
 
         Region separator = new Region();
         separator.setPrefHeight(1);
-        separator.setStyle("-fx-background-color: #c8c8c8;");
+        separator.setStyle("-fx-background-color: #E5E7EB;");
+        VBox.setMargin(separator, new Insets(4, 0, 4, 0));
 
         VBox menuContent = new VBox(openSettings, separator, exit);
         menuContent.setStyle(
-                "-fx-background-color: white;"
-                        + "-fx-border-color: #9e9e9e;"
+                "-fx-background-color: rgba(255,255,255,0.98);"
+                        + "-fx-background-radius: 9;"
+                        + "-fx-border-color: #DADDE3;"
                         + "-fx-border-width: 1;"
-                        + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 6, 0, 2, 2);"
+                        + "-fx-border-radius: 9;"
+                        + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 18, 0, 0, 6);"
                         + "-fx-font-family: 'Microsoft YaHei UI', 'Microsoft YaHei', 'SimSun';"
                         + "-fx-font-size: 13px;"
         );
+        menuContent.setPadding(new Insets(6, 0, 6, 0));
 
         Point pointer = MouseInfo.getPointerInfo().getLocation();
+        boolean openedFromOverflow = WindowsClickThrough.isNotifyIconOverflowVisible();
         trayMenu = new Popup();
         trayMenu.setAutoHide(true);
         trayMenu.setHideOnEscape(true);
         trayMenu.getContent().add(menuContent);
+        trayMenu.setOnHidden(event -> stopTrayMenuWatcher());
         trayMenu.show(overlayStage, pointer.x + 8, pointer.y - 8);
+        startTrayMenuWatcher(openedFromOverflow);
     }
 
     private Label trayMenuItem(String text) {
         Label item = new Label(text);
-        item.setMinWidth(88);
-        item.setPadding(new Insets(8, 16, 8, 12));
+        item.setMinWidth(132);
+        item.setMinHeight(30);
+        item.setPadding(new Insets(7, 18, 7, 18));
         item.setCursor(Cursor.HAND);
-        item.setStyle("-fx-text-fill: #111111;");
-        item.setOnMouseEntered(event -> item.setStyle("-fx-background-color: #e5f1fb; -fx-text-fill: #111111;"));
-        item.setOnMouseExited(event -> item.setStyle("-fx-text-fill: #111111;"));
+        item.setStyle("-fx-text-fill: #1F2328; -fx-background-radius: 6;");
+        item.setOnMouseEntered(event -> item.setStyle("-fx-background-color: #F3F6FA; -fx-text-fill: #1F2328; -fx-background-radius: 6;"));
+        item.setOnMouseExited(event -> item.setStyle("-fx-text-fill: #1F2328; -fx-background-radius: 6;"));
         return item;
+    }
+
+    private void startTrayMenuWatcher(boolean openedFromOverflow) {
+        if (!openedFromOverflow) {
+            return;
+        }
+        trayMenuWatcher = new Timeline(new KeyFrame(Duration.millis(150), event -> {
+            if (trayMenu != null && trayMenu.isShowing() && !WindowsClickThrough.isNotifyIconOverflowVisible()) {
+                trayMenu.hide();
+            }
+        }));
+        trayMenuWatcher.setCycleCount(Timeline.INDEFINITE);
+        trayMenuWatcher.play();
+    }
+
+    private void stopTrayMenuWatcher() {
+        if (trayMenuWatcher != null) {
+            trayMenuWatcher.stop();
+            trayMenuWatcher = null;
+        }
     }
 
     private BufferedImage createTrayImage() {
@@ -554,6 +749,7 @@ public final class FloatingWordsDesktopApp extends Application {
     }
 
     private void removeTrayIcon() {
+        stopTrayMenuWatcher();
         if (trayMenu != null) {
             trayMenu.hide();
             trayMenu = null;
@@ -584,6 +780,16 @@ public final class FloatingWordsDesktopApp extends Application {
             return "单词 + 释义 + 短语";
         }
         return "单词 + 释义";
+    }
+
+    private String playbackModeLabel(PlaybackMode playbackMode) {
+        if (playbackMode == PlaybackMode.SEQUENTIAL) {
+            return "顺序播放";
+        }
+        if (playbackMode == PlaybackMode.RANDOM) {
+            return "随机播放";
+        }
+        return "随机不重复";
     }
 
     private String overlayModeLabel(OverlayMode overlayMode) {

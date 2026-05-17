@@ -1,14 +1,18 @@
 package me.englishhugging.core;
 
 public final class AppSettings {
-    public static final String DEFAULT_VOCABULARY_PATH = "english-vocabulary/json/1-初中-顺序.json";
+    public static final String DEFAULT_VOCABULARY_PATH = "vocabulary/1-初中-顺序.json";
     public static final String DEFAULT_VOCABULARY_FILE_NAME = "1-初中-顺序.json";
 
     private String vocabularyPath = DEFAULT_VOCABULARY_PATH;
     private String vocabularyFileName = DEFAULT_VOCABULARY_FILE_NAME;
     private DisplayMode displayMode = DisplayMode.WORD_WITH_TRANSLATION;
     private OverlayMode overlayMode = OverlayMode.DRAGGABLE;
+    private PlaybackMode playbackMode = PlaybackMode.SHUFFLE_NO_REPEAT;
     private int intervalSeconds = 8;
+    private int nextWordIndex = 0;
+    private String shuffleOrder = "";
+    private int shufflePosition = 0;
     private double x = 80;
     private double y = 80;
     private double width = 620;
@@ -61,12 +65,52 @@ public final class AppSettings {
         }
     }
 
+    public PlaybackMode getPlaybackMode() {
+        return playbackMode;
+    }
+
+    public void setPlaybackMode(PlaybackMode playbackMode) {
+        if (playbackMode != null) {
+            this.playbackMode = playbackMode;
+        }
+    }
+
     public int getIntervalSeconds() {
         return intervalSeconds;
     }
 
     public void setIntervalSeconds(int intervalSeconds) {
         this.intervalSeconds = Math.max(2, intervalSeconds);
+    }
+
+    public int getNextWordIndex() {
+        return nextWordIndex;
+    }
+
+    public void setNextWordIndex(int nextWordIndex) {
+        this.nextWordIndex = Math.max(0, nextWordIndex);
+    }
+
+    public String getShuffleOrder() {
+        return shuffleOrder;
+    }
+
+    public void setShuffleOrder(String shuffleOrder) {
+        this.shuffleOrder = shuffleOrder == null ? "" : shuffleOrder.trim();
+    }
+
+    public int getShufflePosition() {
+        return shufflePosition;
+    }
+
+    public void setShufflePosition(int shufflePosition) {
+        this.shufflePosition = Math.max(0, shufflePosition);
+    }
+
+    public void resetPlaybackProgress() {
+        nextWordIndex = 0;
+        shuffleOrder = "";
+        shufflePosition = 0;
     }
 
     public double getX() {

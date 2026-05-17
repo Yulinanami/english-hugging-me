@@ -3,6 +3,7 @@ package me.englishhugging.desktop;
 import me.englishhugging.core.AppSettings;
 import me.englishhugging.core.DisplayMode;
 import me.englishhugging.core.OverlayMode;
+import me.englishhugging.core.PlaybackMode;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,7 +17,11 @@ final class DesktopSettingsStore {
     private static final String KEY_VOCABULARY_PATH = "vocabularyPath";
     private static final String KEY_DISPLAY_MODE = "displayMode";
     private static final String KEY_OVERLAY_MODE = "overlayMode";
+    private static final String KEY_PLAYBACK_MODE = "playbackMode";
     private static final String KEY_INTERVAL_SECONDS = "intervalSeconds";
+    private static final String KEY_NEXT_WORD_INDEX = "nextWordIndex";
+    private static final String KEY_SHUFFLE_ORDER = "shuffleOrder";
+    private static final String KEY_SHUFFLE_POSITION = "shufflePosition";
     private static final String KEY_X = "x";
     private static final String KEY_Y = "y";
     private static final String KEY_WIDTH = "width";
@@ -48,10 +53,14 @@ final class DesktopSettingsStore {
             return settings;
         }
 
-        settings.setVocabularyPath(properties.getProperty(KEY_VOCABULARY_PATH));
+        settings.setVocabularyPath(migrateVocabularyPath(properties.getProperty(KEY_VOCABULARY_PATH)));
         settings.setDisplayMode(parseEnum(DisplayMode.class, properties.getProperty(KEY_DISPLAY_MODE), settings.getDisplayMode()));
         settings.setOverlayMode(parseEnum(OverlayMode.class, properties.getProperty(KEY_OVERLAY_MODE), settings.getOverlayMode()));
+        settings.setPlaybackMode(parseEnum(PlaybackMode.class, properties.getProperty(KEY_PLAYBACK_MODE), settings.getPlaybackMode()));
         settings.setIntervalSeconds(parseInt(properties.getProperty(KEY_INTERVAL_SECONDS), settings.getIntervalSeconds()));
+        settings.setNextWordIndex(parseInt(properties.getProperty(KEY_NEXT_WORD_INDEX), settings.getNextWordIndex()));
+        settings.setShuffleOrder(properties.getProperty(KEY_SHUFFLE_ORDER));
+        settings.setShufflePosition(parseInt(properties.getProperty(KEY_SHUFFLE_POSITION), settings.getShufflePosition()));
         settings.setX(parseDouble(properties.getProperty(KEY_X), settings.getX()));
         settings.setY(parseDouble(properties.getProperty(KEY_Y), settings.getY()));
         settings.setWidth(parseDouble(properties.getProperty(KEY_WIDTH), settings.getWidth()));
@@ -71,7 +80,11 @@ final class DesktopSettingsStore {
         properties.setProperty(KEY_VOCABULARY_PATH, settings.getVocabularyPath());
         properties.setProperty(KEY_DISPLAY_MODE, settings.getDisplayMode().name());
         properties.setProperty(KEY_OVERLAY_MODE, settings.getOverlayMode().name());
+        properties.setProperty(KEY_PLAYBACK_MODE, settings.getPlaybackMode().name());
         properties.setProperty(KEY_INTERVAL_SECONDS, Integer.toString(settings.getIntervalSeconds()));
+        properties.setProperty(KEY_NEXT_WORD_INDEX, Integer.toString(settings.getNextWordIndex()));
+        properties.setProperty(KEY_SHUFFLE_ORDER, settings.getShuffleOrder());
+        properties.setProperty(KEY_SHUFFLE_POSITION, Integer.toString(settings.getShufflePosition()));
         properties.setProperty(KEY_X, Double.toString(settings.getX()));
         properties.setProperty(KEY_Y, Double.toString(settings.getY()));
         properties.setProperty(KEY_WIDTH, Double.toString(settings.getWidth()));
@@ -107,6 +120,15 @@ final class DesktopSettingsStore {
         } catch (RuntimeException ignored) {
             return fallback;
         }
+    }
+
+    private static String migrateVocabularyPath(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value
+                .replace("english-vocabulary/json/", "vocabulary/")
+                .replace("english-vocabulary\\json\\", "vocabulary\\");
     }
 
     private static <T extends Enum<T>> T parseEnum(Class<T> type, String value, T fallback) {

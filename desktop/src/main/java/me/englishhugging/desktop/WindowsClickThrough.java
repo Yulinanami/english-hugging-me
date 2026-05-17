@@ -15,6 +15,7 @@ final class WindowsClickThrough {
     private static final int SWP_NOMOVE = 0x0002;
     private static final int SWP_NOZORDER = 0x0004;
     private static final int SWP_FRAMECHANGED = 0x0020;
+    private static final String NOTIFY_ICON_OVERFLOW_WINDOW = "NotifyIconOverflowWindow";
 
     private WindowsClickThrough() {
     }
@@ -48,6 +49,14 @@ final class WindowsClickThrough {
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED
             );
         });
+    }
+
+    static boolean isNotifyIconOverflowVisible() {
+        if (!com.sun.jna.Platform.isWindows()) {
+            return false;
+        }
+        HWND hwnd = User32.INSTANCE.FindWindow(NOTIFY_ICON_OVERFLOW_WINDOW, null);
+        return hwnd != null && User32.INSTANCE.IsWindowVisible(hwnd);
     }
 
     private static void applyNow(Stage stage, boolean clickThrough) {

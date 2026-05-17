@@ -12,7 +12,7 @@ class VocabularyJsonLoaderTest {
     @Test
     void loadsDefaultJuniorVocabulary() throws Exception {
         List<WordEntry> entries = new VocabularyJsonLoader().load(
-                Paths.get("english-vocabulary", "json", "1-初中-顺序.json")
+                Paths.get("vocabulary", "1-初中-顺序.json")
         );
 
         assertEquals(3223, entries.size());

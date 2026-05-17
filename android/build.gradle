@@ -16,7 +16,7 @@ android {
 
     sourceSets {
         main {
-            assets.srcDirs += [file('../english-vocabulary/json')]
+            assets.srcDirs += [file('../vocabulary')]
         }
     }
 
