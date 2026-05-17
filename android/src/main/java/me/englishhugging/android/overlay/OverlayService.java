@@ -58,10 +58,13 @@ public final class OverlayService extends Service {
     private int initialX, initialY;
     private float initialTouchX, initialTouchY;
 
+    public static boolean isRunning = false;
+
     @Override
     public void onCreate() {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        isRunning = true;
     }
 
     @Override
@@ -77,6 +80,7 @@ public final class OverlayService extends Service {
 
     @Override
     public void onDestroy() {
+        isRunning = false;
         if (scheduler != null) { scheduler.stop(); scheduler = null; }
         if (overlayView != null) { windowManager.removeView(overlayView); overlayView = null; }
         super.onDestroy();

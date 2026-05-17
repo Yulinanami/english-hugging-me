@@ -31,8 +31,20 @@ public final class AndroidUi {
     public static final int TEXT_SECONDARY = Color.rgb(95, 96, 110);
 
     private final Context context;
+    private Typeface materialIconFont;
 
     public AndroidUi(Context context) { this.context = context; }
+
+    public Typeface getIconFont() {
+        if (materialIconFont == null) {
+            try {
+                materialIconFont = Typeface.createFromAsset(context.getAssets(), "fonts/MaterialIcons-Regular.ttf");
+            } catch (Exception e) {
+                materialIconFont = Typeface.DEFAULT;
+            }
+        }
+        return materialIconFont;
+    }
 
     // --- Layout Params ---
 
@@ -142,11 +154,11 @@ public final class AndroidUi {
         return t;
     }
 
-    public TextView circularIcon(String text, int background, int foreground) {
+    public TextView circularIcon(String iconName, int background, int foreground) {
         TextView icon = new TextView(context);
-        icon.setText(text);
+        icon.setText(iconName);
         icon.setTextSize(26);
-        icon.setTypeface(Typeface.DEFAULT_BOLD);
+        icon.setTypeface(getIconFont());
         icon.setTextColor(foreground);
         icon.setGravity(Gravity.CENTER);
         icon.setBackground(oval(background));
@@ -181,7 +193,7 @@ public final class AndroidUi {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, dp(14), 0, dp(14));
-        row.addView(circularIcon("▶", Color.rgb(232, 232, 238), PRIMARY), new LinearLayout.LayoutParams(dp(52), dp(52)));
+        row.addView(circularIcon("play_arrow", Color.rgb(232, 232, 238), PRIMARY), new LinearLayout.LayoutParams(dp(52), dp(52)));
         TextView value = bodyText(text);
         value.setTextSize(15);
         value.setPadding(dp(14), 0, 0, 0);
@@ -245,12 +257,13 @@ public final class AndroidUi {
         return button;
     }
 
-    public MaterialButton iconButton(String text) {
+    public MaterialButton iconButton(String iconName) {
         MaterialButton button = new MaterialButton(context);
-        button.setText(text);
+        button.setText(iconName);
         button.setAllCaps(false);
         button.setTextColor(TEXT_PRIMARY);
         button.setTextSize(28);
+        button.setTypeface(getIconFont());
         button.setGravity(Gravity.CENTER);
         button.setCornerRadius(dp(28));
         button.setStrokeWidth(0);

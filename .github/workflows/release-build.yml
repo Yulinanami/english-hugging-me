@@ -44,7 +44,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item -LiteralPath 'desktop\build\jpackage\English Hugging Me-0.1.0.exe' -Destination 'dist\EHM-Windows-x64.exe'
+          Copy-Item -Path 'desktop\build\jpackage\English Hugging Me-*.exe' -Destination 'dist\EHM-Windows-x64.exe'
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4

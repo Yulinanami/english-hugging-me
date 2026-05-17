@@ -53,6 +53,8 @@ public final class MainActivity extends Activity {
     private EditText translationColor;
     private EditText phraseColor;
     private SeekBar opacitySeekBar;
+    private TextView startCircle;
+    private TextView connectedStatus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +64,12 @@ public final class MainActivity extends Activity {
         requestNotificationPermissionIfNeeded();
         setContentView(createContentView());
         showHomePage();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateStartCircleState();
     }
 
     private View createContentView() {
@@ -111,137 +119,162 @@ public final class MainActivity extends Activity {
         return nav;
     }
 
+    private void updateStartCircleState() {
+        if (startCircle == null || connectedStatus == null) return;
+        if (OverlayService.isRunning) {
+            startCircle.setText("stop");
+            startCircle.setBackground(ui.oval(AndroidUi.PRIMARY));
+            connectedStatus.setText("悬浮背词运行中");
+            connectedStatus.setTextColor(AndroidUi.PRIMARY);
+        } else {
+            startCircle.setText("play_arrow");
+            startCircle.setBackground(ui.oval(AndroidUi.PRIMARY));
+            connectedStatus.setText("点击启动悬浮背词");
+            connectedStatus.setTextColor(AndroidUi.PRIMARY);
+        }
+    }
+
+    private void switchPage(MaterialButton tab, Runnable buildContent) {
+        if (pageContent.getChildCount() > 0) {
+            pageContent.animate().alpha(0f).translationY(ui.dp(10)).setDuration(150).withEndAction(() -> {
+                clearSettingsFields();
+                selectTab(tab);
+                pageContent.removeAllViews();
+                buildContent.run();
+                pageContent.setTranslationY(ui.dp(-10));
+                pageContent.animate().alpha(1f).translationY(0).setDuration(150).start();
+            }).start();
+        } else {
+            clearSettingsFields();
+            selectTab(tab);
+            pageContent.removeAllViews();
+            buildContent.run();
+            pageContent.setAlpha(0f);
+            pageContent.setTranslationY(ui.dp(10));
+            pageContent.animate().alpha(1f).translationY(0).setDuration(300).start();
+        }
+    }
+
     private void showHomePage() {
-        clearSettingsFields();
-        selectTab(homeTab);
-        pageContent.removeAllViews();
+        switchPage(homeTab, () -> {
+            AppSettings settings = AndroidSettingsStore.load(this);
+            LinearLayout header = ui.headerRow("首页", "设置");
+            header.getChildAt(1).setOnClickListener(view -> showSettingsPage());
+            pageContent.addView(header, ui.matchWidthWithBottomMargin(34));
 
-        AppSettings settings = AndroidSettingsStore.load(this);
-        LinearLayout header = ui.headerRow("首页", "设置");
-        header.getChildAt(1).setOnClickListener(view -> showSettingsPage());
-        pageContent.addView(header, ui.matchWidthWithBottomMargin(34));
+            LinearLayout speedCard = ui.card();
+            speedCard.setOrientation(LinearLayout.HORIZONTAL);
+            speedCard.setGravity(Gravity.CENTER);
+            speedCard.addView(ui.homeMetric("词汇本", settings.getVocabularyFileName()), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            View divider = new View(this);
+            divider.setBackgroundColor(Color.rgb(199, 197, 209));
+            speedCard.addView(divider, new LinearLayout.LayoutParams(ui.dp(1), ui.dp(54)));
+            speedCard.addView(ui.homeMetric("间隔", settings.getIntervalSeconds() + " 秒"), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            pageContent.addView(speedCard, ui.matchWidthWithBottomMargin(78));
 
-        LinearLayout speedCard = ui.card();
-        speedCard.setOrientation(LinearLayout.HORIZONTAL);
-        speedCard.setGravity(Gravity.CENTER);
-        speedCard.addView(ui.homeMetric("词汇本", settings.getVocabularyFileName()), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        View divider = new View(this);
-        divider.setBackgroundColor(Color.rgb(199, 197, 209));
-        speedCard.addView(divider, new LinearLayout.LayoutParams(ui.dp(1), ui.dp(54)));
-        speedCard.addView(ui.homeMetric("间隔", settings.getIntervalSeconds() + " 秒"), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        pageContent.addView(speedCard, ui.matchWidthWithBottomMargin(78));
+            startCircle = new TextView(this);
+            startCircle.setTextSize(64);
+            startCircle.setTypeface(ui.getIconFont());
+            startCircle.setTextColor(Color.WHITE);
+            startCircle.setGravity(Gravity.CENTER);
+            startCircle.setOnClickListener(view -> {
+                view.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100).withEndAction(() -> {
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(100).start();
+                    if (OverlayService.isRunning) {
+                        stopService(new Intent(this, OverlayService.class));
+                        startCircle.postDelayed(this::updateStartCircleState, 200);
+                    } else {
+                        startOverlay();
+                        startCircle.postDelayed(this::updateStartCircleState, 500);
+                    }
+                }).start();
+            });
+            LinearLayout.LayoutParams circleParams = new LinearLayout.LayoutParams(ui.dp(140), ui.dp(140));
+            circleParams.gravity = Gravity.CENTER_HORIZONTAL;
+            pageContent.addView(startCircle, circleParams);
 
-        TextView startCircle = new TextView(this);
-        startCircle.setText("✓");
-        startCircle.setTextSize(82);
-        startCircle.setTextColor(Color.WHITE);
-        startCircle.setGravity(Gravity.CENTER);
-        startCircle.setBackground(ui.oval(AndroidUi.PRIMARY));
-        startCircle.setOnClickListener(view -> startOverlay());
-        LinearLayout.LayoutParams circleParams = new LinearLayout.LayoutParams(ui.dp(190), ui.dp(190));
-        circleParams.gravity = Gravity.CENTER_HORIZONTAL;
-        pageContent.addView(startCircle, circleParams);
+            connectedStatus = ui.titleText("点击启动悬浮背词");
+            connectedStatus.setTextColor(AndroidUi.PRIMARY);
+            connectedStatus.setGravity(Gravity.CENTER);
+            pageContent.addView(connectedStatus, ui.matchWidthWithBottomMargin(72));
 
-        TextView connected = ui.titleText("点击启动悬浮背词");
-        connected.setTextColor(AndroidUi.PRIMARY);
-        connected.setGravity(Gravity.CENTER);
-        pageContent.addView(connected, ui.matchWidthWithBottomMargin(72));
-
-        TextView detailTitle = ui.titleText("当前配置");
-        detailTitle.setTextSize(20);
-        pageContent.addView(detailTitle, ui.matchWidthWithBottomMargin(18));
-
-        LinearLayout detailCard = ui.card();
-        detailCard.setOrientation(LinearLayout.HORIZONTAL);
-        detailCard.setGravity(Gravity.CENTER_VERTICAL);
-        TextView icon = ui.circularIcon("★", Color.rgb(226, 226, 229), Color.WHITE);
-        detailCard.addView(icon, new LinearLayout.LayoutParams(ui.dp(68), ui.dp(68)));
-        LinearLayout textColumn = new LinearLayout(this);
-        textColumn.setOrientation(LinearLayout.VERTICAL);
-        textColumn.setPadding(ui.dp(18), 0, 0, 0);
-        textColumn.addView(ui.titleText(settings.getVocabularyFileName()), ui.matchWidthWrapHeight());
-        textColumn.addView(ui.bodyText(settings.getPlaybackMode().getLabel()), ui.matchWidthWrapHeight());
-        detailCard.addView(textColumn, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        MaterialButton stop = ui.iconButton("■");
-        stop.setOnClickListener(view -> stopService(new Intent(this, OverlayService.class)));
-        detailCard.addView(stop, new LinearLayout.LayoutParams(ui.dp(54), ui.dp(54)));
-        pageContent.addView(detailCard, ui.matchWidthWithBottomMargin(16));
+            updateStartCircleState();
+        });
     }
 
     private void showSettingsPage() {
-        selectTab(settingsTab);
-        pageContent.removeAllViews();
-        AppSettings settings = AndroidSettingsStore.load(this);
+        switchPage(settingsTab, () -> {
+            AppSettings settings = AndroidSettingsStore.load(this);
 
-        pageContent.addView(ui.headerRow("设置", ""), ui.matchWidthWithBottomMargin(28));
+            pageContent.addView(ui.headerRow("设置", ""), ui.matchWidthWithBottomMargin(28));
 
-        pageContent.addView(ui.sectionLabel("基础设置"), ui.matchWidthWithBottomMargin(12));
-        LinearLayout generalCard = ui.card();
-        vocabularyDropdown = ui.dropdown(AndroidSettingsStore.VOCABULARY_FILES);
-        displayModeDropdown = ui.dropdown(DisplayMode.labels());
-        playbackModeDropdown = ui.dropdown(PlaybackMode.labels());
-        overlayModeDropdown = ui.dropdown(OverlayMode.labels());
-        intervalSeconds = ui.input(Integer.toString(settings.getIntervalSeconds()));
-        intervalSeconds.setInputType(InputType.TYPE_CLASS_NUMBER);
-        opacitySeekBar = new SeekBar(this);
-        opacitySeekBar.setMax(80);
-        generalCard.addView(ui.settingItem("词汇本", "选择要播放的词汇本", vocabularyDropdown), ui.matchWidthWrapHeight());
-        generalCard.addView(ui.settingItem("显示内容", "悬浮窗展示哪些内容", displayModeDropdown), ui.matchWidthWrapHeight());
-        generalCard.addView(ui.settingItem("播放顺序", "顺序、随机或随机不重复", playbackModeDropdown), ui.matchWidthWrapHeight());
-        generalCard.addView(ui.settingItem("悬浮行为", "拖动、锁定或点击穿透", overlayModeDropdown), ui.matchWidthWrapHeight());
-        generalCard.addView(ui.settingItem("切换间隔", "单位：秒", intervalSeconds), ui.matchWidthWrapHeight());
-        generalCard.addView(ui.settingItem("透明度", "调整悬浮窗透明度", opacitySeekBar), ui.matchWidthWrapHeight());
-        pageContent.addView(generalCard, ui.matchWidthWithBottomMargin(26));
+            pageContent.addView(ui.sectionLabel("基础设置"), ui.matchWidthWithBottomMargin(12));
+            LinearLayout generalCard = ui.card();
+            vocabularyDropdown = ui.dropdown(AndroidSettingsStore.VOCABULARY_FILES);
+            displayModeDropdown = ui.dropdown(DisplayMode.labels());
+            playbackModeDropdown = ui.dropdown(PlaybackMode.labels());
+            overlayModeDropdown = ui.dropdown(OverlayMode.labels());
+            intervalSeconds = ui.input(Integer.toString(settings.getIntervalSeconds()));
+            intervalSeconds.setInputType(InputType.TYPE_CLASS_NUMBER);
+            opacitySeekBar = new SeekBar(this);
+            opacitySeekBar.setMax(80);
+            generalCard.addView(ui.settingItem("词汇本", "选择要播放的词汇本", vocabularyDropdown), ui.matchWidthWrapHeight());
+            generalCard.addView(ui.settingItem("显示内容", "悬浮窗展示哪些内容", displayModeDropdown), ui.matchWidthWrapHeight());
+            generalCard.addView(ui.settingItem("播放顺序", "顺序、随机或随机不重复", playbackModeDropdown), ui.matchWidthWrapHeight());
+            generalCard.addView(ui.settingItem("悬浮行为", "拖动、锁定或点击穿透", overlayModeDropdown), ui.matchWidthWrapHeight());
+            generalCard.addView(ui.settingItem("切换间隔", "单位：秒", intervalSeconds), ui.matchWidthWrapHeight());
+            generalCard.addView(ui.settingItem("透明度", "调整悬浮窗透明度", opacitySeekBar), ui.matchWidthWrapHeight());
+            pageContent.addView(generalCard, ui.matchWidthWithBottomMargin(26));
 
-        pageContent.addView(ui.sectionLabel("外观"), ui.matchWidthWithBottomMargin(12));
-        LinearLayout colorCard = ui.card();
-        wordColor = ui.input(settings.getWordColor());
-        typeColor = ui.input(settings.getTypeColor());
-        translationColor = ui.input(settings.getTranslationColor());
-        phraseColor = ui.input(settings.getPhraseColor());
-        colorCard.addView(ui.settingItem("单词颜色", "例如 #FFFFFF", wordColor), ui.matchWidthWrapHeight());
-        colorCard.addView(ui.settingItem("词性颜色", "例如 #7DD3FC", typeColor), ui.matchWidthWrapHeight());
-        colorCard.addView(ui.settingItem("释义颜色", "例如 #FDE68A", translationColor), ui.matchWidthWrapHeight());
-        colorCard.addView(ui.settingItem("短语/例句颜色", "例如 #86EFAC", phraseColor), ui.matchWidthWrapHeight());
-        MaterialButton save = ui.primaryButton("保存设置");
-        save.setOnClickListener(view -> saveSettingsOnly());
-        colorCard.addView(save, ui.matchWidthWithTopMargin(14));
-        pageContent.addView(colorCard, ui.matchWidthWithBottomMargin(26));
+            pageContent.addView(ui.sectionLabel("外观"), ui.matchWidthWithBottomMargin(12));
+            LinearLayout colorCard = ui.card();
+            wordColor = ui.input(settings.getWordColor());
+            typeColor = ui.input(settings.getTypeColor());
+            translationColor = ui.input(settings.getTranslationColor());
+            phraseColor = ui.input(settings.getPhraseColor());
+            colorCard.addView(ui.settingItem("单词颜色", "例如 #FFFFFF", wordColor), ui.matchWidthWrapHeight());
+            colorCard.addView(ui.settingItem("词性颜色", "例如 #7DD3FC", typeColor), ui.matchWidthWrapHeight());
+            colorCard.addView(ui.settingItem("释义颜色", "例如 #FDE68A", translationColor), ui.matchWidthWrapHeight());
+            colorCard.addView(ui.settingItem("短语/例句颜色", "例如 #86EFAC", phraseColor), ui.matchWidthWrapHeight());
+            MaterialButton save = ui.primaryButton("保存设置");
+            save.setOnClickListener(view -> saveSettingsOnly());
+            colorCard.addView(save, ui.matchWidthWithTopMargin(14));
+            pageContent.addView(colorCard, ui.matchWidthWithBottomMargin(26));
 
-        pageContent.addView(ui.sectionLabel("自定义词汇"), ui.matchWidthWithBottomMargin(12));
-        LinearLayout customCard = ui.card();
-        EditText customWord = ui.input("");
-        EditText customType = ui.input("");
-        EditText customMeaning = ui.input("");
-        EditText customPhrase = ui.input("");
-        EditText customPhraseMeaning = ui.input("");
-        EditText customExample = ui.input("");
-        customCard.addView(ui.settingItem("单词", "必填", customWord), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("词性", "名词、动词等", customType), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("意思", "中文释义", customMeaning), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("词组", "可选", customPhrase), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("词组意思", "词组释义", customPhraseMeaning), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("例句", "可选", customExample), ui.matchWidthWrapHeight());
-        MaterialButton addCustomWord = ui.secondaryButton("添加到自定义词汇");
-        addCustomWord.setOnClickListener(view -> addCustomWord(customWord, customType, customMeaning, customPhrase, customPhraseMeaning, customExample));
-        customCard.addView(addCustomWord, ui.matchWidthWithTopMargin(14));
-        pageContent.addView(customCard, ui.matchWidthWithBottomMargin(16));
+            pageContent.addView(ui.sectionLabel("自定义词汇"), ui.matchWidthWithBottomMargin(12));
+            LinearLayout customCard = ui.card();
+            EditText customWord = ui.input("");
+            EditText customType = ui.input("");
+            EditText customMeaning = ui.input("");
+            EditText customPhrase = ui.input("");
+            EditText customPhraseMeaning = ui.input("");
+            EditText customExample = ui.input("");
+            customCard.addView(ui.settingItem("单词", "必填", customWord), ui.matchWidthWrapHeight());
+            customCard.addView(ui.settingItem("词性", "名词、动词等", customType), ui.matchWidthWrapHeight());
+            customCard.addView(ui.settingItem("意思", "中文释义", customMeaning), ui.matchWidthWrapHeight());
+            customCard.addView(ui.settingItem("词组", "可选", customPhrase), ui.matchWidthWrapHeight());
+            customCard.addView(ui.settingItem("词组意思", "词组释义", customPhraseMeaning), ui.matchWidthWrapHeight());
+            customCard.addView(ui.settingItem("例句", "可选", customExample), ui.matchWidthWrapHeight());
+            MaterialButton addCustomWord = ui.secondaryButton("添加到自定义词汇");
+            addCustomWord.setOnClickListener(view -> addCustomWord(customWord, customType, customMeaning, customPhrase, customPhraseMeaning, customExample));
+            customCard.addView(addCustomWord, ui.matchWidthWithTopMargin(14));
+            pageContent.addView(customCard, ui.matchWidthWithBottomMargin(16));
 
-        bindSettings(settings);
+            bindSettings(settings);
+        });
     }
 
     private void showRecordsPage() {
-        clearSettingsFields();
-        selectTab(recordsTab);
-        pageContent.removeAllViews();
-        pageContent.addView(ui.headerRow("播放记录", ""), ui.matchWidthWithBottomMargin(28));
+        switchPage(recordsTab, () -> {
+            pageContent.addView(ui.headerRow("播放记录", ""), ui.matchWidthWithBottomMargin(28));
 
-        pageContent.addView(ui.sectionLabel("记录"), ui.matchWidthWithBottomMargin(12));
-        LinearLayout recordsCard = ui.card();
-        for (String line : AndroidSettingsStore.playbackRecordLines(this)) {
-            recordsCard.addView(ui.recordRow(line), ui.matchWidthWrapHeight());
-        }
-        pageContent.addView(recordsCard, ui.matchWidthWithBottomMargin(16));
+            pageContent.addView(ui.sectionLabel("记录"), ui.matchWidthWithBottomMargin(12));
+            LinearLayout recordsCard = ui.card();
+            for (String line : AndroidSettingsStore.playbackRecordLines(this)) {
+                recordsCard.addView(ui.recordRow(line), ui.matchWidthWrapHeight());
+            }
+            pageContent.addView(recordsCard, ui.matchWidthWithBottomMargin(16));
+        });
     }
 
     private void bindSettings(AppSettings settings) {
