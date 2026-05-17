@@ -21,7 +21,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'me.englishhugging.desktop.FloatingWordsDesktopApp'
+    mainClass = 'me.englishhugging.desktop.DesktopLauncher'
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -30,4 +30,33 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('run') {
     workingDir = rootProject.projectDir
+}
+
+tasks.register('packageWindowsExe', Exec) {
+    group = 'distribution'
+    description = '使用 jpackage 打包 Windows exe 安装包。'
+    dependsOn tasks.named('installDist')
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
+
+    doFirst {
+        delete(layout.buildDirectory.dir('jpackage').get().asFile)
+        mkdir(layout.buildDirectory.dir('jpackage').get().asFile)
+    }
+
+    commandLine(
+            'jpackage',
+            '--type', 'exe',
+            '--name', 'English Hugging Me',
+            '--app-version', project.version.toString(),
+            '--input', layout.buildDirectory.dir('install/desktop/lib').get().asFile.absolutePath,
+            '--main-jar', "${project.name}-${project.version}.jar",
+            '--main-class', application.mainClass.get(),
+            '--icon', file('src/main/resources/icons/app.ico').absolutePath,
+            '--dest', layout.buildDirectory.dir('jpackage').get().asFile.absolutePath,
+            '--win-menu',
+            '--win-shortcut',
+            '--win-shortcut-prompt',
+            '--win-dir-chooser',
+            '--java-options', '-Dfile.encoding=UTF-8'
+    )
 }

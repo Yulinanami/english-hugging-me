@@ -17,6 +17,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
 import javafx.scene.Cursor;
+import javafx.scene.image.Image;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
@@ -46,6 +47,8 @@ import me.englishhugging.core.WordEntry;
 import me.englishhugging.core.WordScheduler;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.awt.AWTException;
 import java.awt.Graphics2D;
 import java.awt.MouseInfo;
@@ -55,6 +58,7 @@ import java.awt.TrayIcon;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -63,6 +67,7 @@ import java.util.UUID;
 public final class FloatingWordsDesktopApp extends Application {
     private static final int MOVE_HANDLE_SIZE = 42;
     private static final int RESIZE_HANDLE_SIZE = 42;
+    private static final String APP_ICON_RESOURCE = "/icons/app.png";
 
     private final DesktopSettingsStore settingsStore = new DesktopSettingsStore();
     private final WordDisplayFormatter wordDisplayFormatter = new WordDisplayFormatter();
@@ -90,6 +95,7 @@ public final class FloatingWordsDesktopApp extends Application {
     private TrayIcon trayIcon;
     private Popup trayMenu;
     private Timeline trayMenuWatcher;
+    private Image appIcon;
 
     public static void main(String[] args) {
         launch(args);
@@ -136,6 +142,7 @@ public final class FloatingWordsDesktopApp extends Application {
     private Stage createOverlayStage() {
         Stage stage = new Stage(StageStyle.TRANSPARENT);
         stage.setTitle(overlayTitle);
+        applyStageIcon(stage);
         stage.setAlwaysOnTop(true);
         stage.setX(settings.getX());
         stage.setY(settings.getY());
@@ -296,6 +303,7 @@ public final class FloatingWordsDesktopApp extends Application {
     private Stage createSettingsStage() {
         Stage stage = new Stage();
         stage.setTitle("悬浮背词设置");
+        applyStageIcon(stage);
         stage.setOnCloseRequest(event -> {
             event.consume();
             stage.hide();
@@ -706,6 +714,16 @@ public final class FloatingWordsDesktopApp extends Application {
     }
 
     private BufferedImage createTrayImage() {
+        try (InputStream inputStream = FloatingWordsDesktopApp.class.getResourceAsStream(APP_ICON_RESOURCE)) {
+            if (inputStream != null) {
+                BufferedImage image = ImageIO.read(inputStream);
+                if (image != null) {
+                    return image;
+                }
+            }
+        } catch (IOException ignored) {
+        }
+
         BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setColor(new java.awt.Color(47, 111, 237));
@@ -715,6 +733,25 @@ public final class FloatingWordsDesktopApp extends Application {
         graphics.drawString("E", 4, 12);
         graphics.dispose();
         return image;
+    }
+
+    private void applyStageIcon(Stage stage) {
+        Image icon = appIcon();
+        if (icon != null) {
+            stage.getIcons().add(icon);
+        }
+    }
+
+    private Image appIcon() {
+        if (appIcon == null) {
+            try (InputStream inputStream = FloatingWordsDesktopApp.class.getResourceAsStream(APP_ICON_RESOURCE)) {
+                if (inputStream != null) {
+                    appIcon = new Image(inputStream);
+                }
+            } catch (IOException ignored) {
+            }
+        }
+        return appIcon;
     }
 
     private void removeTrayIcon() {
