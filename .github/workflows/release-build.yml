@@ -35,7 +35,10 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $toolsDir
 
       - name: Build Windows exe
-        run: .\gradlew.bat :desktop:packageWindowsExe
+        shell: pwsh
+        run: |
+          $env:PATH = "$(Join-Path $env:RUNNER_TEMP 'wix');$env:PATH"
+          .\gradlew.bat :desktop:packageWindowsExe
 
       - name: Collect Windows artifact
         shell: pwsh

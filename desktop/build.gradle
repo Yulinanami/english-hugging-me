@@ -16,6 +16,7 @@ javafx {
 
 dependencies {
     implementation project(':core')
+    implementation 'io.github.mkpaz:atlantafx-base:2.0.1'
     implementation 'net.java.dev.jna:jna:5.15.0'
     implementation 'net.java.dev.jna:jna-platform:5.15.0'
 }
@@ -32,6 +33,12 @@ tasks.named('run') {
     workingDir = rootProject.projectDir
 }
 
+tasks.named('processResources') {
+    from(rootProject.file('vocabulary')) {
+        into 'vocabulary'
+    }
+}
+
 def windowsPackageInput = layout.buildDirectory.dir('jpackage-input')
 
 tasks.register('prepareWindowsPackageInput', Copy) {
@@ -41,9 +48,6 @@ tasks.register('prepareWindowsPackageInput', Copy) {
     }
     into windowsPackageInput
     from(layout.buildDirectory.dir('install/desktop/lib'))
-    from(rootProject.file('vocabulary')) {
-        into 'vocabulary'
-    }
 }
 
 tasks.register('packageWindowsExe', Exec) {

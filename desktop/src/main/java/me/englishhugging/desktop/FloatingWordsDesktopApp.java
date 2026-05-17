@@ -1,5 +1,6 @@
 package me.englishhugging.desktop;
 
+import atlantafx.base.theme.PrimerLight;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
@@ -7,6 +8,7 @@ import javafx.animation.Timeline;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -118,6 +120,7 @@ public final class FloatingWordsDesktopApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
         Platform.setImplicitExit(false);
         settings = settingsStore.load();
         overlayStage = createOverlayStage();
@@ -319,7 +322,7 @@ public final class FloatingWordsDesktopApp extends Application {
 
     private Stage createSettingsStage() {
         Stage stage = new Stage();
-        stage.setTitle("悬浮背词设置");
+        stage.setTitle("English Hugging Me 首选项");
         applyStageIcon(stage);
         stage.setOnCloseRequest(event -> {
             event.consume();
@@ -342,10 +345,11 @@ public final class FloatingWordsDesktopApp extends Application {
             vocabularyChoice.getItems().add(currentChoice);
         }
         vocabularyChoice.setValue(currentChoice);
-        vocabularyChoice.setPrefWidth(320);
+        vocabularyChoice.setPrefWidth(300);
+        styleModernControl(vocabularyChoice);
         vocabularyChoice.setOnAction(event -> applyVocabularyChoice(vocabularyChoice.getValue(), true));
 
-        Button importVocabulary = new Button("导入");
+        Button importVocabulary = compactButton("导入");
         importVocabulary.setOnAction(event -> {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("导入 JSON 词库");
@@ -361,7 +365,7 @@ public final class FloatingWordsDesktopApp extends Application {
             }
         });
 
-        Button reloadVocabulary = new Button("重新加载词库");
+        Button reloadVocabulary = compactButton("重新加载");
         reloadVocabulary.setOnAction(event -> applyVocabularyChoice(vocabularyChoice.getValue(), true));
 
         ComboBox<DisplayMode> displayMode = new ComboBox<>();
@@ -378,6 +382,8 @@ public final class FloatingWordsDesktopApp extends Application {
             }
         });
         displayMode.setValue(settings.getDisplayMode());
+        displayMode.setPrefWidth(180);
+        styleModernControl(displayMode);
         displayMode.setOnAction(event -> {
             settings.setDisplayMode(displayMode.getValue());
             settingsStore.save(settings);
@@ -398,6 +404,8 @@ public final class FloatingWordsDesktopApp extends Application {
             }
         });
         playbackMode.setValue(settings.getPlaybackMode());
+        playbackMode.setPrefWidth(180);
+        styleModernControl(playbackMode);
         playbackMode.setOnAction(event -> {
             settings.setPlaybackMode(playbackMode.getValue());
             settings.resetPlaybackProgress();
@@ -421,6 +429,8 @@ public final class FloatingWordsDesktopApp extends Application {
             }
         });
         overlayMode.setValue(settings.getOverlayMode());
+        overlayMode.setPrefWidth(180);
+        styleModernControl(overlayMode);
         overlayMode.setOnAction(event -> {
             settings.setOverlayMode(overlayMode.getValue());
             settingsStore.save(settings);
@@ -429,6 +439,8 @@ public final class FloatingWordsDesktopApp extends Application {
 
         Spinner<Integer> intervalSeconds = new Spinner<>(2, 300, settings.getIntervalSeconds());
         intervalSeconds.setEditable(true);
+        intervalSeconds.setPrefWidth(92);
+        styleModernControl(intervalSeconds);
         intervalSeconds.valueProperty().addListener((observable, oldValue, newValue) -> {
             settings.setIntervalSeconds(newValue);
             settingsStore.save(settings);
@@ -440,6 +452,7 @@ public final class FloatingWordsDesktopApp extends Application {
         Slider opacity = new Slider(0.2, 1.0, settings.getOpacity());
         opacity.setShowTickLabels(true);
         opacity.setShowTickMarks(true);
+        opacity.setPrefWidth(240);
         ChangeListener<Number> opacityListener = (observable, oldValue, newValue) -> {
             settings.setOpacity(newValue.doubleValue());
             overlayStage.setOpacity(settings.getOpacity());
@@ -448,27 +461,28 @@ public final class FloatingWordsDesktopApp extends Application {
         opacity.valueProperty().addListener(opacityListener);
 
         ColorPicker wordColor = new ColorPicker(Color.web(settings.getWordColor()));
+        ColorPicker typeColor = new ColorPicker(Color.web(settings.getTypeColor()));
+        ColorPicker translationColor = new ColorPicker(Color.web(settings.getTranslationColor()));
+        ColorPicker phraseColor = new ColorPicker(Color.web(settings.getPhraseColor()));
+        styleModernControl(wordColor);
+        styleModernControl(typeColor);
+        styleModernControl(translationColor);
+        styleModernControl(phraseColor);
         wordColor.setOnAction(event -> {
             settings.setWordColor(toHex(wordColor.getValue()));
             settingsStore.save(settings);
             updateCurrentWord();
         });
-
-        ColorPicker typeColor = new ColorPicker(Color.web(settings.getTypeColor()));
         typeColor.setOnAction(event -> {
             settings.setTypeColor(toHex(typeColor.getValue()));
             settingsStore.save(settings);
             updateCurrentWord();
         });
-
-        ColorPicker translationColor = new ColorPicker(Color.web(settings.getTranslationColor()));
         translationColor.setOnAction(event -> {
             settings.setTranslationColor(toHex(translationColor.getValue()));
             settingsStore.save(settings);
             updateCurrentWord();
         });
-
-        ColorPicker phraseColor = new ColorPicker(Color.web(settings.getPhraseColor()));
         phraseColor.setOnAction(event -> {
             settings.setPhraseColor(toHex(phraseColor.getValue()));
             settingsStore.save(settings);
@@ -477,6 +491,8 @@ public final class FloatingWordsDesktopApp extends Application {
 
         Spinner<Integer> wordFontSize = new Spinner<>(16, 72, settings.getWordFontSize());
         wordFontSize.setEditable(true);
+        wordFontSize.setPrefWidth(92);
+        styleModernControl(wordFontSize);
         wordFontSize.valueProperty().addListener((observable, oldValue, newValue) -> {
             settings.setWordFontSize(newValue);
             settingsStore.save(settings);
@@ -485,23 +501,37 @@ public final class FloatingWordsDesktopApp extends Application {
 
         Spinner<Integer> detailFontSize = new Spinner<>(12, 60, settings.getDetailFontSize());
         detailFontSize.setEditable(true);
+        detailFontSize.setPrefWidth(92);
+        styleModernControl(detailFontSize);
         detailFontSize.valueProperty().addListener((observable, oldValue, newValue) -> {
             settings.setDetailFontSize(newValue);
             settingsStore.save(settings);
             updateCurrentWord();
         });
 
+        GridPane generalGrid = settingsGrid();
+        generalGrid.add(new Label("显示内容："), 0, 0);
+        generalGrid.add(displayMode, 1, 0);
+        generalGrid.add(new Label("播放顺序："), 0, 1);
+        generalGrid.add(playbackMode, 1, 1);
+        generalGrid.add(new Label("悬浮行为："), 0, 2);
+        generalGrid.add(overlayMode, 1, 2);
+        generalGrid.add(new Label("切换间隔："), 0, 3);
+        generalGrid.add(new HBox(6, intervalSeconds, new Label("秒")), 1, 3);
+        generalGrid.add(new Label("透明度："), 0, 4);
+        generalGrid.add(opacity, 1, 4);
+
         GridPane vocabularyGrid = settingsGrid();
         vocabularyGrid.add(new Label("词汇本："), 0, 0);
-        vocabularyGrid.add(new HBox(8, vocabularyChoice, importVocabulary), 1, 0);
+        vocabularyGrid.add(new HBox(6, vocabularyChoice, importVocabulary), 1, 0);
         vocabularyGrid.add(reloadVocabulary, 1, 1);
 
-        TextField customWord = new TextField();
-        TextField customType = new TextField();
-        TextField customPhrase = new TextField();
-        TextField customExample = new TextField();
-        TextField customMeaning = new TextField();
-        Button addCustomWord = new Button("添加到自定义词汇");
+        TextField customWord = compactTextField();
+        TextField customType = compactTextField();
+        TextField customPhrase = compactTextField();
+        TextField customExample = compactTextField();
+        TextField customMeaning = compactTextField();
+        Button addCustomWord = compactButton("添加");
         addCustomWord.setOnAction(event -> addCustomWord(customWord, customType, customPhrase, customExample, customMeaning));
 
         GridPane customGrid = settingsGrid();
@@ -517,66 +547,94 @@ public final class FloatingWordsDesktopApp extends Application {
         customGrid.add(customMeaning, 1, 4);
         customGrid.add(addCustomWord, 1, 5);
 
-        VBox vocabularyPage = new VBox(14, vocabularyGrid, new Label("自定义词汇"), customGrid);
-        vocabularyPage.setPadding(new Insets(12));
-
-        GridPane playbackGrid = settingsGrid();
-        playbackGrid.add(new Label("显示内容："), 0, 0);
-        playbackGrid.add(displayMode, 1, 0);
-        playbackGrid.add(new Label("播放顺序："), 0, 1);
-        playbackGrid.add(playbackMode, 1, 1);
-        playbackGrid.add(new Label("悬浮行为："), 0, 2);
-        playbackGrid.add(overlayMode, 1, 2);
-        playbackGrid.add(new Label("切换间隔（秒）："), 0, 3);
-        playbackGrid.add(intervalSeconds, 1, 3);
-        playbackGrid.setPadding(new Insets(12));
-
         GridPane appearanceGrid = settingsGrid();
-        appearanceGrid.add(new Label("透明度："), 0, 0);
-        appearanceGrid.add(opacity, 1, 0);
-        appearanceGrid.add(new Label("单词颜色："), 0, 1);
-        appearanceGrid.add(wordColor, 1, 1);
-        appearanceGrid.add(new Label("词性颜色："), 0, 2);
-        appearanceGrid.add(typeColor, 1, 2);
-        appearanceGrid.add(new Label("释义颜色："), 0, 3);
-        appearanceGrid.add(translationColor, 1, 3);
-        appearanceGrid.add(new Label("短语颜色："), 0, 4);
-        appearanceGrid.add(phraseColor, 1, 4);
-        appearanceGrid.add(new Label("单词字号："), 0, 5);
-        appearanceGrid.add(wordFontSize, 1, 5);
-        appearanceGrid.add(new Label("释义字号："), 0, 6);
-        appearanceGrid.add(detailFontSize, 1, 6);
-        appearanceGrid.setPadding(new Insets(12));
+        appearanceGrid.add(new Label("单词颜色："), 0, 0);
+        appearanceGrid.add(wordColor, 1, 0);
+        appearanceGrid.add(new Label("词性颜色："), 0, 1);
+        appearanceGrid.add(typeColor, 1, 1);
+        appearanceGrid.add(new Label("释义颜色："), 0, 2);
+        appearanceGrid.add(translationColor, 1, 2);
+        appearanceGrid.add(new Label("短语颜色："), 0, 3);
+        appearanceGrid.add(phraseColor, 1, 3);
+        appearanceGrid.add(new Label("单词字号："), 0, 4);
+        appearanceGrid.add(wordFontSize, 1, 4);
+        appearanceGrid.add(new Label("释义字号："), 0, 5);
+        appearanceGrid.add(detailFontSize, 1, 5);
 
-        playbackRecordsBox = new VBox(8);
-        playbackRecordsBox.setPadding(new Insets(12));
+        playbackRecordsBox = new VBox(6);
+        playbackRecordsBox.setPadding(new Insets(4, 0, 0, 0));
         refreshPlaybackRecords();
 
+        VBox generalPage = new VBox(10, groupBox("常规", generalGrid));
+        VBox vocabularyPage = new VBox(10, groupBox("词汇本", vocabularyGrid), groupBox("自定义词汇", customGrid));
+        VBox appearancePage = new VBox(10, groupBox("外观", appearanceGrid));
+        VBox recordsPage = new VBox(10, groupBox("播放记录", playbackRecordsBox));
+        for (VBox page : new VBox[]{generalPage, vocabularyPage, appearancePage, recordsPage}) {
+            page.setPadding(new Insets(10));
+        }
+
         TabPane tabs = new TabPane();
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        tabs.setStyle("-fx-background-color: #F6F8FC; -fx-tab-min-height: 30px; -fx-tab-max-height: 30px;");
         tabs.getTabs().addAll(
+                settingsTab("常规", generalPage),
                 settingsTab("词库", vocabularyPage),
-                settingsTab("播放", playbackGrid),
-                settingsTab("外观", appearanceGrid),
-                settingsTab("播放记录", playbackRecordsBox)
+                settingsTab("外观", appearancePage),
+                settingsTab("记录", recordsPage)
         );
 
-        Button exit = new Button("退出");
-        exit.setOnAction(event -> exitApplication());
+        Button close = compactButton("关闭");
+        close.setOnAction(event -> stage.hide());
+        Region spacer = new Region();
+        HBox bottom = new HBox(8, spacer, close);
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+        bottom.setAlignment(Pos.CENTER_LEFT);
+        bottom.setPadding(new Insets(0, 8, 0, 8));
 
-        VBox root = new VBox(12, new Label("程序会保留在右下角托盘；关闭此窗口不会退出程序。"), tabs, exit);
-        root.setPadding(new Insets(16));
-        stage.setScene(new Scene(root, 620, 600));
+        VBox root = new VBox(8, tabs, bottom);
+        root.setPadding(new Insets(10));
+        root.setStyle("-fx-background-color: #F6F8FC; -fx-font-family: 'Microsoft YaHei UI', 'Microsoft YaHei', 'SimSun'; -fx-font-size: 13px;");
+        stage.setScene(new Scene(root, 560, 460));
         return stage;
     }
 
     private GridPane settingsGrid() {
         GridPane grid = new GridPane();
         grid.setHgap(8);
-        grid.setVgap(10);
+        grid.setVgap(8);
         return grid;
     }
 
-    private Tab settingsTab(String title, javafx.scene.Node content) {
+    private Button compactButton(String text) {
+        Button button = new Button(text);
+        button.setMinHeight(32);
+        button.setPrefHeight(32);
+        button.setStyle("-fx-background-color: #EEF2FF; -fx-text-fill: #52699A; -fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #D8E0F3; -fx-padding: 5 14 5 14;");
+        return button;
+    }
+
+    private TextField compactTextField() {
+        TextField textField = new TextField();
+        textField.setPrefWidth(330);
+        textField.setPrefHeight(32);
+        styleModernControl(textField);
+        return textField;
+    }
+
+    private VBox groupBox(String title, Node content) {
+        Label label = new Label(title);
+        label.setStyle("-fx-text-fill: #52699A; -fx-font-weight: bold; -fx-padding: 0 0 2 0;");
+        VBox box = new VBox(8, label, content);
+        box.setPadding(new Insets(12));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #E4E8F2; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0, 0, 3);");
+        return box;
+    }
+
+    private void styleModernControl(Node node) {
+        node.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #D8E0F3; -fx-padding: 3 8 3 8;");
+    }
+
+    private Tab settingsTab(String title, Node content) {
         Tab tab = new Tab(title, content);
         tab.setClosable(false);
         return tab;
@@ -734,7 +792,17 @@ public final class FloatingWordsDesktopApp extends Application {
     private void reloadVocabulary() {
         try {
             Path vocabulary = resolveVocabularyPath(settings.getVocabularyPath());
-            List<WordEntry> words = new VocabularyJsonLoader().load(vocabulary);
+            List<WordEntry> words;
+            if (Files.exists(vocabulary)) {
+                words = new VocabularyJsonLoader().load(vocabulary);
+            } else {
+                try (InputStream inputStream = FloatingWordsDesktopApp.class.getResourceAsStream("/" + settings.getVocabularyPath().replace('\\', '/'))) {
+                    if (inputStream == null) {
+                        throw new IOException("找不到词库：" + settings.getVocabularyPath());
+                    }
+                    words = new VocabularyJsonLoader().load(inputStream);
+                }
+            }
             startScheduler(words);
         } catch (Exception exception) {
             showError("词库加载失败", exception.getMessage());
