@@ -13,6 +13,7 @@ public final class AppSettings {
     private int nextWordIndex = 0;
     private String shuffleOrder = "";
     private int shufflePosition = 0;
+    private int randomPlayedCount = 0;
     private double x = 80;
     private double y = 80;
     private double width = 620;
@@ -107,10 +108,19 @@ public final class AppSettings {
         this.shufflePosition = Math.max(0, shufflePosition);
     }
 
+    public int getRandomPlayedCount() {
+        return randomPlayedCount;
+    }
+
+    public void setRandomPlayedCount(int randomPlayedCount) {
+        this.randomPlayedCount = Math.max(0, randomPlayedCount);
+    }
+
     public void resetPlaybackProgress() {
         nextWordIndex = 0;
         shuffleOrder = "";
         shufflePosition = 0;
+        randomPlayedCount = 0;
     }
 
     public double getX() {

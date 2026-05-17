@@ -10,6 +10,7 @@ public final class SettingsKeys {
     public static final String NEXT_WORD_INDEX = "nextWordIndex";
     public static final String SHUFFLE_ORDER = "shuffleOrder";
     public static final String SHUFFLE_POSITION = "shufflePosition";
+    public static final String RANDOM_PLAYED_COUNT = "randomPlayedCount";
     public static final String X = "x";
     public static final String Y = "y";
     public static final String WIDTH = "width";

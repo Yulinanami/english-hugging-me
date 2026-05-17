@@ -23,6 +23,7 @@ final class DesktopSettingsStore {
     private static final String KEY_NEXT_WORD_INDEX = SettingsKeys.NEXT_WORD_INDEX;
     private static final String KEY_SHUFFLE_ORDER = SettingsKeys.SHUFFLE_ORDER;
     private static final String KEY_SHUFFLE_POSITION = SettingsKeys.SHUFFLE_POSITION;
+    private static final String KEY_RANDOM_PLAYED_COUNT = SettingsKeys.RANDOM_PLAYED_COUNT;
     private static final String KEY_X = SettingsKeys.X;
     private static final String KEY_Y = SettingsKeys.Y;
     private static final String KEY_WIDTH = SettingsKeys.WIDTH;
@@ -47,12 +48,7 @@ final class DesktopSettingsStore {
             return settings;
         }
 
-        Properties properties = new Properties();
-        try (InputStream inputStream = Files.newInputStream(configPath)) {
-            properties.load(inputStream);
-        } catch (IOException ignored) {
-            return settings;
-        }
+        Properties properties = readProperties();
 
         settings.setVocabularyPath(migrateVocabularyPath(properties.getProperty(KEY_VOCABULARY_PATH)));
         settings.setDisplayMode(parseEnum(DisplayMode.class, properties.getProperty(KEY_DISPLAY_MODE), settings.getDisplayMode()));
@@ -62,6 +58,7 @@ final class DesktopSettingsStore {
         settings.setNextWordIndex(parseInt(properties.getProperty(KEY_NEXT_WORD_INDEX), settings.getNextWordIndex()));
         settings.setShuffleOrder(properties.getProperty(KEY_SHUFFLE_ORDER));
         settings.setShufflePosition(parseInt(properties.getProperty(KEY_SHUFFLE_POSITION), settings.getShufflePosition()));
+        settings.setRandomPlayedCount(parseInt(properties.getProperty(KEY_RANDOM_PLAYED_COUNT), settings.getRandomPlayedCount()));
         settings.setX(parseDouble(properties.getProperty(KEY_X), settings.getX()));
         settings.setY(parseDouble(properties.getProperty(KEY_Y), settings.getY()));
         settings.setWidth(parseDouble(properties.getProperty(KEY_WIDTH), settings.getWidth()));
@@ -77,7 +74,7 @@ final class DesktopSettingsStore {
     }
 
     void save(AppSettings settings) {
-        Properties properties = new Properties();
+        Properties properties = readProperties();
         properties.setProperty(KEY_VOCABULARY_PATH, settings.getVocabularyPath());
         properties.setProperty(KEY_DISPLAY_MODE, settings.getDisplayMode().name());
         properties.setProperty(KEY_OVERLAY_MODE, settings.getOverlayMode().name());
@@ -86,6 +83,7 @@ final class DesktopSettingsStore {
         properties.setProperty(KEY_NEXT_WORD_INDEX, Integer.toString(settings.getNextWordIndex()));
         properties.setProperty(KEY_SHUFFLE_ORDER, settings.getShuffleOrder());
         properties.setProperty(KEY_SHUFFLE_POSITION, Integer.toString(settings.getShufflePosition()));
+        properties.setProperty(KEY_RANDOM_PLAYED_COUNT, Integer.toString(settings.getRandomPlayedCount()));
         properties.setProperty(KEY_X, Double.toString(settings.getX()));
         properties.setProperty(KEY_Y, Double.toString(settings.getY()));
         properties.setProperty(KEY_WIDTH, Double.toString(settings.getWidth()));
@@ -98,6 +96,47 @@ final class DesktopSettingsStore {
         properties.setProperty(KEY_WORD_FONT_SIZE, Integer.toString(settings.getWordFontSize()));
         properties.setProperty(KEY_DETAIL_FONT_SIZE, Integer.toString(settings.getDetailFontSize()));
 
+        writeProperties(properties);
+    }
+
+    void loadPlaybackProgress(AppSettings settings, String vocabularyKey) {
+        Properties properties = readProperties();
+        settings.setNextWordIndex(parseInt(properties.getProperty(progressKey(vocabularyKey, KEY_NEXT_WORD_INDEX)), settings.getNextWordIndex()));
+        settings.setShuffleOrder(properties.getProperty(progressKey(vocabularyKey, KEY_SHUFFLE_ORDER), settings.getShuffleOrder()));
+        settings.setShufflePosition(parseInt(properties.getProperty(progressKey(vocabularyKey, KEY_SHUFFLE_POSITION)), settings.getShufflePosition()));
+        settings.setRandomPlayedCount(parseInt(properties.getProperty(progressKey(vocabularyKey, KEY_RANDOM_PLAYED_COUNT)), settings.getRandomPlayedCount()));
+    }
+
+    void savePlaybackProgress(AppSettings settings, String vocabularyKey) {
+        Properties properties = readProperties();
+        properties.setProperty(progressKey(vocabularyKey, KEY_NEXT_WORD_INDEX), Integer.toString(settings.getNextWordIndex()));
+        properties.setProperty(progressKey(vocabularyKey, KEY_SHUFFLE_ORDER), settings.getShuffleOrder());
+        properties.setProperty(progressKey(vocabularyKey, KEY_SHUFFLE_POSITION), Integer.toString(settings.getShufflePosition()));
+        properties.setProperty(progressKey(vocabularyKey, KEY_RANDOM_PLAYED_COUNT), Integer.toString(settings.getRandomPlayedCount()));
+        writeProperties(properties);
+    }
+
+    String playbackRecordLine(String vocabularyKey, String label) {
+        Properties properties = readProperties();
+        int nextWordIndex = parseInt(properties.getProperty(progressKey(vocabularyKey, KEY_NEXT_WORD_INDEX)), 0);
+        int shufflePosition = parseInt(properties.getProperty(progressKey(vocabularyKey, KEY_SHUFFLE_POSITION)), 0);
+        int randomPlayedCount = parseInt(properties.getProperty(progressKey(vocabularyKey, KEY_RANDOM_PLAYED_COUNT)), 0);
+        return label + "：顺序播放到第 " + (nextWordIndex + 1) + " 个；随机播放 " + randomPlayedCount + " 个；随机不重复 " + shufflePosition + " 个";
+    }
+
+    private Properties readProperties() {
+        Properties properties = new Properties();
+        if (!Files.exists(configPath)) {
+            return properties;
+        }
+        try (InputStream inputStream = Files.newInputStream(configPath)) {
+            properties.load(inputStream);
+        } catch (IOException ignored) {
+        }
+        return properties;
+    }
+
+    private void writeProperties(Properties properties) {
         try {
             Files.createDirectories(configPath.getParent());
             try (OutputStream outputStream = Files.newOutputStream(configPath)) {
@@ -105,6 +144,11 @@ final class DesktopSettingsStore {
             }
         } catch (IOException ignored) {
         }
+    }
+
+    private static String progressKey(String vocabularyKey, String key) {
+        String safeVocabularyKey = vocabularyKey == null ? "" : vocabularyKey.replace('\\', '/');
+        return "progress." + safeVocabularyKey + "." + key;
     }
 
     private static int parseInt(String value, int fallback) {

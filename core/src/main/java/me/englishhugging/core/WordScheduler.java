@@ -17,7 +17,7 @@ public final class WordScheduler implements AutoCloseable {
     }
 
     public interface ProgressListener {
-        void onProgress(int nextWordIndex, String shuffleOrder, int shufflePosition);
+        void onProgress(int nextWordIndex, String shuffleOrder, int shufflePosition, int randomPlayedCount);
     }
 
     private final List<WordEntry> words;
@@ -28,6 +28,7 @@ public final class WordScheduler implements AutoCloseable {
     private int nextWordIndex;
     private List<Integer> shuffleOrder;
     private int shufflePosition;
+    private int randomPlayedCount;
     private ScheduledExecutorService executor;
     private ScheduledFuture<?> future;
     private int intervalSeconds;
@@ -39,6 +40,7 @@ public final class WordScheduler implements AutoCloseable {
                 PlaybackMode.SEQUENTIAL,
                 0,
                 "",
+                0,
                 0,
                 listener,
                 null
@@ -52,6 +54,7 @@ public final class WordScheduler implements AutoCloseable {
             int nextWordIndex,
             String shuffleOrder,
             int shufflePosition,
+            int randomPlayedCount,
             Listener listener,
             ProgressListener progressListener
     ) {
@@ -68,6 +71,7 @@ public final class WordScheduler implements AutoCloseable {
         this.nextWordIndex = Math.floorMod(nextWordIndex, words.size());
         this.shuffleOrder = parseShuffleOrder(shuffleOrder, words.size());
         this.shufflePosition = Math.min(Math.max(0, shufflePosition), words.size());
+        this.randomPlayedCount = Math.max(0, randomPlayedCount);
         this.intervalSeconds = Math.max(2, intervalSeconds);
     }
 
@@ -108,6 +112,7 @@ public final class WordScheduler implements AutoCloseable {
 
     private synchronized int nextPosition() {
         if (playbackMode == PlaybackMode.RANDOM) {
+            randomPlayedCount++;
             return random.nextInt(words.size());
         }
 
@@ -126,7 +131,7 @@ public final class WordScheduler implements AutoCloseable {
 
     private void publishProgress() {
         if (progressListener != null) {
-            progressListener.onProgress(nextWordIndex, serializeShuffleOrder(shuffleOrder), shufflePosition);
+            progressListener.onProgress(nextWordIndex, serializeShuffleOrder(shuffleOrder), shufflePosition, randomPlayedCount);
         }
     }
 

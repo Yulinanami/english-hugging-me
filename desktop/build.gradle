@@ -32,10 +32,24 @@ tasks.named('run') {
     workingDir = rootProject.projectDir
 }
 
+def windowsPackageInput = layout.buildDirectory.dir('jpackage-input')
+
+tasks.register('prepareWindowsPackageInput', Copy) {
+    dependsOn tasks.named('installDist')
+    doFirst {
+        delete(windowsPackageInput.get().asFile)
+    }
+    into windowsPackageInput
+    from(layout.buildDirectory.dir('install/desktop/lib'))
+    from(rootProject.file('vocabulary')) {
+        into 'vocabulary'
+    }
+}
+
 tasks.register('packageWindowsExe', Exec) {
     group = 'distribution'
     description = '使用 jpackage 打包 Windows exe 安装包。'
-    dependsOn tasks.named('installDist')
+    dependsOn tasks.named('prepareWindowsPackageInput')
     onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
 
     doFirst {
@@ -48,7 +62,7 @@ tasks.register('packageWindowsExe', Exec) {
             '--type', 'exe',
             '--name', 'English Hugging Me',
             '--app-version', project.version.toString(),
-            '--input', layout.buildDirectory.dir('install/desktop/lib').get().asFile.absolutePath,
+            '--input', windowsPackageInput.get().asFile.absolutePath,
             '--main-jar', "${project.name}-${project.version}.jar",
             '--main-class', application.mainClass.get(),
             '--icon', file('src/main/resources/icons/app.ico').absolutePath,

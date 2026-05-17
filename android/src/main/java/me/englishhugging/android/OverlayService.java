@@ -93,6 +93,7 @@ public final class OverlayService extends Service {
 
     private void startOverlay() {
         settings = AndroidSettingsStore.load(this);
+        AndroidSettingsStore.loadPlaybackProgress(this, settings, settings.getVocabularyFileName());
         List<WordEntry> words = loadWords(settings.getVocabularyFileName());
         if (overlayView != null) {
             windowManager.removeView(overlayView);
@@ -175,15 +176,18 @@ public final class OverlayService extends Service {
                 settings.getNextWordIndex(),
                 settings.getShuffleOrder(),
                 settings.getShufflePosition(),
+                settings.getRandomPlayedCount(),
                 wordEntry -> mainHandler.post(() -> {
                     currentWord = wordEntry;
                     overlayView.setText(formatWord(currentWord));
                 }),
-                (nextWordIndex, shuffleOrder, shufflePosition) -> {
+                (nextWordIndex, shuffleOrder, shufflePosition, randomPlayedCount) -> {
                     settings.setNextWordIndex(nextWordIndex);
                     settings.setShuffleOrder(shuffleOrder);
                     settings.setShufflePosition(shufflePosition);
+                    settings.setRandomPlayedCount(randomPlayedCount);
                     AndroidSettingsStore.save(this, settings);
+                    AndroidSettingsStore.savePlaybackProgress(this, settings, settings.getVocabularyFileName());
                 }
         );
         scheduler.start();
@@ -239,6 +243,13 @@ public final class OverlayService extends Service {
     }
 
     private List<WordEntry> loadWords(String vocabularyFileName) {
+        if (AndroidSettingsStore.isCustomVocabulary(vocabularyFileName)) {
+            List<WordEntry> customWords = AndroidSettingsStore.loadCustomWords(this);
+            if (customWords.isEmpty()) {
+                return Collections.singletonList(new WordEntry("自定义词汇为空", Collections.emptyList(), Collections.emptyList()));
+            }
+            return customWords;
+        }
         try {
             return new VocabularyJsonLoader().load(getAssets().open(vocabularyFileName));
         } catch (Exception ignored) {

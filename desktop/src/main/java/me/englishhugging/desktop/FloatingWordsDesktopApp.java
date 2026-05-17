@@ -15,10 +15,13 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.Cursor;
 import javafx.scene.image.Image;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -39,7 +42,10 @@ import javafx.util.StringConverter;
 import me.englishhugging.core.AppSettings;
 import me.englishhugging.core.DisplayMode;
 import me.englishhugging.core.OverlayMode;
+import me.englishhugging.core.Phrase;
 import me.englishhugging.core.PlaybackMode;
+import me.englishhugging.core.Translation;
+import me.englishhugging.core.VocabularyCatalog;
 import me.englishhugging.core.VocabularyJsonLoader;
 import me.englishhugging.core.WordDisplayFormatter;
 import me.englishhugging.core.WordDisplaySegment;
@@ -49,6 +55,7 @@ import me.englishhugging.core.WordScheduler;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Writer;
 import java.awt.AWTException;
 import java.awt.Graphics2D;
 import java.awt.MouseInfo;
@@ -59,8 +66,13 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
+import com.google.gson.GsonBuilder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -68,6 +80,7 @@ public final class FloatingWordsDesktopApp extends Application {
     private static final int MOVE_HANDLE_SIZE = 42;
     private static final int RESIZE_HANDLE_SIZE = 42;
     private static final String APP_ICON_RESOURCE = "/icons/app.png";
+    private static final String CUSTOM_VOCABULARY_LABEL = "自定义词汇";
 
     private final DesktopSettingsStore settingsStore = new DesktopSettingsStore();
     private final WordDisplayFormatter wordDisplayFormatter = new WordDisplayFormatter();
@@ -84,6 +97,8 @@ public final class FloatingWordsDesktopApp extends Application {
     private TextFlow wordFlow;
     private WordScheduler scheduler;
     private WordEntry currentWord;
+    private ComboBox<String> vocabularyChoice;
+    private VBox playbackRecordsBox;
     private double dragOffsetX;
     private double dragOffsetY;
     private double moveHandleDragOffsetX;
@@ -109,6 +124,7 @@ public final class FloatingWordsDesktopApp extends Application {
         moveHandleStage = createMoveHandleStage();
         resizeHandleStage = createResizeHandleStage();
         settingsStage = createSettingsStage();
+        settingsStore.loadPlaybackProgress(settings, settings.getVocabularyPath());
 
         overlayStage.show();
         moveHandleStage.show();
@@ -120,6 +136,7 @@ public final class FloatingWordsDesktopApp extends Application {
         installTrayIcon();
         applyOverlayMode();
         reloadVocabulary();
+        showSettingsWindow();
     }
 
     @Override
@@ -315,36 +332,37 @@ public final class FloatingWordsDesktopApp extends Application {
             }
         });
 
-        TextField vocabularyPath = new TextField(settings.getVocabularyPath());
-        vocabularyPath.setPrefColumnCount(36);
-        Button chooseVocabulary = new Button("选择...");
-        chooseVocabulary.setOnAction(event -> {
+        vocabularyChoice = new ComboBox<>();
+        vocabularyChoice.getItems().addAll(VocabularyCatalog.fileNames());
+        if (Files.exists(customVocabularyPath())) {
+            vocabularyChoice.getItems().add(CUSTOM_VOCABULARY_LABEL);
+        }
+        String currentChoice = vocabularyChoiceForPath(settings.getVocabularyPath());
+        if (!vocabularyChoice.getItems().contains(currentChoice)) {
+            vocabularyChoice.getItems().add(currentChoice);
+        }
+        vocabularyChoice.setValue(currentChoice);
+        vocabularyChoice.setPrefWidth(320);
+        vocabularyChoice.setOnAction(event -> applyVocabularyChoice(vocabularyChoice.getValue(), true));
+
+        Button importVocabulary = new Button("导入");
+        importVocabulary.setOnAction(event -> {
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("选择 JSON 词库");
+            fileChooser.setTitle("导入 JSON 词库");
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON", "*.json"));
             File selected = fileChooser.showOpenDialog(stage);
             if (selected != null) {
-                vocabularyPath.setText(selected.getAbsolutePath());
-                String previousPath = settings.getVocabularyPath();
-                settings.setVocabularyPath(selected.getAbsolutePath());
-                if (!previousPath.equals(settings.getVocabularyPath())) {
-                    settings.resetPlaybackProgress();
+                String selectedPath = selected.getAbsolutePath();
+                if (!vocabularyChoice.getItems().contains(selectedPath)) {
+                    vocabularyChoice.getItems().add(selectedPath);
                 }
-                settingsStore.save(settings);
-                reloadVocabulary();
+                vocabularyChoice.setValue(selectedPath);
+                applyVocabularyChoice(selectedPath, true);
             }
         });
 
         Button reloadVocabulary = new Button("重新加载词库");
-        reloadVocabulary.setOnAction(event -> {
-            String previousPath = settings.getVocabularyPath();
-            settings.setVocabularyPath(vocabularyPath.getText());
-            if (!previousPath.equals(settings.getVocabularyPath())) {
-                settings.resetPlaybackProgress();
-            }
-            settingsStore.save(settings);
-            reloadVocabulary();
-        });
+        reloadVocabulary.setOnAction(event -> applyVocabularyChoice(vocabularyChoice.getValue(), true));
 
         ComboBox<DisplayMode> displayMode = new ComboBox<>();
         displayMode.getItems().addAll(DisplayMode.values());
@@ -384,7 +402,9 @@ public final class FloatingWordsDesktopApp extends Application {
             settings.setPlaybackMode(playbackMode.getValue());
             settings.resetPlaybackProgress();
             settingsStore.save(settings);
+            settingsStore.savePlaybackProgress(settings, settings.getVocabularyPath());
             reloadVocabulary();
+            refreshPlaybackRecords();
         });
 
         ComboBox<OverlayMode> overlayMode = new ComboBox<>();
@@ -471,54 +491,285 @@ public final class FloatingWordsDesktopApp extends Application {
             updateCurrentWord();
         });
 
+        GridPane vocabularyGrid = settingsGrid();
+        vocabularyGrid.add(new Label("词汇本："), 0, 0);
+        vocabularyGrid.add(new HBox(8, vocabularyChoice, importVocabulary), 1, 0);
+        vocabularyGrid.add(reloadVocabulary, 1, 1);
+
+        TextField customWord = new TextField();
+        TextField customType = new TextField();
+        TextField customPhrase = new TextField();
+        TextField customExample = new TextField();
+        TextField customMeaning = new TextField();
+        Button addCustomWord = new Button("添加到自定义词汇");
+        addCustomWord.setOnAction(event -> addCustomWord(customWord, customType, customPhrase, customExample, customMeaning));
+
+        GridPane customGrid = settingsGrid();
+        customGrid.add(new Label("单词："), 0, 0);
+        customGrid.add(customWord, 1, 0);
+        customGrid.add(new Label("词性："), 0, 1);
+        customGrid.add(customType, 1, 1);
+        customGrid.add(new Label("词组："), 0, 2);
+        customGrid.add(customPhrase, 1, 2);
+        customGrid.add(new Label("例句："), 0, 3);
+        customGrid.add(customExample, 1, 3);
+        customGrid.add(new Label("意思："), 0, 4);
+        customGrid.add(customMeaning, 1, 4);
+        customGrid.add(addCustomWord, 1, 5);
+
+        VBox vocabularyPage = new VBox(14, vocabularyGrid, new Label("自定义词汇"), customGrid);
+        vocabularyPage.setPadding(new Insets(12));
+
+        GridPane playbackGrid = settingsGrid();
+        playbackGrid.add(new Label("显示内容："), 0, 0);
+        playbackGrid.add(displayMode, 1, 0);
+        playbackGrid.add(new Label("播放顺序："), 0, 1);
+        playbackGrid.add(playbackMode, 1, 1);
+        playbackGrid.add(new Label("悬浮行为："), 0, 2);
+        playbackGrid.add(overlayMode, 1, 2);
+        playbackGrid.add(new Label("切换间隔（秒）："), 0, 3);
+        playbackGrid.add(intervalSeconds, 1, 3);
+        playbackGrid.setPadding(new Insets(12));
+
+        GridPane appearanceGrid = settingsGrid();
+        appearanceGrid.add(new Label("透明度："), 0, 0);
+        appearanceGrid.add(opacity, 1, 0);
+        appearanceGrid.add(new Label("单词颜色："), 0, 1);
+        appearanceGrid.add(wordColor, 1, 1);
+        appearanceGrid.add(new Label("词性颜色："), 0, 2);
+        appearanceGrid.add(typeColor, 1, 2);
+        appearanceGrid.add(new Label("释义颜色："), 0, 3);
+        appearanceGrid.add(translationColor, 1, 3);
+        appearanceGrid.add(new Label("短语颜色："), 0, 4);
+        appearanceGrid.add(phraseColor, 1, 4);
+        appearanceGrid.add(new Label("单词字号："), 0, 5);
+        appearanceGrid.add(wordFontSize, 1, 5);
+        appearanceGrid.add(new Label("释义字号："), 0, 6);
+        appearanceGrid.add(detailFontSize, 1, 6);
+        appearanceGrid.setPadding(new Insets(12));
+
+        playbackRecordsBox = new VBox(8);
+        playbackRecordsBox.setPadding(new Insets(12));
+        refreshPlaybackRecords();
+
+        TabPane tabs = new TabPane();
+        tabs.getTabs().addAll(
+                settingsTab("词库", vocabularyPage),
+                settingsTab("播放", playbackGrid),
+                settingsTab("外观", appearanceGrid),
+                settingsTab("播放记录", playbackRecordsBox)
+        );
+
         Button exit = new Button("退出");
         exit.setOnAction(event -> exitApplication());
 
+        VBox root = new VBox(12, new Label("程序会保留在右下角托盘；关闭此窗口不会退出程序。"), tabs, exit);
+        root.setPadding(new Insets(16));
+        stage.setScene(new Scene(root, 620, 600));
+        return stage;
+    }
+
+    private GridPane settingsGrid() {
         GridPane grid = new GridPane();
         grid.setHgap(8);
         grid.setVgap(10);
-        grid.add(new Label("词库："), 0, 0);
-        grid.add(vocabularyPath, 1, 0);
-        grid.add(chooseVocabulary, 2, 0);
-        grid.add(reloadVocabulary, 1, 1);
-        grid.add(new Label("显示内容："), 0, 2);
-        grid.add(displayMode, 1, 2);
-        grid.add(new Label("播放顺序："), 0, 3);
-        grid.add(playbackMode, 1, 3);
-        grid.add(new Label("悬浮行为："), 0, 4);
-        grid.add(overlayMode, 1, 4);
-        grid.add(new Label("切换间隔（秒）："), 0, 5);
-        grid.add(intervalSeconds, 1, 5);
-        grid.add(new Label("透明度："), 0, 6);
-        grid.add(opacity, 1, 6);
-        grid.add(new Label("单词颜色："), 0, 7);
-        grid.add(wordColor, 1, 7);
-        grid.add(new Label("词性颜色："), 0, 8);
-        grid.add(typeColor, 1, 8);
-        grid.add(new Label("释义颜色："), 0, 9);
-        grid.add(translationColor, 1, 9);
-        grid.add(new Label("短语颜色："), 0, 10);
-        grid.add(phraseColor, 1, 10);
-        grid.add(new Label("单词字号："), 0, 11);
-        grid.add(wordFontSize, 1, 11);
-        grid.add(new Label("释义字号："), 0, 12);
-        grid.add(detailFontSize, 1, 12);
-        grid.add(exit, 1, 13);
+        return grid;
+    }
 
-        VBox root = new VBox(12, new Label("程序默认隐藏在右下角托盘；需要设置时，从托盘菜单打开此窗口。"), grid);
-        root.setPadding(new Insets(16));
-        stage.setScene(new Scene(root));
-        return stage;
+    private Tab settingsTab(String title, javafx.scene.Node content) {
+        Tab tab = new Tab(title, content);
+        tab.setClosable(false);
+        return tab;
+    }
+
+    private void applyVocabularyChoice(String choice, boolean reload) {
+        if (choice == null || choice.trim().length() == 0) {
+            return;
+        }
+        String previousPath = settings.getVocabularyPath();
+        String nextPath = vocabularyPathForChoice(choice);
+        if (!previousPath.equals(nextPath)) {
+            settingsStore.savePlaybackProgress(settings, previousPath);
+            settings.setVocabularyPath(nextPath);
+            settings.setVocabularyFileName(vocabularyFileNameForChoice(choice));
+            settings.resetPlaybackProgress();
+            settingsStore.loadPlaybackProgress(settings, nextPath);
+        }
+        settingsStore.save(settings);
+        if (reload) {
+            reloadVocabulary();
+        }
+        refreshPlaybackRecords();
+    }
+
+    private String vocabularyPathForChoice(String choice) {
+        if (CUSTOM_VOCABULARY_LABEL.equals(choice)) {
+            return customVocabularyPath().toString();
+        }
+        for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
+            if (item.getFileName().equals(choice)) {
+                return VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName();
+            }
+        }
+        return choice;
+    }
+
+    private String vocabularyFileNameForChoice(String choice) {
+        if (CUSTOM_VOCABULARY_LABEL.equals(choice)) {
+            return CUSTOM_VOCABULARY_LABEL;
+        }
+        for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
+            if (item.getFileName().equals(choice)) {
+                return item.getFileName();
+            }
+        }
+        return Paths.get(choice).getFileName().toString();
+    }
+
+    private String vocabularyChoiceForPath(String value) {
+        String normalized = value == null ? "" : value.replace('\\', '/');
+        for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
+            if (normalized.equals(item.getFileName())
+                    || normalized.equals(VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName())
+                    || normalized.endsWith("/" + VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName())) {
+                return item.getFileName();
+            }
+        }
+        if (normalized.equals(customVocabularyPath().toString().replace('\\', '/'))) {
+            return CUSTOM_VOCABULARY_LABEL;
+        }
+        return value == null || value.trim().length() == 0 ? AppSettings.DEFAULT_VOCABULARY_FILE_NAME : value;
+    }
+
+    private Path customVocabularyPath() {
+        return Paths.get(System.getProperty("user.home"), ".english-hugging-me", "custom-vocabulary.json");
+    }
+
+    private void addCustomWord(
+            TextField customWord,
+            TextField customType,
+            TextField customPhrase,
+            TextField customExample,
+            TextField customMeaning
+    ) {
+        String word = customWord.getText().trim();
+        if (word.length() == 0) {
+            showError("自定义词汇失败", "请先填写单词");
+            return;
+        }
+
+        String type = customType.getText().trim();
+        String phrase = customPhrase.getText().trim();
+        String example = customExample.getText().trim();
+        String meaning = customMeaning.getText().trim();
+
+        try {
+            Path path = customVocabularyPath();
+            List<WordEntry> words = new ArrayList<>();
+            if (Files.exists(path)) {
+                words.addAll(new VocabularyJsonLoader().load(path));
+            }
+
+            List<Translation> translations = meaning.length() == 0 && type.length() == 0
+                    ? Collections.emptyList()
+                    : Collections.singletonList(new Translation(meaning, type));
+            List<Phrase> phrases = new ArrayList<>();
+            if (phrase.length() > 0) {
+                phrases.add(new Phrase(phrase, ""));
+            }
+            if (example.length() > 0) {
+                phrases.add(new Phrase(example, meaning));
+            }
+            words.add(new WordEntry(word, translations, phrases));
+
+            Files.createDirectories(path.getParent());
+            try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+                new GsonBuilder().setPrettyPrinting().create().toJson(words, writer);
+            }
+
+            if (!vocabularyChoice.getItems().contains(CUSTOM_VOCABULARY_LABEL)) {
+                vocabularyChoice.getItems().add(CUSTOM_VOCABULARY_LABEL);
+            }
+            vocabularyChoice.setValue(CUSTOM_VOCABULARY_LABEL);
+            applyVocabularyChoice(CUSTOM_VOCABULARY_LABEL, true);
+            customWord.clear();
+            customType.clear();
+            customPhrase.clear();
+            customExample.clear();
+            customMeaning.clear();
+        } catch (Exception exception) {
+            showError("自定义词汇失败", exception.getMessage());
+        }
+    }
+
+    private void refreshPlaybackRecords() {
+        if (playbackRecordsBox == null) {
+            return;
+        }
+        playbackRecordsBox.getChildren().clear();
+        playbackRecordsBox.getChildren().add(new Label("记录各词汇本当前顺序位置和随机播放数量。"));
+        for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
+            String key = VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName();
+            playbackRecordsBox.getChildren().add(new Label(settingsStore.playbackRecordLine(key, item.getDisplayName())));
+        }
+        Path customPath = customVocabularyPath();
+        if (Files.exists(customPath)) {
+            playbackRecordsBox.getChildren().add(new Label(settingsStore.playbackRecordLine(customPath.toString(), CUSTOM_VOCABULARY_LABEL)));
+        }
+        String currentChoice = vocabularyChoiceForPath(settings.getVocabularyPath());
+        if (!CUSTOM_VOCABULARY_LABEL.equals(currentChoice) && !isBuiltInVocabularyChoice(currentChoice)) {
+            playbackRecordsBox.getChildren().add(new Label(settingsStore.playbackRecordLine(settings.getVocabularyPath(), currentChoice)));
+        }
+    }
+
+    private boolean isBuiltInVocabularyChoice(String choice) {
+        for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
+            if (item.getFileName().equals(choice)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void reloadVocabulary() {
         try {
-            Path vocabulary = Paths.get(settings.getVocabularyPath());
+            Path vocabulary = resolveVocabularyPath(settings.getVocabularyPath());
             List<WordEntry> words = new VocabularyJsonLoader().load(vocabulary);
             startScheduler(words);
         } catch (Exception exception) {
             showError("词库加载失败", exception.getMessage());
             renderMessage("词库加载失败\n请在设置中选择 JSON 词库");
+        }
+    }
+
+    private Path resolveVocabularyPath(String value) {
+        Path path = Paths.get(value);
+        if (path.isAbsolute() || Files.exists(path)) {
+            return path;
+        }
+
+        Path applicationPath = applicationPath();
+        if (applicationPath != null) {
+            Path applicationDir = Files.isRegularFile(applicationPath) ? applicationPath.getParent() : applicationPath;
+            Path packagedPath = applicationDir.resolve(path);
+            if (Files.exists(packagedPath)) {
+                return packagedPath;
+            }
+            if (applicationDir.getParent() != null) {
+                packagedPath = applicationDir.getParent().resolve(path);
+                if (Files.exists(packagedPath)) {
+                    return packagedPath;
+                }
+            }
+        }
+        return path;
+    }
+
+    private Path applicationPath() {
+        try {
+            return Paths.get(FloatingWordsDesktopApp.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        } catch (Exception ignored) {
+            return null;
         }
     }
 
@@ -533,15 +784,19 @@ public final class FloatingWordsDesktopApp extends Application {
                 settings.getNextWordIndex(),
                 settings.getShuffleOrder(),
                 settings.getShufflePosition(),
+                settings.getRandomPlayedCount(),
                 wordEntry -> Platform.runLater(() -> {
                     currentWord = wordEntry;
                     updateCurrentWord();
                 }),
-                (nextWordIndex, shuffleOrder, shufflePosition) -> {
+                (nextWordIndex, shuffleOrder, shufflePosition, randomPlayedCount) -> {
                     settings.setNextWordIndex(nextWordIndex);
                     settings.setShuffleOrder(shuffleOrder);
                     settings.setShufflePosition(shufflePosition);
+                    settings.setRandomPlayedCount(randomPlayedCount);
                     settingsStore.save(settings);
+                    settingsStore.savePlaybackProgress(settings, settings.getVocabularyPath());
+                    Platform.runLater(this::refreshPlaybackRecords);
                 }
         );
         scheduler.start();
