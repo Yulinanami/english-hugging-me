@@ -6,26 +6,25 @@ import android.content.SharedPreferences;
 import me.englishhugging.core.AppSettings;
 import me.englishhugging.core.DisplayMode;
 import me.englishhugging.core.OverlayMode;
+import me.englishhugging.core.PlaybackMode;
+import me.englishhugging.core.SettingsKeys;
+import me.englishhugging.core.VocabularyCatalog;
 
 final class AndroidSettingsStore {
-    static final String[] VOCABULARY_FILES = {
-            "1-初中-顺序.json",
-            "2-高中-顺序.json",
-            "3-CET4-顺序.json",
-            "4-CET6-顺序.json",
-            "5-考研-顺序.json",
-            "6-托福-顺序.json",
-            "7-SAT-顺序.json"
-    };
+    static final String[] VOCABULARY_FILES = VocabularyCatalog.fileNames();
 
     private static final String PREFS = "english_hugging_settings";
-    private static final String KEY_VOCABULARY_FILE_NAME = "vocabularyFileName";
-    private static final String KEY_DISPLAY_MODE = "displayMode";
-    private static final String KEY_OVERLAY_MODE = "overlayMode";
-    private static final String KEY_INTERVAL_SECONDS = "intervalSeconds";
-    private static final String KEY_X = "x";
-    private static final String KEY_Y = "y";
-    private static final String KEY_OPACITY = "opacity";
+    private static final String KEY_VOCABULARY_FILE_NAME = SettingsKeys.VOCABULARY_FILE_NAME;
+    private static final String KEY_DISPLAY_MODE = SettingsKeys.DISPLAY_MODE;
+    private static final String KEY_OVERLAY_MODE = SettingsKeys.OVERLAY_MODE;
+    private static final String KEY_PLAYBACK_MODE = SettingsKeys.PLAYBACK_MODE;
+    private static final String KEY_INTERVAL_SECONDS = SettingsKeys.INTERVAL_SECONDS;
+    private static final String KEY_NEXT_WORD_INDEX = SettingsKeys.NEXT_WORD_INDEX;
+    private static final String KEY_SHUFFLE_ORDER = SettingsKeys.SHUFFLE_ORDER;
+    private static final String KEY_SHUFFLE_POSITION = SettingsKeys.SHUFFLE_POSITION;
+    private static final String KEY_X = SettingsKeys.X;
+    private static final String KEY_Y = SettingsKeys.Y;
+    private static final String KEY_OPACITY = SettingsKeys.OPACITY;
 
     private AndroidSettingsStore() {
     }
@@ -36,7 +35,11 @@ final class AndroidSettingsStore {
         settings.setVocabularyFileName(preferences.getString(KEY_VOCABULARY_FILE_NAME, AppSettings.DEFAULT_VOCABULARY_FILE_NAME));
         settings.setDisplayMode(parseEnum(DisplayMode.class, preferences.getString(KEY_DISPLAY_MODE, settings.getDisplayMode().name()), settings.getDisplayMode()));
         settings.setOverlayMode(parseEnum(OverlayMode.class, preferences.getString(KEY_OVERLAY_MODE, settings.getOverlayMode().name()), settings.getOverlayMode()));
+        settings.setPlaybackMode(parseEnum(PlaybackMode.class, preferences.getString(KEY_PLAYBACK_MODE, settings.getPlaybackMode().name()), settings.getPlaybackMode()));
         settings.setIntervalSeconds(preferences.getInt(KEY_INTERVAL_SECONDS, settings.getIntervalSeconds()));
+        settings.setNextWordIndex(preferences.getInt(KEY_NEXT_WORD_INDEX, settings.getNextWordIndex()));
+        settings.setShuffleOrder(preferences.getString(KEY_SHUFFLE_ORDER, settings.getShuffleOrder()));
+        settings.setShufflePosition(preferences.getInt(KEY_SHUFFLE_POSITION, settings.getShufflePosition()));
         settings.setX(preferences.getFloat(KEY_X, (float) settings.getX()));
         settings.setY(preferences.getFloat(KEY_Y, (float) settings.getY()));
         settings.setOpacity(preferences.getFloat(KEY_OPACITY, (float) settings.getOpacity()));
@@ -49,7 +52,11 @@ final class AndroidSettingsStore {
                 .putString(KEY_VOCABULARY_FILE_NAME, settings.getVocabularyFileName())
                 .putString(KEY_DISPLAY_MODE, settings.getDisplayMode().name())
                 .putString(KEY_OVERLAY_MODE, settings.getOverlayMode().name())
+                .putString(KEY_PLAYBACK_MODE, settings.getPlaybackMode().name())
                 .putInt(KEY_INTERVAL_SECONDS, settings.getIntervalSeconds())
+                .putInt(KEY_NEXT_WORD_INDEX, settings.getNextWordIndex())
+                .putString(KEY_SHUFFLE_ORDER, settings.getShuffleOrder())
+                .putInt(KEY_SHUFFLE_POSITION, settings.getShufflePosition())
                 .putFloat(KEY_X, (float) settings.getX())
                 .putFloat(KEY_Y, (float) settings.getY())
                 .putFloat(KEY_OPACITY, (float) settings.getOpacity())
@@ -57,12 +64,7 @@ final class AndroidSettingsStore {
     }
 
     static int vocabularyIndex(String fileName) {
-        for (int i = 0; i < VOCABULARY_FILES.length; i++) {
-            if (VOCABULARY_FILES[i].equals(fileName)) {
-                return i;
-            }
-        }
-        return 0;
+        return VocabularyCatalog.indexOfFileName(fileName);
     }
 
     private static <T extends Enum<T>> T parseEnum(Class<T> type, String value, T fallback) {

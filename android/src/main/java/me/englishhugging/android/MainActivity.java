@@ -22,10 +22,12 @@ import android.widget.Toast;
 import me.englishhugging.core.AppSettings;
 import me.englishhugging.core.DisplayMode;
 import me.englishhugging.core.OverlayMode;
+import me.englishhugging.core.PlaybackMode;
 
 public final class MainActivity extends Activity {
     private Spinner vocabularySpinner;
     private Spinner displayModeSpinner;
+    private Spinner playbackModeSpinner;
     private Spinner overlayModeSpinner;
     private EditText intervalSeconds;
     private SeekBar opacitySeekBar;
@@ -52,6 +54,7 @@ public final class MainActivity extends Activity {
 
         vocabularySpinner = addSpinner(root, "词库", AndroidSettingsStore.VOCABULARY_FILES);
         displayModeSpinner = addSpinner(root, "显示内容", enumNames(DisplayMode.values()));
+        playbackModeSpinner = addSpinner(root, "播放顺序", playbackModeLabels());
         overlayModeSpinner = addSpinner(root, "悬浮行为", enumNames(OverlayMode.values()));
 
         root.addView(label("切换间隔（秒）"));
@@ -101,6 +104,7 @@ public final class MainActivity extends Activity {
     private void bindSettings(AppSettings settings) {
         vocabularySpinner.setSelection(AndroidSettingsStore.vocabularyIndex(settings.getVocabularyFileName()));
         displayModeSpinner.setSelection(settings.getDisplayMode().ordinal());
+        playbackModeSpinner.setSelection(settings.getPlaybackMode().ordinal());
         overlayModeSpinner.setSelection(settings.getOverlayMode().ordinal());
         intervalSeconds.setText(Integer.toString(settings.getIntervalSeconds()));
         opacitySeekBar.setProgress((int) Math.round(settings.getOpacity() * 100) - 20);
@@ -130,9 +134,15 @@ public final class MainActivity extends Activity {
 
     private AppSettings collectSettings() {
         AppSettings settings = AndroidSettingsStore.load(this);
+        String previousVocabularyFileName = settings.getVocabularyFileName();
+        PlaybackMode previousPlaybackMode = settings.getPlaybackMode();
         settings.setVocabularyFileName(AndroidSettingsStore.VOCABULARY_FILES[vocabularySpinner.getSelectedItemPosition()]);
         settings.setDisplayMode(DisplayMode.values()[displayModeSpinner.getSelectedItemPosition()]);
+        settings.setPlaybackMode(PlaybackMode.values()[playbackModeSpinner.getSelectedItemPosition()]);
         settings.setOverlayMode(OverlayMode.values()[overlayModeSpinner.getSelectedItemPosition()]);
+        if (!previousVocabularyFileName.equals(settings.getVocabularyFileName()) || previousPlaybackMode != settings.getPlaybackMode()) {
+            settings.resetPlaybackProgress();
+        }
         try {
             settings.setIntervalSeconds(Integer.parseInt(intervalSeconds.getText().toString()));
         } catch (RuntimeException ignored) {
@@ -161,5 +171,9 @@ public final class MainActivity extends Activity {
             names[i] = values[i].name();
         }
         return names;
+    }
+
+    private static String[] playbackModeLabels() {
+        return new String[]{"顺序播放", "随机播放", "随机不重复"};
     }
 }

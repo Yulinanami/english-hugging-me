@@ -38,10 +38,10 @@ import javafx.util.StringConverter;
 import me.englishhugging.core.AppSettings;
 import me.englishhugging.core.DisplayMode;
 import me.englishhugging.core.OverlayMode;
-import me.englishhugging.core.Phrase;
 import me.englishhugging.core.PlaybackMode;
-import me.englishhugging.core.Translation;
 import me.englishhugging.core.VocabularyJsonLoader;
+import me.englishhugging.core.WordDisplayFormatter;
+import me.englishhugging.core.WordDisplaySegment;
 import me.englishhugging.core.WordEntry;
 import me.englishhugging.core.WordScheduler;
 
@@ -61,7 +61,11 @@ import java.util.List;
 import java.util.UUID;
 
 public final class FloatingWordsDesktopApp extends Application {
+    private static final int MOVE_HANDLE_SIZE = 42;
+    private static final int RESIZE_HANDLE_SIZE = 42;
+
     private final DesktopSettingsStore settingsStore = new DesktopSettingsStore();
+    private final WordDisplayFormatter wordDisplayFormatter = new WordDisplayFormatter();
     private final String overlayTitle = "English Hugging Me Overlay " + UUID.randomUUID();
     private final String moveHandleTitle = "English Hugging Me Move Handle " + UUID.randomUUID();
     private final String resizeHandleTitle = "English Hugging Me Resize Handle " + UUID.randomUUID();
@@ -197,7 +201,7 @@ public final class FloatingWordsDesktopApp extends Application {
             event.consume();
         });
 
-        Scene scene = new Scene(moveHandle, 26, 26);
+        Scene scene = new Scene(moveHandle, MOVE_HANDLE_SIZE, MOVE_HANDLE_SIZE);
         scene.setFill(Color.TRANSPARENT);
         stage.setScene(scene);
 
@@ -221,10 +225,10 @@ public final class FloatingWordsDesktopApp extends Application {
 
         StackPane handle = new StackPane(dots);
         handle.setPickOnBounds(true);
-        handle.setMinSize(26, 26);
-        handle.setPrefSize(26, 26);
-        handle.setMaxSize(26, 26);
-        handle.setStyle("-fx-background-color: transparent; -fx-cursor: move;");
+        handle.setMinSize(MOVE_HANDLE_SIZE, MOVE_HANDLE_SIZE);
+        handle.setPrefSize(MOVE_HANDLE_SIZE, MOVE_HANDLE_SIZE);
+        handle.setMaxSize(MOVE_HANDLE_SIZE, MOVE_HANDLE_SIZE);
+        handle.setStyle("-fx-background-color: rgba(255,255,255,0.01); -fx-cursor: move;");
         return handle;
     }
 
@@ -253,7 +257,7 @@ public final class FloatingWordsDesktopApp extends Application {
             event.consume();
         });
 
-        Scene scene = new Scene(resizeHandle, 28, 28);
+        Scene scene = new Scene(resizeHandle, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
         scene.setFill(Color.TRANSPARENT);
         stage.setScene(scene);
         return stage;
@@ -262,12 +266,12 @@ public final class FloatingWordsDesktopApp extends Application {
     private Pane createResizeHandleNode() {
         Pane handle = new Pane();
         handle.setPickOnBounds(true);
-        handle.setMinSize(28, 28);
-        handle.setPrefSize(28, 28);
-        handle.setMaxSize(28, 28);
-        handle.setStyle("-fx-background-color: transparent; -fx-cursor: se-resize;");
+        handle.setMinSize(RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+        handle.setPrefSize(RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+        handle.setMaxSize(RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+        handle.setStyle("-fx-background-color: rgba(255,255,255,0.01); -fx-cursor: se-resize;");
         for (int i = 0; i < 3; i++) {
-            Line line = new Line(14 + i * 4, 23, 23, 14 + i * 4);
+            Line line = new Line(23 + i * 4, 36, 36, 23 + i * 4);
             line.setStroke(Color.rgb(255, 255, 255, 0.68));
             line.setStrokeWidth(1.4);
             handle.getChildren().add(line);
@@ -280,12 +284,12 @@ public final class FloatingWordsDesktopApp extends Application {
             return;
         }
         if (moveHandleStage != null) {
-            moveHandleStage.setX(overlayStage.getX() + overlayStage.getWidth() - 40);
-            moveHandleStage.setY(overlayStage.getY() + 14);
+            moveHandleStage.setX(overlayStage.getX() + overlayStage.getWidth() - MOVE_HANDLE_SIZE - 8);
+            moveHandleStage.setY(overlayStage.getY() + 4);
         }
         if (resizeHandleStage != null) {
-            resizeHandleStage.setX(overlayStage.getX() + overlayStage.getWidth() - 31);
-            resizeHandleStage.setY(overlayStage.getY() + overlayStage.getHeight() - 31);
+            resizeHandleStage.setX(overlayStage.getX() + overlayStage.getWidth() - RESIZE_HANDLE_SIZE);
+            resizeHandleStage.setY(overlayStage.getY() + overlayStage.getHeight() - RESIZE_HANDLE_SIZE);
         }
     }
 
@@ -557,47 +561,15 @@ public final class FloatingWordsDesktopApp extends Application {
 
     private void renderWord(WordEntry wordEntry) {
         wordFlow.getChildren().clear();
-        appendText(safe(wordEntry.getWord()), settings.getWordColor(), settings.getWordFontSize(), FontWeight.BOLD);
-
-        if (settings.getDisplayMode() == DisplayMode.WORD_ONLY) {
-            return;
-        }
-
-        for (Translation translation : wordEntry.getTranslations()) {
-            if (translation == null) {
-                continue;
-            }
-            String type = safe(translation.getType());
-            String meaning = safe(translation.getTranslation());
-            if (type.length() == 0 && meaning.length() == 0) {
-                continue;
-            }
-            appendText("\n", settings.getTranslationColor(), settings.getDetailFontSize(), FontWeight.NORMAL);
-            if (type.length() > 0) {
-                appendText(type + ". ", settings.getTypeColor(), settings.getDetailFontSize(), FontWeight.BOLD);
-            }
-            appendText(meaning, settings.getTranslationColor(), settings.getDetailFontSize(), FontWeight.NORMAL);
-        }
-
-        if (settings.getDisplayMode() == DisplayMode.WORD_WITH_TRANSLATION_AND_PHRASE) {
-            int displayed = 0;
-            for (Phrase phrase : wordEntry.getPhrases()) {
-                if (phrase == null) {
-                    continue;
-                }
-                String phraseText = safe(phrase.getPhrase());
-                String phraseTranslation = safe(phrase.getTranslation());
-                if (phraseText.length() == 0 && phraseTranslation.length() == 0) {
-                    continue;
-                }
-                appendText("\n" + phraseText, settings.getPhraseColor(), settings.getDetailFontSize(), FontWeight.BOLD);
-                if (phraseTranslation.length() > 0) {
-                    appendText("： " + phraseTranslation, settings.getTranslationColor(), settings.getDetailFontSize(), FontWeight.NORMAL);
-                }
-                displayed++;
-                if (displayed >= 2) {
-                    break;
-                }
+        for (WordDisplaySegment segment : wordDisplayFormatter.format(wordEntry, settings.getDisplayMode())) {
+            if (segment.getType() == WordDisplaySegment.Type.WORD) {
+                appendText(segment.getText(), settings.getWordColor(), settings.getWordFontSize(), FontWeight.BOLD);
+            } else if (segment.getType() == WordDisplaySegment.Type.TYPE) {
+                appendText(segment.getText(), settings.getTypeColor(), settings.getDetailFontSize(), FontWeight.BOLD);
+            } else if (segment.getType() == WordDisplaySegment.Type.PHRASE) {
+                appendText(segment.getText(), settings.getPhraseColor(), settings.getDetailFontSize(), FontWeight.BOLD);
+            } else {
+                appendText(segment.getText(), settings.getTranslationColor(), settings.getDetailFontSize(), FontWeight.NORMAL);
             }
         }
     }
@@ -614,10 +586,6 @@ public final class FloatingWordsDesktopApp extends Application {
         wordFlow.getChildren().add(text);
     }
 
-    private static String safe(String value) {
-        return value == null ? "" : value.trim();
-    }
-
     private static String toHex(Color color) {
         return String.format(
                 "#%02X%02X%02X",
@@ -631,6 +599,7 @@ public final class FloatingWordsDesktopApp extends Application {
         boolean clickThrough = settings.getOverlayMode() == OverlayMode.CLICK_THROUGH;
         overlayRoot.setMouseTransparent(clickThrough);
         WindowsClickThrough.apply(overlayStage, clickThrough);
+        syncControlHandlePositions();
     }
 
     private void installTrayIcon() {
@@ -797,9 +766,9 @@ public final class FloatingWordsDesktopApp extends Application {
             return "锁定位置";
         }
         if (overlayMode == OverlayMode.CLICK_THROUGH) {
-            return "点击穿透";
+            return "鼠标点击穿透";
         }
-        return "可拖动";
+        return "全局可拖动";
     }
 
     private void showError(String title, String message) {

@@ -4,6 +4,7 @@ import me.englishhugging.core.AppSettings;
 import me.englishhugging.core.DisplayMode;
 import me.englishhugging.core.OverlayMode;
 import me.englishhugging.core.PlaybackMode;
+import me.englishhugging.core.SettingsKeys;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,25 +15,25 @@ import java.nio.file.Paths;
 import java.util.Properties;
 
 final class DesktopSettingsStore {
-    private static final String KEY_VOCABULARY_PATH = "vocabularyPath";
-    private static final String KEY_DISPLAY_MODE = "displayMode";
-    private static final String KEY_OVERLAY_MODE = "overlayMode";
-    private static final String KEY_PLAYBACK_MODE = "playbackMode";
-    private static final String KEY_INTERVAL_SECONDS = "intervalSeconds";
-    private static final String KEY_NEXT_WORD_INDEX = "nextWordIndex";
-    private static final String KEY_SHUFFLE_ORDER = "shuffleOrder";
-    private static final String KEY_SHUFFLE_POSITION = "shufflePosition";
-    private static final String KEY_X = "x";
-    private static final String KEY_Y = "y";
-    private static final String KEY_WIDTH = "width";
-    private static final String KEY_HEIGHT = "height";
-    private static final String KEY_OPACITY = "opacity";
-    private static final String KEY_WORD_COLOR = "wordColor";
-    private static final String KEY_TYPE_COLOR = "typeColor";
-    private static final String KEY_TRANSLATION_COLOR = "translationColor";
-    private static final String KEY_PHRASE_COLOR = "phraseColor";
-    private static final String KEY_WORD_FONT_SIZE = "wordFontSize";
-    private static final String KEY_DETAIL_FONT_SIZE = "detailFontSize";
+    private static final String KEY_VOCABULARY_PATH = SettingsKeys.VOCABULARY_PATH;
+    private static final String KEY_DISPLAY_MODE = SettingsKeys.DISPLAY_MODE;
+    private static final String KEY_OVERLAY_MODE = SettingsKeys.OVERLAY_MODE;
+    private static final String KEY_PLAYBACK_MODE = SettingsKeys.PLAYBACK_MODE;
+    private static final String KEY_INTERVAL_SECONDS = SettingsKeys.INTERVAL_SECONDS;
+    private static final String KEY_NEXT_WORD_INDEX = SettingsKeys.NEXT_WORD_INDEX;
+    private static final String KEY_SHUFFLE_ORDER = SettingsKeys.SHUFFLE_ORDER;
+    private static final String KEY_SHUFFLE_POSITION = SettingsKeys.SHUFFLE_POSITION;
+    private static final String KEY_X = SettingsKeys.X;
+    private static final String KEY_Y = SettingsKeys.Y;
+    private static final String KEY_WIDTH = SettingsKeys.WIDTH;
+    private static final String KEY_HEIGHT = SettingsKeys.HEIGHT;
+    private static final String KEY_OPACITY = SettingsKeys.OPACITY;
+    private static final String KEY_WORD_COLOR = SettingsKeys.WORD_COLOR;
+    private static final String KEY_TYPE_COLOR = SettingsKeys.TYPE_COLOR;
+    private static final String KEY_TRANSLATION_COLOR = SettingsKeys.TRANSLATION_COLOR;
+    private static final String KEY_PHRASE_COLOR = SettingsKeys.PHRASE_COLOR;
+    private static final String KEY_WORD_FONT_SIZE = SettingsKeys.WORD_FONT_SIZE;
+    private static final String KEY_DETAIL_FONT_SIZE = SettingsKeys.DETAIL_FONT_SIZE;
 
     private final Path configPath = Paths.get(
             System.getProperty("user.home"),

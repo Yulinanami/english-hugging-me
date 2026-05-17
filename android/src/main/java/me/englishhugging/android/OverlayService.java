@@ -8,11 +8,16 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -25,6 +30,8 @@ import java.util.List;
 import me.englishhugging.core.AppSettings;
 import me.englishhugging.core.OverlayMode;
 import me.englishhugging.core.VocabularyJsonLoader;
+import me.englishhugging.core.WordDisplayFormatter;
+import me.englishhugging.core.WordDisplaySegment;
 import me.englishhugging.core.WordEntry;
 import me.englishhugging.core.WordScheduler;
 
@@ -36,6 +43,7 @@ public final class OverlayService extends Service {
     private static final int NOTIFICATION_ID = 20260517;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final WordDisplayFormatter wordDisplayFormatter = new WordDisplayFormatter();
 
     private WindowManager windowManager;
     private TextView overlayView;
@@ -160,11 +168,74 @@ public final class OverlayService extends Service {
         if (scheduler != null) {
             scheduler.stop();
         }
-        scheduler = new WordScheduler(words, settings.getIntervalSeconds(), wordEntry -> mainHandler.post(() -> {
-            currentWord = wordEntry;
-            overlayView.setText(currentWord.toDisplayText(settings.getDisplayMode()));
-        }));
+        scheduler = new WordScheduler(
+                words,
+                settings.getIntervalSeconds(),
+                settings.getPlaybackMode(),
+                settings.getNextWordIndex(),
+                settings.getShuffleOrder(),
+                settings.getShufflePosition(),
+                wordEntry -> mainHandler.post(() -> {
+                    currentWord = wordEntry;
+                    overlayView.setText(formatWord(currentWord));
+                }),
+                (nextWordIndex, shuffleOrder, shufflePosition) -> {
+                    settings.setNextWordIndex(nextWordIndex);
+                    settings.setShuffleOrder(shuffleOrder);
+                    settings.setShufflePosition(shufflePosition);
+                    AndroidSettingsStore.save(this, settings);
+                }
+        );
         scheduler.start();
+    }
+
+    private CharSequence formatWord(WordEntry wordEntry) {
+        SpannableStringBuilder builder = new SpannableStringBuilder();
+        for (WordDisplaySegment segment : wordDisplayFormatter.format(wordEntry, settings.getDisplayMode())) {
+            int start = builder.length();
+            builder.append(segment.getText());
+            int end = builder.length();
+            if (segment.getType() == WordDisplaySegment.Type.LINE_BREAK || start == end) {
+                continue;
+            }
+            builder.setSpan(
+                    new ForegroundColorSpan(colorForSegment(segment.getType())),
+                    start,
+                    end,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            );
+            if (isBoldSegment(segment.getType())) {
+                builder.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+        return builder;
+    }
+
+    private int colorForSegment(WordDisplaySegment.Type type) {
+        if (type == WordDisplaySegment.Type.WORD) {
+            return parseColor(settings.getWordColor(), Color.WHITE);
+        }
+        if (type == WordDisplaySegment.Type.TYPE) {
+            return parseColor(settings.getTypeColor(), Color.CYAN);
+        }
+        if (type == WordDisplaySegment.Type.PHRASE) {
+            return parseColor(settings.getPhraseColor(), Color.GREEN);
+        }
+        return parseColor(settings.getTranslationColor(), Color.WHITE);
+    }
+
+    private boolean isBoldSegment(WordDisplaySegment.Type type) {
+        return type == WordDisplaySegment.Type.WORD
+                || type == WordDisplaySegment.Type.TYPE
+                || type == WordDisplaySegment.Type.PHRASE;
+    }
+
+    private int parseColor(String value, int fallback) {
+        try {
+            return Color.parseColor(value);
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
     }
 
     private List<WordEntry> loadWords(String vocabularyFileName) {
