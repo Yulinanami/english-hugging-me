@@ -19,36 +19,60 @@
 - **可定制**：透明度、颜色（单词 / 词性 / 释义 / 短语各自独立）、字号等可调节
 - **跨平台**：同时支持 Windows 桌面端和 Android 移动端
 
-## 项目架构
-
-项目采用 Gradle 多模块结构，代码共享核心逻辑：
+## 项目结构
 
 ```
 english-hugging-me/
-├── core/                        # 核心模块（Java Library）
+├── core/                              # 核心模块（Java Library）
 │   └── me.englishhugging.core
-│       ├── WordEntry            # 单词数据模型（单词 + 释义 + 短语）
-│       ├── Translation          # 释义模型（词性 + 中文释义）
-│       ├── Phrase               # 短语模型（短语 + 中文释义）
-│       ├── VocabularyJsonLoader # JSON 词库加载器（Gson）
-│       ├── WordScheduler        # 定时轮播调度器
-│       ├── AppSettings          # 应用设置（词库、显示模式、颜色等）
-│       ├── DisplayMode          # 显示模式枚举
-│       └── OverlayMode          # 悬浮行为枚举
+│       ├── model/                     # 数据模型
+│       │   ├── WordEntry              #   单词条目（单词 + 释义 + 短语）
+│       │   ├── Translation            #   释义模型（词性 + 中文释义）
+│       │   ├── Phrase                 #   短语模型（短语 + 中文释义）
+│       │   └── WordDisplaySegment     #   格式化显示片段
+│       ├── vocabulary/                # 词库管理
+│       │   ├── VocabularyCatalog      #   内置词库目录
+│       │   └── VocabularyJsonLoader   #   JSON 词库加载器（Gson）
+│       ├── settings/                  # 应用配置
+│       │   ├── AppSettings            #   全局设置（词库、显示模式、颜色等）
+│       │   ├── SettingsKeys           #   配置键名常量
+│       │   ├── DisplayMode            #   显示模式枚举
+│       │   ├── PlaybackMode           #   播放模式枚举
+│       │   └── OverlayMode            #   悬浮行为枚举
+│       ├── display/                   # 显示格式化
+│       │   └── WordDisplayFormatter   #   单词 → 显示片段的格式化器
+│       └── WordScheduler              # 定时轮播调度器
 │
-├── desktop/                     # 桌面端模块（JavaFX）
+├── desktop/                           # 桌面端模块（JavaFX + AtlantaFX）
 │   └── me.englishhugging.desktop
-│       ├── FloatingWordsDesktopApp  # 主应用（悬浮窗 + 设置面板 + 系统托盘）
-│       ├── DesktopSettingsStore     # 桌面端设置持久化（Properties 文件）
-│       └── WindowsClickThrough     # Windows 点击穿透（JNA + Win32 API）
+│       ├── overlay/                   # 悬浮窗
+│       │   ├── DesktopOverlayController  # 悬浮窗生命周期、拖动、缩放、渲染
+│       │   └── WindowsClickThrough       # Windows 点击穿透（JNA + Win32 API）
+│       ├── settings/                  # 设置面板
+│       │   ├── DesktopSettingsPanel    #   设置窗口主框架（Tab 组装）
+│       │   ├── GeneralSettingsTab     #   常规设置 Tab
+│       │   ├── VocabularySettingsTab  #   词库设置 + 自定义词汇 Tab
+│       │   ├── AppearanceSettingsTab  #   外观设置 Tab（颜色、字号）
+│       │   ├── PlaybackRecordsTab     #   播放记录 Tab
+│       │   └── DesktopSettingsStore   #   桌面端设置持久化（Properties 文件）
+│       ├── ui/                        # 通用 UI
+│       │   ├── DesktopUi              #   UI 工具方法（样式、布局）
+│       │   └── DesktopTrayController  #   系统托盘图标与菜单
+│       ├── FloatingWordsDesktopApp    # 应用入口与协调器
+│       ├── DesktopLauncher            # main 方法启动器
+│       └── DesktopVocabularyLoader    # 词库文件加载
 │
-├── android/                     # Android 端模块
+├── android/                           # Android 端模块
 │   └── me.englishhugging.android
-│       ├── MainActivity             # 主界面（设置 + 启停控制）
-│       ├── OverlayService           # 悬浮窗前台服务
-│       └── AndroidSettingsStore     # Android 设置持久化（SharedPreferences）
+│       ├── overlay/                   # 悬浮窗服务
+│       │   └── OverlayService         #   悬浮窗前台服务 + 单词渲染
+│       ├── settings/                  # 设置持久化
+│       │   └── AndroidSettingsStore   #   Android 设置（SharedPreferences）
+│       ├── ui/                        # UI 组件
+│       │   └── AndroidUi              #   UI 工具方法（按钮、卡片、下拉框等）
+│       └── MainActivity               # 主界面（首页 + 设置 + 记录）
 │
-└── vocabulary/                  # 应用使用的 JSON 词库
+└── vocabulary/                        # 内置 JSON 词库（初中 ~ SAT）
 ```
 
 ## 技术栈

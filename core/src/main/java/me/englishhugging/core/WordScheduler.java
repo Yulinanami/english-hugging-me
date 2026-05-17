@@ -1,5 +1,8 @@
 package me.englishhugging.core;
 
+import me.englishhugging.core.model.WordEntry;
+import me.englishhugging.core.settings.PlaybackMode;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,19 +36,6 @@ public final class WordScheduler implements AutoCloseable {
     private ScheduledFuture<?> future;
     private int intervalSeconds;
 
-    public WordScheduler(List<WordEntry> words, int intervalSeconds, Listener listener) {
-        this(
-                words,
-                intervalSeconds,
-                PlaybackMode.SEQUENTIAL,
-                0,
-                "",
-                0,
-                0,
-                listener,
-                null
-        );
-    }
 
     public WordScheduler(
             List<WordEntry> words,
