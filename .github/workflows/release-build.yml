@@ -1,0 +1,94 @@
+name: Release Build
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-desktop:
+    name: Build Windows Desktop
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up WiX
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $toolsDir = Join-Path $env:RUNNER_TEMP 'wix'
+          $zipPath = Join-Path $env:RUNNER_TEMP 'wix311-binaries.zip'
+          New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+          Invoke-WebRequest -Uri 'https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip' -OutFile $zipPath
+          Expand-Archive -LiteralPath $zipPath -DestinationPath $toolsDir -Force
+          Add-Content -Path $env:GITHUB_PATH -Value $toolsDir
+
+      - name: Build Windows exe
+        run: .\gradlew.bat :desktop:packageWindowsExe
+
+      - name: Collect Windows artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item -LiteralPath 'desktop\build\jpackage\English Hugging Me-0.1.0.exe' -Destination 'dist\EHM-Windows-x64.exe'
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EHM-Windows-x64
+          path: dist/EHM-Windows-x64.exe
+
+      - name: Attach Windows exe to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/EHM-Windows-x64.exe
+
+  android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Build Android APK
+        run: ./gradlew :android:assembleDebug
+
+      - name: Collect Android artifact
+        run: |
+          mkdir -p dist
+          cp android/build/outputs/apk/debug/android-armeabi-v7a-debug.apk dist/EHM-Android-armv7.apk
+          cp android/build/outputs/apk/debug/android-arm64-v8a-debug.apk dist/EHM-Android-arm64-v8.apk
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EHM-Android
+          path: dist/EHM-Android-*.apk
+
+      - name: Attach Android APK to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/EHM-Android-*.apk
