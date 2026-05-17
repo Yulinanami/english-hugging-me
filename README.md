@@ -2,6 +2,8 @@
 
 **悬浮背词** — 一款跨平台桌面/移动端英语词汇悬浮窗应用，让你在使用电脑或手机的同时，随时随地沉浸式背单词。
 
+词汇来源：[english-vocabulary](https://github.com/KyleBing/english-vocabulary)
+
 ## 功能特性
 
 - **悬浮窗显示**：半透明圆角悬浮窗常驻屏幕最上层，不影响正常操作
