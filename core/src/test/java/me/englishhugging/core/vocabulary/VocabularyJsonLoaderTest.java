@@ -1,7 +1,6 @@
 package me.englishhugging.core.vocabulary;
 
 import me.englishhugging.core.model.WordEntry;
-import me.englishhugging.core.settings.DisplayMode;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Paths;

@@ -35,6 +35,7 @@ public final class WordScheduler implements AutoCloseable {
     private ScheduledExecutorService executor;
     private ScheduledFuture<?> future;
     private int intervalSeconds;
+    private boolean paused;
 
 
     public WordScheduler(
@@ -67,6 +68,7 @@ public final class WordScheduler implements AutoCloseable {
 
     public synchronized void start() {
         stop();
+        paused = false;
         executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "word-scheduler");
             thread.setDaemon(true);
@@ -76,14 +78,32 @@ public final class WordScheduler implements AutoCloseable {
         future = executor.scheduleAtFixedRate(this::emitNext, intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
     }
 
+    public synchronized void pause() {
+        if (future != null) { future.cancel(false); future = null; }
+        paused = true;
+    }
+
+    public synchronized void resume() {
+        if (!paused || executor == null) return;
+        paused = false;
+        emitNext();
+        future = executor.scheduleAtFixedRate(this::emitNext, intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
+    }
+
+    public synchronized boolean isPaused() { return paused; }
+
     public synchronized void updateIntervalSeconds(int intervalSeconds) {
-        this.intervalSeconds = Math.max(2, intervalSeconds);
-        if (executor != null) {
-            start();
+        int newInterval = Math.max(2, intervalSeconds);
+        if (this.intervalSeconds == newInterval) return;
+        this.intervalSeconds = newInterval;
+        if (executor != null && !paused) {
+            if (future != null) future.cancel(false);
+            future = executor.scheduleAtFixedRate(this::emitNext, this.intervalSeconds, this.intervalSeconds, TimeUnit.SECONDS);
         }
     }
 
     public synchronized void stop() {
+        paused = false;
         if (future != null) {
             future.cancel(true);
             future = null;

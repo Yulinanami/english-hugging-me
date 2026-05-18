@@ -9,6 +9,7 @@ import me.englishhugging.core.WordScheduler;
 import me.englishhugging.core.model.WordEntry;
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.desktop.overlay.DesktopOverlayController;
+import me.englishhugging.desktop.overlay.ScreenStateMonitor;
 import me.englishhugging.desktop.settings.DesktopSettingsPanel;
 import me.englishhugging.desktop.settings.DesktopSettingsStore;
 import me.englishhugging.desktop.ui.DesktopTrayController;
@@ -23,6 +24,7 @@ public final class FloatingWordsDesktopApp extends Application {
     private DesktopSettingsPanel settingsPanel;
     private DesktopTrayController trayController;
     private WordScheduler scheduler;
+    private ScreenStateMonitor screenMonitor;
 
     @Override
     public void start(Stage primaryStage) {
@@ -45,10 +47,17 @@ public final class FloatingWordsDesktopApp extends Application {
         installTrayIcon();
         reloadVocabulary();
         settingsPanel.show();
+
+        screenMonitor = new ScreenStateMonitor(
+                () -> { if (scheduler != null) scheduler.pause(); },
+                () -> { if (scheduler != null) scheduler.resume(); }
+        );
+        screenMonitor.start();
     }
 
     @Override
     public void stop() {
+        if (screenMonitor != null) { screenMonitor.stop(); screenMonitor = null; }
         if (scheduler != null) scheduler.stop();
         if (settings != null) settingsStore.save(settings);
         if (overlayController != null) overlayController.close();

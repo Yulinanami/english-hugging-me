@@ -89,6 +89,12 @@ public final class DesktopSettingsStore {
         writeProperties(p);
     }
 
+    public void clearAllPlaybackProgress() {
+        Properties p = readProperties();
+        p.entrySet().removeIf(entry -> entry.getKey().toString().startsWith("progress."));
+        writeProperties(p);
+    }
+
     public String playbackRecordLine(String vocabularyKey, String label) {
         Properties p = readProperties();
         int nextWordIndex = parseInt(p.getProperty(progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX)), 0);

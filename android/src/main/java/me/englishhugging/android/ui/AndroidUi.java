@@ -46,8 +46,6 @@ public final class AndroidUi {
         return materialIconFont;
     }
 
-    // --- Layout Params ---
-
     public LinearLayout.LayoutParams tabLayoutParams() {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(48), 1);
         p.setMargins(dp(2), 0, dp(2), 0);
@@ -77,8 +75,6 @@ public final class AndroidUi {
 
     public int dp(int value) { return (int) (value * context.getResources().getDisplayMetrics().density + 0.5f); }
 
-    // --- Drawables ---
-
     public GradientDrawable rounded(int color, int strokeColor, int radius) {
         GradientDrawable d = new GradientDrawable();
         d.setColor(color);
@@ -94,9 +90,7 @@ public final class AndroidUi {
         return d;
     }
 
-    // --- Text Views ---
-
-    public LinearLayout headerRow(String title, String actionText) {
+    public LinearLayout headerRow(String title, String actionIcon) {
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -106,9 +100,16 @@ public final class AndroidUi {
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
         titleView.setTextColor(TEXT_PRIMARY);
         header.addView(titleView, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        if (actionText.length() > 0) {
-            MaterialButton action = smallActionButton(actionText);
-            header.addView(action, new LinearLayout.LayoutParams(dp(86), dp(46)));
+        if (actionIcon.length() > 0) {
+            TextView icon = new TextView(context);
+            icon.setText(actionIcon);
+            icon.setTextSize(24);
+            icon.setTypeface(getIconFont());
+            icon.setTextColor(TEXT_SECONDARY);
+            icon.setGravity(Gravity.CENTER);
+            icon.setBackground(rounded(Color.rgb(243, 241, 248), Color.rgb(226, 224, 234), dp(22)));
+            icon.setPadding(dp(10), dp(10), dp(10), dp(10));
+            header.addView(icon, new LinearLayout.LayoutParams(dp(44), dp(44)));
         }
         return header;
     }
@@ -165,8 +166,6 @@ public final class AndroidUi {
         return icon;
     }
 
-    // --- Cards & Items ---
-
     public LinearLayout card() {
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -201,8 +200,6 @@ public final class AndroidUi {
         return row;
     }
 
-    // --- Buttons ---
-
     public MaterialButton tabButton(String text) {
         MaterialButton button = new MaterialButton(context);
         button.setText(text);
@@ -229,22 +226,7 @@ public final class AndroidUi {
         button.setStrokeWidth(0);
         button.setBackgroundTintList(ColorStateList.valueOf(selected ? PRIMARY : Color.TRANSPARENT));
         clearElevation(button);
-    }
-
-    public MaterialButton primaryButton(String text) {
-        MaterialButton button = new MaterialButton(context);
-        button.setText(text);
-        button.setAllCaps(false);
-        button.setTextColor(Color.WHITE);
-        button.setTextSize(16);
-        button.setCornerRadius(dp(16));
-        button.setStrokeWidth(0);
-        button.setBackgroundTintList(ColorStateList.valueOf(PRIMARY));
-        button.setPadding(0, dp(9), 0, dp(9));
-        return button;
-    }
-
-    public MaterialButton secondaryButton(String text) {
+    }    public MaterialButton secondaryButton(String text) {
         MaterialButton button = new MaterialButton(context);
         button.setText(text);
         button.setAllCaps(false);
@@ -256,25 +238,6 @@ public final class AndroidUi {
         button.setPadding(0, dp(9), 0, dp(9));
         return button;
     }
-
-    public MaterialButton iconButton(String iconName) {
-        MaterialButton button = new MaterialButton(context);
-        button.setText(iconName);
-        button.setAllCaps(false);
-        button.setTextColor(TEXT_PRIMARY);
-        button.setTextSize(28);
-        button.setTypeface(getIconFont());
-        button.setGravity(Gravity.CENTER);
-        button.setCornerRadius(dp(28));
-        button.setStrokeWidth(0);
-        button.setBackgroundTintList(ColorStateList.valueOf(Color.TRANSPARENT));
-        button.setInsetTop(0);
-        button.setInsetBottom(0);
-        return button;
-    }
-
-    // --- Inputs ---
-
     public MaterialAutoCompleteTextView dropdown(String[] values) {
         MaterialAutoCompleteTextView dropdown = new MaterialAutoCompleteTextView(context);
         ArrayAdapter<String> adapter = dropdownAdapter(values);
@@ -318,22 +281,7 @@ public final class AndroidUi {
         return 0;
     }
 
-    // --- Private Helpers ---
 
-    private MaterialButton smallActionButton(String text) {
-        MaterialButton button = new MaterialButton(context);
-        button.setText(text);
-        button.setAllCaps(false);
-        button.setTextColor(PRIMARY);
-        button.setTextSize(15);
-        button.setTypeface(Typeface.DEFAULT_BOLD);
-        button.setCornerRadius(dp(18));
-        button.setStrokeWidth(0);
-        button.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(235, 238, 249)));
-        button.setInsetTop(0);
-        button.setInsetBottom(0);
-        return button;
-    }
 
     private TextView itemTitleText(String text) {
         TextView t = new TextView(context);

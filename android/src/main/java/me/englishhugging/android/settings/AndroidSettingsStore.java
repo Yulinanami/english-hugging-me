@@ -87,6 +87,17 @@ public final class AndroidSettingsStore {
                 .apply();
     }
 
+    public static void clearAllPlaybackProgress(Context context) {
+        SharedPreferences p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = p.edit();
+        for (String key : p.getAll().keySet()) {
+            if (key.startsWith("progress.")) {
+                editor.remove(key);
+            }
+        }
+        editor.apply();
+    }
+
     public static String[] playbackRecordLines(Context context) {
         List<String> lines = new ArrayList<>();
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {

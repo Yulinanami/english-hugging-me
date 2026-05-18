@@ -2,13 +2,17 @@ package me.englishhugging.android;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
+import android.widget.AdapterView;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -158,7 +162,7 @@ public final class MainActivity extends Activity {
     private void showHomePage() {
         switchPage(homeTab, () -> {
             AppSettings settings = AndroidSettingsStore.load(this);
-            LinearLayout header = ui.headerRow("首页", "设置");
+            LinearLayout header = ui.headerRow("首页", "settings");
             header.getChildAt(1).setOnClickListener(view -> showSettingsPage());
             pageContent.addView(header, ui.matchWidthWithBottomMargin(34));
 
@@ -236,9 +240,6 @@ public final class MainActivity extends Activity {
             colorCard.addView(ui.settingItem("词性颜色", "例如 #7DD3FC", typeColor), ui.matchWidthWrapHeight());
             colorCard.addView(ui.settingItem("释义颜色", "例如 #FDE68A", translationColor), ui.matchWidthWrapHeight());
             colorCard.addView(ui.settingItem("短语/例句颜色", "例如 #86EFAC", phraseColor), ui.matchWidthWrapHeight());
-            MaterialButton save = ui.primaryButton("保存设置");
-            save.setOnClickListener(view -> saveSettingsOnly());
-            colorCard.addView(save, ui.matchWidthWithTopMargin(14));
             pageContent.addView(colorCard, ui.matchWidthWithBottomMargin(26));
 
             pageContent.addView(ui.sectionLabel("自定义词汇"), ui.matchWidthWithBottomMargin(12));
@@ -261,6 +262,7 @@ public final class MainActivity extends Activity {
             pageContent.addView(customCard, ui.matchWidthWithBottomMargin(16));
 
             bindSettings(settings);
+            bindSettingsListeners();
         });
     }
 
@@ -274,6 +276,25 @@ public final class MainActivity extends Activity {
                 recordsCard.addView(ui.recordRow(line), ui.matchWidthWrapHeight());
             }
             pageContent.addView(recordsCard, ui.matchWidthWithBottomMargin(16));
+
+            MaterialButton clearBtn = ui.secondaryButton("清除所有记录");
+            clearBtn.setTextColor(Color.rgb(239, 68, 68));
+            clearBtn.setOnClickListener(view -> {
+                new AlertDialog.Builder(this)
+                        .setTitle("确认清除")
+                        .setMessage("确定要清除所有播放记录吗？这将使所有词汇本从头开始播放。")
+                        .setPositiveButton("确定", (dialog, which) -> {
+                            AppSettings currentSettings = AndroidSettingsStore.load(this);
+                            currentSettings.resetPlaybackProgress();
+                            AndroidSettingsStore.clearAllPlaybackProgress(this);
+                            AndroidSettingsStore.savePlaybackProgress(this, currentSettings, currentSettings.getVocabularyFileName());
+                            notifyServiceReload();
+                            showRecordsPage();
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            });
+            pageContent.addView(clearBtn, ui.matchWidthWithTopMargin(8));
         });
     }
 
@@ -301,12 +322,9 @@ public final class MainActivity extends Activity {
             return;
         }
 
-        AppSettings settings = vocabularyDropdown == null ? AndroidSettingsStore.load(this) : collectSettings();
-        if (vocabularyDropdown == null) {
-            AndroidSettingsStore.loadPlaybackProgress(this, settings, settings.getVocabularyFileName());
+        if (vocabularyDropdown != null) {
+            saveAndReload();
         }
-        AndroidSettingsStore.save(this, settings);
-        AndroidSettingsStore.savePlaybackProgress(this, settings, settings.getVocabularyFileName());
         Intent intent = new Intent(this, OverlayService.class);
         intent.setAction(OverlayService.ACTION_START);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -316,14 +334,8 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void saveSettingsOnly() {
-        AppSettings settings = collectSettings();
-        AndroidSettingsStore.save(this, settings);
-        AndroidSettingsStore.savePlaybackProgress(this, settings, settings.getVocabularyFileName());
-        Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
-    }
-
-    private AppSettings collectSettings() {
+    private void saveAndReload() {
+        if (vocabularyDropdown == null) return;
         AppSettings settings = AndroidSettingsStore.load(this);
         String previousVocabularyFileName = settings.getVocabularyFileName();
         PlaybackMode previousPlaybackMode = settings.getPlaybackMode();
@@ -350,7 +362,42 @@ public final class MainActivity extends Activity {
         settings.setTypeColor(typeColor.getText().toString());
         settings.setTranslationColor(translationColor.getText().toString());
         settings.setPhraseColor(phraseColor.getText().toString());
-        return settings;
+        AndroidSettingsStore.save(this, settings);
+        AndroidSettingsStore.savePlaybackProgress(this, settings, settings.getVocabularyFileName());
+        notifyServiceReload();
+    }
+
+    private void notifyServiceReload() {
+        if (OverlayService.isRunning) {
+            Intent intent = new Intent(this, OverlayService.class);
+            intent.setAction(OverlayService.ACTION_RELOAD);
+            startService(intent);
+        }
+    }
+
+    private void bindSettingsListeners() {
+        AdapterView.OnItemClickListener dropdownListener = (parent, view, position, id) -> saveAndReload();
+        vocabularyDropdown.setOnItemClickListener(dropdownListener);
+        displayModeDropdown.setOnItemClickListener(dropdownListener);
+        playbackModeDropdown.setOnItemClickListener(dropdownListener);
+        overlayModeDropdown.setOnItemClickListener(dropdownListener);
+
+        TextWatcher textChangeListener = new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override public void afterTextChanged(Editable s) { saveAndReload(); }
+        };
+        intervalSeconds.addTextChangedListener(textChangeListener);
+        wordColor.addTextChangedListener(textChangeListener);
+        typeColor.addTextChangedListener(textChangeListener);
+        translationColor.addTextChangedListener(textChangeListener);
+        phraseColor.addTextChangedListener(textChangeListener);
+
+        opacitySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) { if (fromUser) saveAndReload(); }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
     }
 
     private void addCustomWord(

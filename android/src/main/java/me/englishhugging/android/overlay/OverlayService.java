@@ -5,7 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
@@ -34,7 +37,6 @@ import me.englishhugging.core.display.WordDisplayFormatter;
 import me.englishhugging.core.model.WordDisplaySegment;
 import me.englishhugging.core.model.WordEntry;
 import me.englishhugging.core.settings.AppSettings;
-import me.englishhugging.core.settings.DisplayMode;
 import me.englishhugging.core.settings.OverlayMode;
 import me.englishhugging.core.vocabulary.VocabularyJsonLoader;
 import me.englishhugging.core.WordScheduler;
@@ -42,6 +44,7 @@ import me.englishhugging.core.WordScheduler;
 public final class OverlayService extends Service {
     public static final String ACTION_START = "me.englishhugging.android.START_OVERLAY";
     public static final String ACTION_STOP = "me.englishhugging.android.STOP_OVERLAY";
+    public static final String ACTION_RELOAD = "me.englishhugging.android.RELOAD_SETTINGS";
 
     private static final String CHANNEL_ID = "floating_words";
     private static final int NOTIFICATION_ID = 20260517;
@@ -60,11 +63,26 @@ public final class OverlayService extends Service {
 
     public static boolean isRunning = false;
 
+    private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                if (scheduler != null) scheduler.pause();
+            } else if (Intent.ACTION_USER_PRESENT.equals(intent.getAction())) {
+                if (scheduler != null) scheduler.resume();
+            }
+        }
+    };
+
     @Override
     public void onCreate() {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         isRunning = true;
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_USER_PRESENT);
+        registerReceiver(screenReceiver, filter);
     }
 
     @Override
@@ -72,6 +90,10 @@ public final class OverlayService extends Service {
         if (intent != null && ACTION_STOP.equals(intent.getAction())) {
             stopSelf();
             return START_NOT_STICKY;
+        }
+        if (intent != null && ACTION_RELOAD.equals(intent.getAction())) {
+            reloadSettings();
+            return START_STICKY;
         }
         startForeground(NOTIFICATION_ID, createNotification());
         startOverlay();
@@ -81,6 +103,7 @@ public final class OverlayService extends Service {
     @Override
     public void onDestroy() {
         isRunning = false;
+        try { unregisterReceiver(screenReceiver); } catch (RuntimeException ignored) {}
         if (scheduler != null) { scheduler.stop(); scheduler = null; }
         if (overlayView != null) { windowManager.removeView(overlayView); overlayView = null; }
         super.onDestroy();
@@ -98,6 +121,29 @@ public final class OverlayService extends Service {
         layoutParams = createLayoutParams(settings.getOverlayMode());
         windowManager.addView(overlayView, layoutParams);
         startScheduler(words);
+    }
+
+    private void reloadSettings() {
+        AppSettings previous = settings;
+        settings = AndroidSettingsStore.load(this);
+        AndroidSettingsStore.loadPlaybackProgress(this, settings, settings.getVocabularyFileName());
+
+        if (overlayView != null) {
+            overlayView.setAlpha((float) settings.getOpacity());
+            if (currentWord != null) overlayView.setText(formatWord(currentWord));
+        }
+
+        if (previous == null || previous.getOverlayMode() != settings.getOverlayMode()) {
+            layoutParams = createLayoutParams(settings.getOverlayMode());
+            if (overlayView != null) windowManager.updateViewLayout(overlayView, layoutParams);
+        }
+
+        if (scheduler != null) scheduler.updateIntervalSeconds(settings.getIntervalSeconds());
+
+        if (previous == null || !previous.getVocabularyFileName().equals(settings.getVocabularyFileName()) || previous.getPlaybackMode() != settings.getPlaybackMode()) {
+            List<WordEntry> words = loadWords(settings.getVocabularyFileName());
+            startScheduler(words);
+        }
     }
 
     private TextView createOverlayView() {

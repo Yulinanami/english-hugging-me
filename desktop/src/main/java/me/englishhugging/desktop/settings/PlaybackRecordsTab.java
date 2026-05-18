@@ -2,6 +2,9 @@ package me.englishhugging.desktop.settings;
 
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import me.englishhugging.core.settings.AppSettings;
@@ -27,7 +30,23 @@ final class PlaybackRecordsTab {
         recordsBox = new VBox(6);
         recordsBox.setPadding(new Insets(4, 0, 0, 0));
         refresh();
-        VBox page = new VBox(10, DesktopUi.groupBox("播放记录", recordsBox));
+        VBox group = DesktopUi.groupBox("播放记录", recordsBox);
+
+        Button clearButton = DesktopUi.compactButton("清除所有记录");
+        clearButton.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-cursor: hand;");
+        clearButton.setOnAction(event -> {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "确定要清除所有播放记录吗？这将使所有词汇本从头开始播放。");
+            alert.setHeaderText(null);
+            alert.showAndWait().ifPresent(type -> {
+                if (type == ButtonType.OK) {
+                    settings.resetPlaybackProgress();
+                    settingsStore.clearAllPlaybackProgress();
+                    refresh();
+                }
+            });
+        });
+
+        VBox page = new VBox(14, group, clearButton);
         page.setPadding(new Insets(10));
         return page;
     }
