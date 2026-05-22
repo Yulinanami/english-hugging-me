@@ -32,11 +32,11 @@ public final class HomeTab {
         this.onNavigateToSettings = onNavigateToSettings;
     }
 
-    public void buildContent(LinearLayout pageContent) {
+    public void buildContent(LinearLayout pageHeader, LinearLayout pageContent) {
         AppSettings settings = AndroidSettingsStore.load(activity);
         LinearLayout header = ui.headerRow("首页", "settings");
         header.getChildAt(1).setOnClickListener(view -> onNavigateToSettings.run());
-        pageContent.addView(header, ui.matchWidthWithBottomMargin(34));
+        pageHeader.addView(header, ui.matchWidthWithBottomMargin(12));
 
         LinearLayout speedCard = ui.card();
         speedCard.setOrientation(LinearLayout.HORIZONTAL);

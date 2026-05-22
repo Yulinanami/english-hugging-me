@@ -49,6 +49,7 @@ public final class SettingsTab {
     private MaterialAutoCompleteTextView phraseColor;
     private EditText wordFontSize;
     private EditText detailFontSize;
+    private Switch autoSizeSwitch;
     private Switch resizeModeSwitch;
     private EditText startingPrefix;
     private MaterialAutoCompleteTextView loopPlaybackDropdown;
@@ -79,7 +80,7 @@ public final class SettingsTab {
         return text.split(" ")[0];
     }
 
-    public void buildContent(LinearLayout pageContent) {
+    public void buildContent(LinearLayout pageHeader, LinearLayout pageContent) {
         AppSettings settings = AndroidSettingsStore.load(activity);
 
         LinearLayout header = ui.headerRow("设置", "");
@@ -94,7 +95,7 @@ public final class SettingsTab {
             if (goHome != null) goHome.run();
         });
         header.addView(backIcon, 0, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        pageContent.addView(header, ui.matchWidthWithBottomMargin(28));
+        pageHeader.addView(header, ui.matchWidthWithBottomMargin(12));
 
         pageContent.addView(ui.sectionLabel("基础设置"), ui.matchWidthWithBottomMargin(12));
         LinearLayout generalCard = ui.card();
@@ -142,6 +143,10 @@ public final class SettingsTab {
         
         colorCard.addView(ui.settingItem("单词字号", "悬浮窗单词字体大小", ui.numberAdjuster(wordFontSize, 2, 10, 72)), ui.matchWidthWrapHeight());
         colorCard.addView(ui.settingItem("释义字号", "悬浮窗释义字体大小", ui.numberAdjuster(detailFontSize, 2, 8, 60)), ui.matchWidthWrapHeight());
+        
+        autoSizeSwitch = new Switch(activity);
+        colorCard.addView(ui.settingSwitchItem("自动适配内容大小", "悬浮窗尺寸随文字自动变化（恢复默认）", autoSizeSwitch), ui.matchWidthWrapHeight());
+        
         colorCard.addView(ui.settingSwitchItem("调整悬浮窗大小", "开启后右下角出现可拖拽手柄", resizeModeSwitch), ui.matchWidthWrapHeight());
         
         pageContent.addView(colorCard, ui.matchWidthWithBottomMargin(26));
@@ -167,7 +172,11 @@ public final class SettingsTab {
         phraseColor.setText(formatColor(settings.getPhraseColor()), false);
         wordFontSize.setText(Integer.toString(settings.getWordFontSize()));
         detailFontSize.setText(Integer.toString(settings.getDetailFontSize()));
+        
+        isUpdatingSwitches = true;
+        autoSizeSwitch.setChecked(settings.getWidth() <= 0 && settings.getHeight() <= 0 && !settings.isResizeMode());
         resizeModeSwitch.setChecked(settings.isResizeMode());
+        isUpdatingSwitches = false;
     }
 
     private void saveAndReload() {
@@ -207,6 +216,11 @@ public final class SettingsTab {
         settings.setPhraseColor(extractHex(phraseColor.getText().toString()));
         try { settings.setWordFontSize(Integer.parseInt(wordFontSize.getText().toString())); } catch (Exception ignored) {}
         try { settings.setDetailFontSize(Integer.parseInt(detailFontSize.getText().toString())); } catch (Exception ignored) {}
+        
+        if (autoSizeSwitch.isChecked()) {
+            settings.setWidth(0);
+            settings.setHeight(0);
+        }
         settings.setResizeMode(resizeModeSwitch.isChecked());
         
         AndroidSettingsStore.save(activity, settings);
@@ -221,6 +235,8 @@ public final class SettingsTab {
             activity.startService(intent);
         }
     }
+
+    private boolean isUpdatingSwitches = false;
 
     private void bindSettingsListeners() {
         AdapterView.OnItemClickListener dropdownListener = (parent, view, position, id) -> saveAndReload();
@@ -246,7 +262,27 @@ public final class SettingsTab {
         phraseColor.addTextChangedListener(textChangeListener);
         wordFontSize.addTextChangedListener(textChangeListener);
         detailFontSize.addTextChangedListener(textChangeListener);
-        resizeModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> saveAndReload());
+        
+        autoSizeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isUpdatingSwitches) return;
+            if (isChecked) {
+                isUpdatingSwitches = true;
+                resizeModeSwitch.setChecked(false);
+                isUpdatingSwitches = false;
+            }
+            saveAndReload();
+        });
+        
+        resizeModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isUpdatingSwitches) return;
+            if (isChecked) {
+                isUpdatingSwitches = true;
+                autoSizeSwitch.setChecked(false);
+                isUpdatingSwitches = false;
+            }
+            saveAndReload();
+        });
+        
         loopPlaybackSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> saveAndReload());
 
         opacitySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {

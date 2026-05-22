@@ -21,6 +21,7 @@ import android.text.SpannableStringBuilder;
 import android.text.style.AbsoluteSizeSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -57,6 +58,10 @@ public final class OverlayService extends Service {
     private FrameLayout overlayRoot;
     private TextView overlayText;
     private WindowManager.LayoutParams layoutParams;
+    private TextView resizeHandleView;
+    private WindowManager.LayoutParams resizeHandleParams;
+    private final android.view.ViewTreeObserver.OnGlobalLayoutListener layoutListener = this::syncResizeHandlePosition;
+
     private WordScheduler scheduler;
     private AppSettings settings;
     private WordEntry currentWord;
@@ -107,6 +112,7 @@ public final class OverlayService extends Service {
         isRunning = false;
         try { unregisterReceiver(screenReceiver); } catch (RuntimeException ignored) {}
         if (scheduler != null) { scheduler.stop(); scheduler = null; }
+        if (resizeHandleView != null) { windowManager.removeView(resizeHandleView); resizeHandleView = null; }
         if (overlayRoot != null) { windowManager.removeView(overlayRoot); overlayRoot = null; }
         super.onDestroy();
     }
@@ -122,6 +128,7 @@ public final class OverlayService extends Service {
         overlayRoot = createOverlayView();
         layoutParams = createLayoutParams(settings.getOverlayMode());
         windowManager.addView(overlayRoot, layoutParams);
+        manageResizeHandleWindow();
         startScheduler(words);
     }
 
@@ -145,10 +152,12 @@ public final class OverlayService extends Service {
                 overlayRoot = createOverlayView();
                 layoutParams = createLayoutParams(settings.getOverlayMode());
                 windowManager.addView(overlayRoot, layoutParams);
+                manageResizeHandleWindow();
                 if (currentWord != null) overlayText.setText(formatWord(currentWord));
             } else {
                 layoutParams = createLayoutParams(settings.getOverlayMode());
                 if (overlayRoot != null) windowManager.updateViewLayout(overlayRoot, layoutParams);
+                manageResizeHandleWindow();
             }
         }
 
@@ -172,34 +181,77 @@ public final class OverlayService extends Service {
         overlayText.setTextColor(Color.WHITE);
         overlayText.setGravity(Gravity.CENTER);
         overlayText.setPadding(28, 18, 28, 18);
+        
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        overlayText.setMaxWidth((int) (metrics.widthPixels * 0.9f));
+        
         FrameLayout.LayoutParams textParams = new FrameLayout.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        textParams.gravity = Gravity.CENTER;
         root.addView(overlayText, textParams);
         overlayText.setOnTouchListener(this::onOverlayTouch);
 
-        if (settings.isResizeMode()) {
-            TextView handle = new TextView(this);
-            try {
-                handle.setTypeface(Typeface.createFromAsset(getAssets(), "fonts/MaterialIcons-Regular.ttf"));
-                handle.setText("zoom_out_map"); // ligatures
-            } catch (Exception e) {
-                handle.setText("↘");
-            }
-            handle.setTextColor(Color.WHITE);
-            handle.setTextSize(24);
-            handle.setPadding(10, 10, 30, 30);
-            FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(
-                    WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
-                    Gravity.BOTTOM | Gravity.END);
-            root.addView(handle, handleParams);
-            handle.setOnTouchListener(this::onResizeTouch);
-        }
         return root;
+    }
+
+    private void manageResizeHandleWindow() {
+        if (settings.isResizeMode()) {
+            if (resizeHandleView == null) {
+                resizeHandleView = new TextView(this);
+                try {
+                    resizeHandleView.setTypeface(android.graphics.Typeface.createFromAsset(getAssets(), "fonts/MaterialIcons-Regular.ttf"));
+                    resizeHandleView.setText("zoom_out_map");
+                } catch (Exception e) {
+                    resizeHandleView.setText("↘");
+                }
+                resizeHandleView.setTextColor(android.graphics.Color.WHITE);
+                resizeHandleView.setTextSize(24);
+                resizeHandleView.setPadding(10, 10, 30, 30);
+                resizeHandleView.setOnTouchListener(this::onResizeTouch);
+
+                resizeHandleParams = new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, android.graphics.PixelFormat.TRANSLUCENT);
+                resizeHandleParams.gravity = Gravity.TOP | Gravity.START;
+                windowManager.addView(resizeHandleView, resizeHandleParams);
+            }
+            if (overlayRoot != null) {
+                overlayRoot.getViewTreeObserver().removeOnGlobalLayoutListener(layoutListener);
+                overlayRoot.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
+            }
+            syncResizeHandlePosition();
+        } else {
+            if (resizeHandleView != null) {
+                windowManager.removeView(resizeHandleView);
+                resizeHandleView = null;
+            }
+            if (overlayRoot != null) {
+                overlayRoot.getViewTreeObserver().removeOnGlobalLayoutListener(layoutListener);
+            }
+        }
+    }
+
+    private void syncResizeHandlePosition() {
+        if (resizeHandleView != null && overlayRoot != null && layoutParams != null) {
+            int width = overlayRoot.getWidth();
+            int height = overlayRoot.getHeight();
+            if (width > 0 && height > 0) {
+                resizeHandleView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+                int handleW = resizeHandleView.getMeasuredWidth();
+                int handleH = resizeHandleView.getMeasuredHeight();
+                resizeHandleParams.x = layoutParams.x + width - handleW;
+                resizeHandleParams.y = layoutParams.y + height - handleH;
+                windowManager.updateViewLayout(resizeHandleView, resizeHandleParams);
+            }
+        }
     }
 
     private WindowManager.LayoutParams createLayoutParams(OverlayMode overlayMode) {
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
-        if (overlayMode == OverlayMode.CLICK_THROUGH) flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+        if (overlayMode == OverlayMode.CLICK_THROUGH) {
+            flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+        }
         int width = settings.getWidth() > 0 ? (int) (settings.getWidth() * getResources().getDisplayMetrics().density + 0.5f) : WindowManager.LayoutParams.WRAP_CONTENT;
         int height = settings.getHeight() > 0 ? (int) (settings.getHeight() * getResources().getDisplayMetrics().density + 0.5f) : WindowManager.LayoutParams.WRAP_CONTENT;
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
@@ -224,6 +276,7 @@ public final class OverlayService extends Service {
                 settings.setX(layoutParams.x); settings.setY(layoutParams.y);
                 AndroidSettingsStore.save(this, settings);
                 windowManager.updateViewLayout(overlayRoot, layoutParams);
+                syncResizeHandlePosition();
                 return true;
             default: return true;
         }
@@ -251,6 +304,7 @@ public final class OverlayService extends Service {
                 settings.setHeight(layoutParams.height / getResources().getDisplayMetrics().density);
                 AndroidSettingsStore.save(this, settings);
                 windowManager.updateViewLayout(overlayRoot, layoutParams);
+                syncResizeHandlePosition();
                 return true;
             default: return true;
         }

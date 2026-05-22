@@ -29,7 +29,7 @@ public final class RecordsTab {
         this.goHome = goHome;
     }
 
-    public void buildContent(LinearLayout pageContent) {
+    public void buildContent(LinearLayout pageHeader, LinearLayout pageContent) {
         LinearLayout header = ui.headerRow("播放记录", "");
         TextView backIcon = new TextView(activity);
         backIcon.setText("chevron_left");
@@ -42,7 +42,7 @@ public final class RecordsTab {
             if (goHome != null) goHome.run();
         });
         header.addView(backIcon, 0, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        pageContent.addView(header, ui.matchWidthWithBottomMargin(28));
+        pageHeader.addView(header, ui.matchWidthWithBottomMargin(12));
 
         pageContent.addView(ui.sectionLabel("记录"), ui.matchWidthWithBottomMargin(12));
         LinearLayout recordsCard = ui.card();
