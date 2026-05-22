@@ -19,16 +19,4 @@ public final class Phrase {
     public String getTranslation() {
         return translation;
     }
-
-    public String toDisplayText() {
-        String safePhrase = phrase == null ? "" : phrase.trim();
-        String safeTranslation = translation == null ? "" : translation.trim();
-        if (safeTranslation.length() == 0) {
-            return safePhrase;
-        }
-        if (safePhrase.length() == 0) {
-            return safeTranslation;
-        }
-        return safePhrase + "：" + safeTranslation;
-    }
 }

@@ -140,7 +140,8 @@ final class VocabularySettingsTab {
     }
 
     String vocabularyChoiceForPath(String value) {
-        String normalized = value == null ? "" : value.replace('\\', '/');
+        if (value == null || value.trim().isEmpty()) return AppSettings.DEFAULT_VOCABULARY_FILE_NAME;
+        String normalized = value.replace('\\', '/');
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
             if (normalized.equals(item.getFileName())
                     || normalized.equals(VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName())
@@ -149,7 +150,7 @@ final class VocabularySettingsTab {
             }
         }
         if (normalized.equals(customVocabularyPath().toString().replace('\\', '/'))) return CUSTOM_VOCABULARY_LABEL;
-        return value == null || value.trim().isEmpty() ? AppSettings.DEFAULT_VOCABULARY_FILE_NAME : value;
+        return value;
     }
 
     static Path customVocabularyPath() {
@@ -194,6 +195,14 @@ final class VocabularySettingsTab {
             vocabularyChoice.setValue(CUSTOM_VOCABULARY_LABEL);
             applyVocabularyChoice(CUSTOM_VOCABULARY_LABEL);
             wordField.clear(); typeField.clear(); meaningField.clear(); phraseField.clear(); phraseMeaningField.clear(); exampleField.clear();
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            System.err.println("Failed to add custom word: " + e.getMessage());
+            e.printStackTrace();
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+            alert.setTitle("添加失败");
+            alert.setHeaderText("无法保存自定义词汇");
+            alert.setContentText(e.getMessage());
+            alert.show();
+        }
     }
 }

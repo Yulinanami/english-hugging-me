@@ -107,7 +107,10 @@ public final class DesktopSettingsPanel {
         if (appIcon == null) {
             try (InputStream in = DesktopSettingsPanel.class.getResourceAsStream(APP_ICON_RESOURCE)) {
                 if (in != null) appIcon = new Image(in);
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                System.err.println("Failed to load app icon: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
         return appIcon;
     }

@@ -44,7 +44,7 @@ public final class VocabularyJsonLoader {
             if (entry == null || entry.getWord() == null || entry.getWord().trim().length() == 0) {
                 continue;
             }
-            entries.add(entry.normalized());
+            entries.add(entry.defensiveCopy());
         }
         return Collections.unmodifiableList(entries);
     }

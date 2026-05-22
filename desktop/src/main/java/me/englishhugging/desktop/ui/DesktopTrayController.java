@@ -132,7 +132,10 @@ public final class DesktopTrayController {
                 BufferedImage image = ImageIO.read(in);
                 if (image != null) return image;
             }
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            System.err.println("Failed to load tray icon: " + e.getMessage());
+            e.printStackTrace();
+        }
         BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
         g.setColor(new java.awt.Color(47, 111, 237));

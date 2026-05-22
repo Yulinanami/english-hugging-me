@@ -18,7 +18,7 @@ public final class WordEntry {
         this.phrases = copyPhrases(phrases);
     }
 
-    public WordEntry normalized() {
+    public WordEntry defensiveCopy() {
         return new WordEntry(word, translations, phrases);
     }
 

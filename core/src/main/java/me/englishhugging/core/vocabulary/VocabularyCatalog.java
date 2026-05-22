@@ -32,15 +32,6 @@ public final class VocabularyCatalog {
         return fileNames;
     }
 
-    public static int indexOfFileName(String fileName) {
-        for (int i = 0; i < ITEMS.length; i++) {
-            if (ITEMS[i].getFileName().equals(fileName)) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
     public static final class VocabularyItem {
         private final String displayName;
         private final String fileName;

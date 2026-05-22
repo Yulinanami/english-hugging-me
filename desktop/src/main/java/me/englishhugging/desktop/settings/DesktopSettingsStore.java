@@ -106,7 +106,10 @@ public final class DesktopSettingsStore {
     private Properties readProperties() {
         Properties p = new Properties();
         if (!Files.exists(configPath)) return p;
-        try (InputStream in = Files.newInputStream(configPath)) { p.load(in); } catch (IOException ignored) {}
+        try (InputStream in = Files.newInputStream(configPath)) { p.load(in); } catch (IOException e) {
+            System.err.println("Failed to read settings file: " + e.getMessage());
+            e.printStackTrace();
+        }
         return p;
     }
 
@@ -114,7 +117,10 @@ public final class DesktopSettingsStore {
         try {
             Files.createDirectories(configPath.getParent());
             try (OutputStream out = Files.newOutputStream(configPath)) { p.store(out, "English Hugging Me desktop settings"); }
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            System.err.println("Failed to write settings file: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private static String progressKey(String vocabularyKey, String key) {

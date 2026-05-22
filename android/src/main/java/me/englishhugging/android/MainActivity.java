@@ -45,7 +45,6 @@ public final class MainActivity extends Activity {
     private AndroidUi ui;
     private LinearLayout pageContent;
     private MaterialButton homeTab;
-    private MaterialButton settingsTab;
     private MaterialButton recordsTab;
     private MaterialAutoCompleteTextView vocabularyDropdown;
     private MaterialAutoCompleteTextView displayModeDropdown;
@@ -113,10 +112,8 @@ public final class MainActivity extends Activity {
         }
 
         homeTab = ui.tabButton("首页");
-        settingsTab = ui.tabButton("设置");
         recordsTab = ui.tabButton("记录");
         homeTab.setOnClickListener(view -> showHomePage());
-        settingsTab.setOnClickListener(view -> showSettingsPage());
         recordsTab.setOnClickListener(view -> showRecordsPage());
         nav.addView(homeTab, ui.tabLayoutParams());
         nav.addView(recordsTab, ui.tabLayoutParams());
@@ -207,7 +204,7 @@ public final class MainActivity extends Activity {
     }
 
     private void showSettingsPage() {
-        switchPage(settingsTab, () -> {
+        switchPage(null, () -> {
             AppSettings settings = AndroidSettingsStore.load(this);
 
             pageContent.addView(ui.headerRow("设置", ""), ui.matchWidthWithBottomMargin(28));
@@ -471,7 +468,6 @@ public final class MainActivity extends Activity {
 
     private void selectTab(MaterialButton selected) {
         ui.styleTab(homeTab, selected == homeTab);
-        ui.styleTab(settingsTab, selected == settingsTab);
         ui.styleTab(recordsTab, selected == recordsTab);
     }
 }

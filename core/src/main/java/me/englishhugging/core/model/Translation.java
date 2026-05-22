@@ -19,16 +19,4 @@ public final class Translation {
     public String getType() {
         return type;
     }
-
-    public String toDisplayText() {
-        String safeTranslation = translation == null ? "" : translation.trim();
-        String safeType = type == null ? "" : type.trim();
-        if (safeType.length() == 0) {
-            return safeTranslation;
-        }
-        if (safeTranslation.length() == 0) {
-            return safeType;
-        }
-        return safeType + ". " + safeTranslation;
-    }
 }
