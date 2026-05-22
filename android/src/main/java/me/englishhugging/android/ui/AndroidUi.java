@@ -171,7 +171,6 @@ public final class AndroidUi {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(18), dp(18), dp(18), dp(18));
         card.setBackground(rounded(CARD_BACKGROUND, Color.TRANSPARENT, dp(28)));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) card.setElevation(dp(1));
         return card;
     }
 
@@ -184,6 +183,23 @@ public final class AndroidUi {
         item.addView(itemTitleText(title), matchWidthWrapHeight());
         item.addView(itemSubtitleText(subtitle), matchWidthWrapHeight());
         item.addView(control, controlParams);
+        return item;
+    }
+
+    public View settingSwitchItem(String title, String subtitle, View switchControl) {
+        LinearLayout item = new LinearLayout(context);
+        item.setOrientation(LinearLayout.HORIZONTAL);
+        item.setGravity(Gravity.CENTER_VERTICAL);
+        item.setPadding(0, dp(10), 0, dp(14));
+        
+        LinearLayout textLayout = new LinearLayout(context);
+        textLayout.setOrientation(LinearLayout.VERTICAL);
+        textLayout.addView(itemTitleText(title), matchWidthWrapHeight());
+        textLayout.addView(itemSubtitleText(subtitle), matchWidthWrapHeight());
+        
+        item.addView(textLayout, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        item.addView(switchControl, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        
         return item;
     }
 
@@ -237,6 +253,7 @@ public final class AndroidUi {
         button.setStrokeWidth(0);
         button.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(235, 238, 249)));
         button.setPadding(0, dp(9), 0, dp(9));
+        clearElevation(button);
         return button;
     }
     public MaterialAutoCompleteTextView dropdown(String[] values) {
@@ -268,6 +285,66 @@ public final class AndroidUi {
         input.setPadding(dp(10), dp(6), dp(10), dp(6));
         input.setBackground(rounded(Color.WHITE, Color.rgb(218, 216, 226), dp(12)));
         return input;
+    }
+
+    public LinearLayout numberAdjuster(EditText input, int step, int min, int max) {
+        LinearLayout layout = new LinearLayout(context);
+        layout.setOrientation(LinearLayout.HORIZONTAL);
+        layout.setGravity(Gravity.CENTER_VERTICAL);
+        
+        MaterialButton minusBtn = new MaterialButton(context);
+        minusBtn.setText("-");
+        minusBtn.setTextColor(TEXT_PRIMARY);
+        minusBtn.setBackgroundTintList(ColorStateList.valueOf(Color.TRANSPARENT));
+        minusBtn.setStrokeColor(ColorStateList.valueOf(Color.rgb(200, 200, 200)));
+        minusBtn.setStrokeWidth(dp(1));
+        minusBtn.setMinWidth(0);
+        minusBtn.setMinHeight(0);
+        minusBtn.setMinimumWidth(0);
+        minusBtn.setMinimumHeight(0);
+        minusBtn.setCornerRadius(dp(18));
+        minusBtn.setPadding(0, 0, 0, 0);
+        clearElevation(minusBtn);
+        minusBtn.setOnClickListener(v -> {
+            try {
+                int val = Integer.parseInt(input.getText().toString());
+                if (val > min) input.setText(String.valueOf(val - step));
+            } catch (Exception ignored) {}
+        });
+        
+        MaterialButton plusBtn = new MaterialButton(context);
+        plusBtn.setText("+");
+        plusBtn.setTextColor(TEXT_PRIMARY);
+        plusBtn.setBackgroundTintList(ColorStateList.valueOf(Color.TRANSPARENT));
+        plusBtn.setStrokeColor(ColorStateList.valueOf(Color.rgb(200, 200, 200)));
+        plusBtn.setStrokeWidth(dp(1));
+        plusBtn.setMinWidth(0);
+        plusBtn.setMinHeight(0);
+        plusBtn.setMinimumWidth(0);
+        plusBtn.setMinimumHeight(0);
+        plusBtn.setCornerRadius(dp(18));
+        plusBtn.setPadding(0, 0, 0, 0);
+        clearElevation(plusBtn);
+        plusBtn.setOnClickListener(v -> {
+            try {
+                int val = Integer.parseInt(input.getText().toString());
+                if (val < max) input.setText(String.valueOf(val + step));
+            } catch (Exception ignored) {}
+        });
+
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setGravity(Gravity.CENTER);
+        input.setBackground(rounded(Color.rgb(243, 241, 248), Color.rgb(226, 224, 234), dp(8)));
+        input.setPadding(dp(4), dp(4), dp(4), dp(4));
+        
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        layout.addView(minusBtn, btnParams);
+        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(dp(60), ViewGroup.LayoutParams.WRAP_CONTENT);
+        inputParams.setMargins(dp(4), 0, dp(4), 0);
+        layout.addView(input, inputParams);
+        layout.addView(plusBtn, btnParams);
+        
+        return layout;
     }
 
     public String selectedValue(MaterialAutoCompleteTextView dropdown, String[] values, String fallback) {

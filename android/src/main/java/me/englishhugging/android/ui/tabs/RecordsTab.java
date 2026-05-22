@@ -4,6 +4,9 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.view.Gravity;
+import android.view.ViewGroup;
 
 import com.google.android.material.button.MaterialButton;
 
@@ -17,15 +20,29 @@ public final class RecordsTab {
     private final MainActivity activity;
     private final AndroidUi ui;
     private final Runnable onReloadPage;
+    private final Runnable goHome;
 
-    public RecordsTab(MainActivity activity, AndroidUi ui, Runnable onReloadPage) {
+    public RecordsTab(MainActivity activity, AndroidUi ui, Runnable onReloadPage, Runnable goHome) {
         this.activity = activity;
         this.ui = ui;
         this.onReloadPage = onReloadPage;
+        this.goHome = goHome;
     }
 
     public void buildContent(LinearLayout pageContent) {
-        pageContent.addView(ui.headerRow("播放记录", ""), ui.matchWidthWithBottomMargin(28));
+        LinearLayout header = ui.headerRow("播放记录", "");
+        TextView backIcon = new TextView(activity);
+        backIcon.setText("chevron_left");
+        backIcon.setTextSize(32);
+        backIcon.setTypeface(ui.getIconFont());
+        backIcon.setTextColor(AndroidUi.TEXT_PRIMARY);
+        backIcon.setGravity(Gravity.CENTER);
+        backIcon.setPadding(0, 0, ui.dp(8), 0);
+        backIcon.setOnClickListener(v -> {
+            if (goHome != null) goHome.run();
+        });
+        header.addView(backIcon, 0, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        pageContent.addView(header, ui.matchWidthWithBottomMargin(28));
 
         pageContent.addView(ui.sectionLabel("记录"), ui.matchWidthWithBottomMargin(12));
         LinearLayout recordsCard = ui.card();

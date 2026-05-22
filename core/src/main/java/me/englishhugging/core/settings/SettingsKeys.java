@@ -22,6 +22,9 @@ public final class SettingsKeys {
     public static final String PHRASE_COLOR = "phraseColor";
     public static final String WORD_FONT_SIZE = "wordFontSize";
     public static final String DETAIL_FONT_SIZE = "detailFontSize";
+    public static final String STARTING_PREFIX = "startingPrefix";
+    public static final String LOOP_PLAYBACK = "loopPlayback";
+    public static final String RESIZE_MODE = "resizeMode";
 
     private SettingsKeys() {
     }

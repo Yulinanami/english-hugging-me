@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 public final class WordScheduler implements AutoCloseable {
     public interface Listener {
         void onWord(WordEntry wordEntry);
+        void onPlaybackFinished();
     }
 
     public interface ProgressListener {
@@ -36,6 +37,8 @@ public final class WordScheduler implements AutoCloseable {
     private ScheduledFuture<?> future;
     private int intervalSeconds;
     private boolean paused;
+    private boolean loopPlayback;
+    private int sessionPlayedCount = 0;
 
 
     public WordScheduler(
@@ -46,6 +49,8 @@ public final class WordScheduler implements AutoCloseable {
             String shuffleOrder,
             int shufflePosition,
             int randomPlayedCount,
+            String startingPrefix,
+            boolean loopPlayback,
             Listener listener,
             ProgressListener progressListener
     ) {
@@ -55,15 +60,38 @@ public final class WordScheduler implements AutoCloseable {
         if (listener == null) {
             throw new IllegalArgumentException("listener must not be null");
         }
-        this.words = words;
+        if (startingPrefix != null && !startingPrefix.isEmpty()) {
+            List<WordEntry> filtered = new ArrayList<>();
+            for (WordEntry w : words) {
+                if (w.getWord().toLowerCase().startsWith(startingPrefix.toLowerCase())) {
+                    filtered.add(w);
+                }
+            }
+            this.words = filtered.isEmpty() ? words : filtered;
+        } else {
+            this.words = words;
+        }
+
         this.listener = listener;
         this.progressListener = progressListener;
         this.playbackMode = playbackMode == null ? PlaybackMode.SEQUENTIAL : playbackMode;
-        this.nextWordIndex = Math.floorMod(nextWordIndex, words.size());
-        this.shuffleOrder = parseShuffleOrder(shuffleOrder, words.size());
-        this.shufflePosition = Math.min(Math.max(0, shufflePosition), words.size());
+        
+        if (nextWordIndex < 0 || nextWordIndex > this.words.size()) {
+            this.nextWordIndex = 0;
+        } else {
+            this.nextWordIndex = nextWordIndex;
+            if (loopPlayback && this.nextWordIndex == this.words.size()) {
+                this.nextWordIndex = 0;
+            }
+        }
+        
+        this.shuffleOrder = parseShuffleOrder(shuffleOrder, this.words.size());
+        this.shufflePosition = Math.min(Math.max(0, shufflePosition), this.words.size());
         this.randomPlayedCount = Math.max(0, randomPlayedCount);
         this.intervalSeconds = Math.max(2, intervalSeconds);
+        
+        boolean hasPrefix = startingPrefix != null && !startingPrefix.trim().isEmpty();
+        this.loopPlayback = hasPrefix ? loopPlayback : true;
     }
 
     public synchronized void start() {
@@ -74,6 +102,7 @@ public final class WordScheduler implements AutoCloseable {
             thread.setDaemon(true);
             return thread;
         });
+        sessionPlayedCount = 0;
         emitNext();
         future = executor.scheduleAtFixedRate(this::emitNext, intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
     }
@@ -115,7 +144,18 @@ public final class WordScheduler implements AutoCloseable {
     }
 
     private void emitNext() {
+        if (!loopPlayback && playbackMode == PlaybackMode.RANDOM && sessionPlayedCount >= words.size()) {
+            stop();
+            listener.onPlaybackFinished();
+            return;
+        }
         int position = nextPosition();
+        if (position == -1) {
+            stop();
+            listener.onPlaybackFinished();
+            return;
+        }
+        sessionPlayedCount++;
         listener.onWord(words.get(position));
         publishProgress();
     }
@@ -127,15 +167,26 @@ public final class WordScheduler implements AutoCloseable {
         }
 
         if (playbackMode == PlaybackMode.SHUFFLE_NO_REPEAT) {
-            if (shuffleOrder.size() != words.size() || shufflePosition >= shuffleOrder.size()) {
+            if (shuffleOrder.size() != words.size()) {
+                shuffleOrder = newShuffleOrder(words.size());
+                shufflePosition = 0;
+            }
+            if (shufflePosition >= shuffleOrder.size()) {
+                if (!loopPlayback) return -1;
                 shuffleOrder = newShuffleOrder(words.size());
                 shufflePosition = 0;
             }
             return shuffleOrder.get(shufflePosition++);
         }
 
+        if (!loopPlayback && nextWordIndex >= words.size()) {
+            return -1;
+        }
         int position = Math.floorMod(nextWordIndex, words.size());
-        nextWordIndex = Math.floorMod(position + 1, words.size());
+        nextWordIndex = position + 1;
+        if (loopPlayback) {
+            nextWordIndex = Math.floorMod(nextWordIndex, words.size());
+        }
         return position;
     }
 

@@ -44,6 +44,8 @@ public final class DesktopSettingsStore {
         settings.setPhraseColor(p.getProperty(SettingsKeys.PHRASE_COLOR));
         settings.setWordFontSize(parseInt(p.getProperty(SettingsKeys.WORD_FONT_SIZE), settings.getWordFontSize()));
         settings.setDetailFontSize(parseInt(p.getProperty(SettingsKeys.DETAIL_FONT_SIZE), settings.getDetailFontSize()));
+        settings.setStartingPrefix(p.getProperty(SettingsKeys.STARTING_PREFIX));
+        settings.setLoopPlayback(Boolean.parseBoolean(p.getProperty(SettingsKeys.LOOP_PLAYBACK, Boolean.toString(settings.isLoopPlayback()))));
         return settings;
     }
 
@@ -69,6 +71,8 @@ public final class DesktopSettingsStore {
         p.setProperty(SettingsKeys.PHRASE_COLOR, s.getPhraseColor());
         p.setProperty(SettingsKeys.WORD_FONT_SIZE, Integer.toString(s.getWordFontSize()));
         p.setProperty(SettingsKeys.DETAIL_FONT_SIZE, Integer.toString(s.getDetailFontSize()));
+        p.setProperty(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix());
+        p.setProperty(SettingsKeys.LOOP_PLAYBACK, Boolean.toString(s.isLoopPlayback()));
         writeProperties(p);
     }
 

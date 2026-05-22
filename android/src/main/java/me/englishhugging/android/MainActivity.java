@@ -10,6 +10,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.TextView;
 
 import com.google.android.material.button.MaterialButton;
 
@@ -17,24 +18,28 @@ import me.englishhugging.android.ui.AndroidUi;
 import me.englishhugging.android.ui.tabs.HomeTab;
 import me.englishhugging.android.ui.tabs.RecordsTab;
 import me.englishhugging.android.ui.tabs.SettingsTab;
+import me.englishhugging.android.ui.tabs.CustomVocabularyTab;
 
 public final class MainActivity extends Activity {
     private AndroidUi ui;
     private LinearLayout pageContent;
     private MaterialButton homeTabBtn;
     private MaterialButton recordsTabBtn;
+    private MaterialButton customVocabTabBtn;
 
     private HomeTab homeTab;
     private SettingsTab settingsTab;
     private RecordsTab recordsTab;
+    private CustomVocabularyTab customVocabTab;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ui = new AndroidUi(this);
         homeTab = new HomeTab(this, ui, this::showSettingsPage);
-        settingsTab = new SettingsTab(this, ui);
-        recordsTab = new RecordsTab(this, ui, this::showRecordsPage);
+        settingsTab = new SettingsTab(this, ui, this::showHomePage);
+        recordsTab = new RecordsTab(this, ui, this::showRecordsPage, this::showHomePage);
+        customVocabTab = new CustomVocabularyTab(this, ui);
 
         styleSystemBars();
         requestNotificationPermissionIfNeeded();
@@ -86,10 +91,13 @@ public final class MainActivity extends Activity {
 
         homeTabBtn = ui.tabButton("home");
         recordsTabBtn = ui.tabButton("history");
+        customVocabTabBtn = ui.tabButton("edit");
         homeTabBtn.setOnClickListener(view -> showHomePage());
         recordsTabBtn.setOnClickListener(view -> showRecordsPage());
+        customVocabTabBtn.setOnClickListener(view -> showCustomVocabPage());
         nav.addView(homeTabBtn, ui.tabLayoutParams());
         nav.addView(recordsTabBtn, ui.tabLayoutParams());
+        nav.addView(customVocabTabBtn, ui.tabLayoutParams());
         return nav;
     }
 
@@ -124,12 +132,31 @@ public final class MainActivity extends Activity {
         switchPage(recordsTabBtn, () -> recordsTab.buildContent(pageContent));
     }
 
+    private void showCustomVocabPage() {
+        switchPage(customVocabTabBtn, () -> {
+            LinearLayout header = ui.headerRow("自定义词汇", "");
+            TextView backIcon = new TextView(this);
+            backIcon.setText("chevron_left");
+            backIcon.setTextSize(32);
+            backIcon.setTypeface(ui.getIconFont());
+            backIcon.setTextColor(AndroidUi.TEXT_PRIMARY);
+            backIcon.setGravity(Gravity.CENTER);
+            backIcon.setPadding(0, 0, ui.dp(8), 0);
+            backIcon.setOnClickListener(v -> showHomePage());
+            header.addView(backIcon, 0, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            
+            pageContent.addView(header, ui.matchWidthWithBottomMargin(28));
+            pageContent.addView(customVocabTab.getView());
+        });
+    }
+
     private void requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void styleSystemBars() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().setStatusBarColor(AndroidUi.PAGE_BACKGROUND);
@@ -143,5 +170,6 @@ public final class MainActivity extends Activity {
     private void selectTab(MaterialButton selected) {
         ui.styleTab(homeTabBtn, selected == homeTabBtn);
         ui.styleTab(recordsTabBtn, selected == recordsTabBtn);
+        ui.styleTab(customVocabTabBtn, selected == customVocabTabBtn);
     }
 }

@@ -48,7 +48,10 @@ final class PlaybackRecordsTab {
 
         VBox page = new VBox(14, group, clearButton);
         page.setPadding(new Insets(10));
-        return page;
+        javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(page);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
+        return scroll;
     }
 
     void refresh() {

@@ -41,11 +41,18 @@ public final class AndroidSettingsStore {
         s.setRandomPlayedCount(p.getInt(SettingsKeys.RANDOM_PLAYED_COUNT, s.getRandomPlayedCount()));
         s.setX(p.getFloat(SettingsKeys.X, (float) s.getX()));
         s.setY(p.getFloat(SettingsKeys.Y, (float) s.getY()));
+        s.setWidth(p.getFloat(SettingsKeys.WIDTH, 0f));
+        s.setHeight(p.getFloat(SettingsKeys.HEIGHT, 0f));
         s.setOpacity(p.getFloat(SettingsKeys.OPACITY, (float) s.getOpacity()));
         s.setWordColor(p.getString(SettingsKeys.WORD_COLOR, s.getWordColor()));
         s.setTypeColor(p.getString(SettingsKeys.TYPE_COLOR, s.getTypeColor()));
         s.setTranslationColor(p.getString(SettingsKeys.TRANSLATION_COLOR, s.getTranslationColor()));
         s.setPhraseColor(p.getString(SettingsKeys.PHRASE_COLOR, s.getPhraseColor()));
+        s.setWordFontSize(p.getInt(SettingsKeys.WORD_FONT_SIZE, s.getWordFontSize()));
+        s.setDetailFontSize(p.getInt(SettingsKeys.DETAIL_FONT_SIZE, s.getDetailFontSize()));
+        s.setStartingPrefix(p.getString(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix()));
+        s.setLoopPlayback(p.getBoolean(SettingsKeys.LOOP_PLAYBACK, s.isLoopPlayback()));
+        s.setResizeMode(p.getBoolean(SettingsKeys.RESIZE_MODE, s.isResizeMode()));
         return s;
     }
 
@@ -62,11 +69,18 @@ public final class AndroidSettingsStore {
                 .putInt(SettingsKeys.RANDOM_PLAYED_COUNT, s.getRandomPlayedCount())
                 .putFloat(SettingsKeys.X, (float) s.getX())
                 .putFloat(SettingsKeys.Y, (float) s.getY())
+                .putFloat(SettingsKeys.WIDTH, (float) s.getWidth())
+                .putFloat(SettingsKeys.HEIGHT, (float) s.getHeight())
                 .putFloat(SettingsKeys.OPACITY, (float) s.getOpacity())
                 .putString(SettingsKeys.WORD_COLOR, s.getWordColor())
                 .putString(SettingsKeys.TYPE_COLOR, s.getTypeColor())
                 .putString(SettingsKeys.TRANSLATION_COLOR, s.getTranslationColor())
                 .putString(SettingsKeys.PHRASE_COLOR, s.getPhraseColor())
+                .putInt(SettingsKeys.WORD_FONT_SIZE, s.getWordFontSize())
+                .putInt(SettingsKeys.DETAIL_FONT_SIZE, s.getDetailFontSize())
+                .putString(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix())
+                .putBoolean(SettingsKeys.LOOP_PLAYBACK, s.isLoopPlayback())
+                .putBoolean(SettingsKeys.RESIZE_MODE, s.isResizeMode())
                 .apply();
     }
 
@@ -115,7 +129,12 @@ public final class AndroidSettingsStore {
 
     public static void appendCustomWord(Context context, WordEntry wordEntry) {
         List<WordEntry> words = loadCustomWords(context);
+        words.removeIf(w -> w.getWord().equals(wordEntry.getWord()));
         words.add(wordEntry);
+        saveCustomWords(context, words);
+    }
+
+    public static void saveCustomWords(Context context, List<WordEntry> words) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString(KEY_CUSTOM_VOCABULARY_JSON, new GsonBuilder().setPrettyPrinting().create().toJson(words))
                 .apply();

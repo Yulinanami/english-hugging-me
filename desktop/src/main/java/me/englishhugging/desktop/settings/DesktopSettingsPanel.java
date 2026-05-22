@@ -70,6 +70,7 @@ public final class DesktopSettingsPanel {
 
         GeneralSettingsTab generalTab = new GeneralSettingsTab(settings, settingsStore, overlayController, onSettingsChanged, onVocabularyChanged);
         VocabularySettingsTab vocabularyTab = new VocabularySettingsTab(settings, settingsStore, stage, onVocabularyChanged);
+        CustomVocabularyTab customTab = new CustomVocabularyTab(onVocabularyChanged);
         AppearanceSettingsTab appearanceTab = new AppearanceSettingsTab(settings, settingsStore, overlayController);
         recordsTab = new PlaybackRecordsTab(settings, settingsStore, vocabularyTab);
 
@@ -79,12 +80,16 @@ public final class DesktopSettingsPanel {
         tabs.getTabs().addAll(
                 DesktopUi.settingsTab("常规", generalTab.createContent()),
                 DesktopUi.settingsTab("词库", vocabularyTab.createContent()),
+                DesktopUi.settingsTab("自定义", customTab.createContent()),
                 DesktopUi.settingsTab("外观", appearanceTab.createContent()),
                 DesktopUi.settingsTab("记录", recordsTab.createContent())
         );
 
-        Button close = DesktopUi.compactButton("关闭");
-        close.setOnAction(event -> stage.hide());
+        Button close = DesktopUi.compactButton("退出程序");
+        close.setOnAction(event -> {
+            javafx.application.Platform.exit();
+            System.exit(0);
+        });
         Region spacer = new Region();
         HBox bottom = new HBox(8, spacer, close);
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);

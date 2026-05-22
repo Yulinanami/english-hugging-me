@@ -6,9 +6,13 @@ import android.text.InputType;
 import android.text.TextWatcher;
 import android.widget.AdapterView;
 import android.widget.EditText;
+import android.widget.Switch;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Toast;
+import android.widget.TextView;
+import android.view.Gravity;
+import android.view.ViewGroup;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
@@ -36,72 +40,113 @@ public final class SettingsTab {
     private MaterialAutoCompleteTextView vocabularyDropdown;
     private MaterialAutoCompleteTextView displayModeDropdown;
     private MaterialAutoCompleteTextView playbackModeDropdown;
+    private Switch loopPlaybackSwitch;
     private MaterialAutoCompleteTextView overlayModeDropdown;
     private EditText intervalSeconds;
-    private EditText wordColor;
-    private EditText typeColor;
-    private EditText translationColor;
-    private EditText phraseColor;
+    private MaterialAutoCompleteTextView wordColor;
+    private MaterialAutoCompleteTextView typeColor;
+    private MaterialAutoCompleteTextView translationColor;
+    private MaterialAutoCompleteTextView phraseColor;
+    private EditText wordFontSize;
+    private EditText detailFontSize;
+    private Switch resizeModeSwitch;
+    private EditText startingPrefix;
+    private MaterialAutoCompleteTextView loopPlaybackDropdown;
     private SeekBar opacitySeekBar;
 
-    public SettingsTab(MainActivity activity, AndroidUi ui) {
+    private final Runnable goHome;
+
+    public SettingsTab(MainActivity activity, AndroidUi ui, Runnable goHome) {
         this.activity = activity;
         this.ui = ui;
+        this.goHome = goHome;
+    }
+
+    private static final String[] PRESET_COLORS = {
+        "#FFFFFF (纯白)", "#FDE68A (淡黄)", "#7DD3FC (浅蓝)", "#86EFAC (浅绿)",
+        "#FCA5A5 (浅红)", "#D8B4FE (浅紫)", "#CBD5E1 (灰蓝)", "#000000 (纯黑)"
+    };
+
+    private String formatColor(String hex) {
+        if (hex == null) return "";
+        String upper = hex.toUpperCase();
+        for (String p : PRESET_COLORS) if (p.startsWith(upper)) return p;
+        return upper;
+    }
+
+    private String extractHex(String text) {
+        if (text == null || text.trim().isEmpty()) return "";
+        return text.split(" ")[0];
     }
 
     public void buildContent(LinearLayout pageContent) {
         AppSettings settings = AndroidSettingsStore.load(activity);
 
-        pageContent.addView(ui.headerRow("设置", ""), ui.matchWidthWithBottomMargin(28));
+        LinearLayout header = ui.headerRow("设置", "");
+        TextView backIcon = new TextView(activity);
+        backIcon.setText("chevron_left");
+        backIcon.setTextSize(32);
+        backIcon.setTypeface(ui.getIconFont());
+        backIcon.setTextColor(AndroidUi.TEXT_PRIMARY);
+        backIcon.setGravity(Gravity.CENTER);
+        backIcon.setPadding(0, 0, ui.dp(8), 0);
+        backIcon.setOnClickListener(v -> {
+            if (goHome != null) goHome.run();
+        });
+        header.addView(backIcon, 0, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        pageContent.addView(header, ui.matchWidthWithBottomMargin(28));
 
         pageContent.addView(ui.sectionLabel("基础设置"), ui.matchWidthWithBottomMargin(12));
         LinearLayout generalCard = ui.card();
         vocabularyDropdown = ui.dropdown(AndroidSettingsStore.VOCABULARY_FILES);
         displayModeDropdown = ui.dropdown(DisplayMode.labels());
         playbackModeDropdown = ui.dropdown(PlaybackMode.labels());
+        loopPlaybackSwitch = new Switch(activity);
+        loopPlaybackSwitch.setText("");
         overlayModeDropdown = ui.dropdown(OverlayMode.labels());
         intervalSeconds = ui.input(Integer.toString(settings.getIntervalSeconds()));
         intervalSeconds.setInputType(InputType.TYPE_CLASS_NUMBER);
+        startingPrefix = ui.input(settings.getStartingPrefix());
         opacitySeekBar = new SeekBar(activity);
         opacitySeekBar.setMax(80);
         generalCard.addView(ui.settingItem("词汇本", "选择要播放的词汇本", vocabularyDropdown), ui.matchWidthWrapHeight());
         generalCard.addView(ui.settingItem("显示内容", "悬浮窗展示哪些内容", displayModeDropdown), ui.matchWidthWrapHeight());
         generalCard.addView(ui.settingItem("播放顺序", "顺序、随机或随机不重复", playbackModeDropdown), ui.matchWidthWrapHeight());
+        
         generalCard.addView(ui.settingItem("悬浮行为", "拖动、锁定或点击穿透", overlayModeDropdown), ui.matchWidthWrapHeight());
         generalCard.addView(ui.settingItem("切换间隔", "单位：秒", intervalSeconds), ui.matchWidthWrapHeight());
         generalCard.addView(ui.settingItem("透明度", "调整悬浮窗透明度", opacitySeekBar), ui.matchWidthWrapHeight());
         pageContent.addView(generalCard, ui.matchWidthWithBottomMargin(26));
+        
+        pageContent.addView(ui.sectionLabel("按前缀播放"), ui.matchWidthWithBottomMargin(12));
+        LinearLayout prefixCard = ui.card();
+        startingPrefix.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        startingPrefix.setHint("留空表示播放全部单词");
+        prefixCard.addView(ui.settingItem("特定字母前缀", "设置要过滤的单词前缀", startingPrefix), ui.matchWidthWrapHeight());
+        prefixCard.addView(ui.settingSwitchItem("循环播放", "开启：无限循环；关闭：播完一遍即停", loopPlaybackSwitch), ui.matchWidthWrapHeight());
+        pageContent.addView(prefixCard, ui.matchWidthWithBottomMargin(26));
 
         pageContent.addView(ui.sectionLabel("外观"), ui.matchWidthWithBottomMargin(12));
         LinearLayout colorCard = ui.card();
-        wordColor = ui.input(settings.getWordColor());
-        typeColor = ui.input(settings.getTypeColor());
-        translationColor = ui.input(settings.getTranslationColor());
-        phraseColor = ui.input(settings.getPhraseColor());
-        colorCard.addView(ui.settingItem("单词颜色", "例如 #FFFFFF", wordColor), ui.matchWidthWrapHeight());
-        colorCard.addView(ui.settingItem("词性颜色", "例如 #7DD3FC", typeColor), ui.matchWidthWrapHeight());
-        colorCard.addView(ui.settingItem("释义颜色", "例如 #FDE68A", translationColor), ui.matchWidthWrapHeight());
-        colorCard.addView(ui.settingItem("短语/例句颜色", "例如 #86EFAC", phraseColor), ui.matchWidthWrapHeight());
+        wordColor = ui.dropdown(PRESET_COLORS);
+        typeColor = ui.dropdown(PRESET_COLORS);
+        translationColor = ui.dropdown(PRESET_COLORS);
+        phraseColor = ui.dropdown(PRESET_COLORS);
+        colorCard.addView(ui.settingItem("单词颜色", "选择单词颜色", wordColor), ui.matchWidthWrapHeight());
+        colorCard.addView(ui.settingItem("词性颜色", "选择词性颜色", typeColor), ui.matchWidthWrapHeight());
+        colorCard.addView(ui.settingItem("释义颜色", "选择释义颜色", translationColor), ui.matchWidthWrapHeight());
+        colorCard.addView(ui.settingItem("短语/例句颜色", "选择短语/例句颜色", phraseColor), ui.matchWidthWrapHeight());
+        wordFontSize = ui.input(Integer.toString(settings.getWordFontSize()));
+        detailFontSize = ui.input(Integer.toString(settings.getDetailFontSize()));
+        resizeModeSwitch = new Switch(activity);
+        
+        colorCard.addView(ui.settingItem("单词字号", "悬浮窗单词字体大小", ui.numberAdjuster(wordFontSize, 2, 10, 72)), ui.matchWidthWrapHeight());
+        colorCard.addView(ui.settingItem("释义字号", "悬浮窗释义字体大小", ui.numberAdjuster(detailFontSize, 2, 8, 60)), ui.matchWidthWrapHeight());
+        colorCard.addView(ui.settingSwitchItem("调整悬浮窗大小", "开启后右下角出现可拖拽手柄", resizeModeSwitch), ui.matchWidthWrapHeight());
+        
         pageContent.addView(colorCard, ui.matchWidthWithBottomMargin(26));
 
-        pageContent.addView(ui.sectionLabel("自定义词汇"), ui.matchWidthWithBottomMargin(12));
-        LinearLayout customCard = ui.card();
-        EditText customWord = ui.input("");
-        EditText customType = ui.input("");
-        EditText customMeaning = ui.input("");
-        EditText customPhrase = ui.input("");
-        EditText customPhraseMeaning = ui.input("");
-        EditText customExample = ui.input("");
-        customCard.addView(ui.settingItem("单词", "必填", customWord), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("词性", "名词、动词等", customType), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("意思", "中文释义", customMeaning), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("词组", "可选", customPhrase), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("词组意思", "词组释义", customPhraseMeaning), ui.matchWidthWrapHeight());
-        customCard.addView(ui.settingItem("例句", "可选", customExample), ui.matchWidthWrapHeight());
-        MaterialButton addCustomWord = ui.secondaryButton("添加到自定义词汇");
-        addCustomWord.setOnClickListener(view -> addCustomWord(customWord, customType, customMeaning, customPhrase, customPhraseMeaning, customExample));
-        customCard.addView(addCustomWord, ui.matchWidthWithTopMargin(14));
-        pageContent.addView(customCard, ui.matchWidthWithBottomMargin(16));
+
 
         bindSettings(settings);
         bindSettingsListeners();
@@ -111,13 +156,18 @@ public final class SettingsTab {
         vocabularyDropdown.setText(settings.getVocabularyFileName(), false);
         displayModeDropdown.setText(settings.getDisplayMode().getLabel(), false);
         playbackModeDropdown.setText(settings.getPlaybackMode().getLabel(), false);
+        loopPlaybackSwitch.setChecked(settings.isLoopPlayback());
         overlayModeDropdown.setText(settings.getOverlayMode().getLabel(), false);
         intervalSeconds.setText(Integer.toString(settings.getIntervalSeconds()));
+        startingPrefix.setText(settings.getStartingPrefix());
         opacitySeekBar.setProgress((int) Math.round(settings.getOpacity() * 100) - 20);
-        wordColor.setText(settings.getWordColor());
-        typeColor.setText(settings.getTypeColor());
-        translationColor.setText(settings.getTranslationColor());
-        phraseColor.setText(settings.getPhraseColor());
+        wordColor.setText(formatColor(settings.getWordColor()), false);
+        typeColor.setText(formatColor(settings.getTypeColor()), false);
+        translationColor.setText(formatColor(settings.getTranslationColor()), false);
+        phraseColor.setText(formatColor(settings.getPhraseColor()), false);
+        wordFontSize.setText(Integer.toString(settings.getWordFontSize()));
+        detailFontSize.setText(Integer.toString(settings.getDetailFontSize()));
+        resizeModeSwitch.setChecked(settings.isResizeMode());
     }
 
     private void saveAndReload() {
@@ -130,12 +180,16 @@ public final class SettingsTab {
         settings.setVocabularyFileName(ui.selectedValue(vocabularyDropdown, AndroidSettingsStore.VOCABULARY_FILES, AppSettings.DEFAULT_VOCABULARY_FILE_NAME));
         settings.setDisplayMode(DisplayMode.values()[ui.selectedIndex(displayModeDropdown, DisplayMode.labels())]);
         settings.setPlaybackMode(PlaybackMode.values()[ui.selectedIndex(playbackModeDropdown, PlaybackMode.labels())]);
+        settings.setLoopPlayback(loopPlaybackSwitch.isChecked());
         settings.setOverlayMode(OverlayMode.values()[ui.selectedIndex(overlayModeDropdown, OverlayMode.labels())]);
         
         boolean vocabularyChanged = !previousVocabularyFileName.equals(settings.getVocabularyFileName());
         boolean playbackModeChanged = previousPlaybackMode != settings.getPlaybackMode();
+        boolean prefixChanged = !startingPrefix.getText().toString().equals(settings.getStartingPrefix());
         
-        if (vocabularyChanged) {
+        settings.setStartingPrefix(startingPrefix.getText().toString());
+        
+        if (vocabularyChanged || prefixChanged) {
             settings.resetPlaybackProgress();
             AndroidSettingsStore.loadPlaybackProgress(activity, settings, settings.getVocabularyFileName());
         } else if (playbackModeChanged) {
@@ -147,10 +201,13 @@ public final class SettingsTab {
             settings.setIntervalSeconds(8);
         }
         settings.setOpacity((opacitySeekBar.getProgress() + 20) / 100.0);
-        settings.setWordColor(wordColor.getText().toString());
-        settings.setTypeColor(typeColor.getText().toString());
-        settings.setTranslationColor(translationColor.getText().toString());
-        settings.setPhraseColor(phraseColor.getText().toString());
+        settings.setWordColor(extractHex(wordColor.getText().toString()));
+        settings.setTypeColor(extractHex(typeColor.getText().toString()));
+        settings.setTranslationColor(extractHex(translationColor.getText().toString()));
+        settings.setPhraseColor(extractHex(phraseColor.getText().toString()));
+        try { settings.setWordFontSize(Integer.parseInt(wordFontSize.getText().toString())); } catch (Exception ignored) {}
+        try { settings.setDetailFontSize(Integer.parseInt(detailFontSize.getText().toString())); } catch (Exception ignored) {}
+        settings.setResizeMode(resizeModeSwitch.isChecked());
         
         AndroidSettingsStore.save(activity, settings);
         AndroidSettingsStore.savePlaybackProgress(activity, settings, settings.getVocabularyFileName());
@@ -171,6 +228,10 @@ public final class SettingsTab {
         displayModeDropdown.setOnItemClickListener(dropdownListener);
         playbackModeDropdown.setOnItemClickListener(dropdownListener);
         overlayModeDropdown.setOnItemClickListener(dropdownListener);
+        wordColor.setOnItemClickListener(dropdownListener);
+        typeColor.setOnItemClickListener(dropdownListener);
+        translationColor.setOnItemClickListener(dropdownListener);
+        phraseColor.setOnItemClickListener(dropdownListener);
 
         TextWatcher textChangeListener = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -178,10 +239,15 @@ public final class SettingsTab {
             @Override public void afterTextChanged(Editable s) { saveAndReload(); }
         };
         intervalSeconds.addTextChangedListener(textChangeListener);
+        startingPrefix.addTextChangedListener(textChangeListener);
         wordColor.addTextChangedListener(textChangeListener);
         typeColor.addTextChangedListener(textChangeListener);
         translationColor.addTextChangedListener(textChangeListener);
         phraseColor.addTextChangedListener(textChangeListener);
+        wordFontSize.addTextChangedListener(textChangeListener);
+        detailFontSize.addTextChangedListener(textChangeListener);
+        resizeModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> saveAndReload());
+        loopPlaybackSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> saveAndReload());
 
         opacitySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) { if (fromUser) saveAndReload(); }
@@ -190,39 +256,4 @@ public final class SettingsTab {
         });
     }
 
-    private void addCustomWord(
-            EditText customWord, EditText customType, EditText customMeaning,
-            EditText customPhrase, EditText customPhraseMeaning, EditText customExample
-    ) {
-        String word = customWord.getText().toString().trim();
-        if (word.length() == 0) {
-            Toast.makeText(activity, "请先填写单词", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String type = customType.getText().toString().trim();
-        String meaning = customMeaning.getText().toString().trim();
-        String phrase = customPhrase.getText().toString().trim();
-        String phraseMeaning = customPhraseMeaning.getText().toString().trim();
-        String example = customExample.getText().toString().trim();
-        List<Translation> translations = meaning.length() == 0 && type.length() == 0
-                ? Collections.emptyList()
-                : Collections.singletonList(new Translation(meaning, type));
-        List<Phrase> phrases = new ArrayList<>();
-        if (phrase.length() > 0) {
-            phrases.add(new Phrase(phrase, phraseMeaning));
-        }
-        if (example.length() > 0) {
-            phrases.add(new Phrase(example, ""));
-        }
-        AndroidSettingsStore.appendCustomWord(activity, new WordEntry(word, translations, phrases));
-        vocabularyDropdown.setText(AndroidSettingsStore.CUSTOM_VOCABULARY_FILE_NAME, false);
-        Toast.makeText(activity, "已添加到自定义词汇", Toast.LENGTH_SHORT).show();
-        customWord.setText("");
-        customType.setText("");
-        customMeaning.setText("");
-        customPhrase.setText("");
-        customPhraseMeaning.setText("");
-        customExample.setText("");
-    }
 }

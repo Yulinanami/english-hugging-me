@@ -1,34 +1,23 @@
 package me.englishhugging.desktop.settings;
 
-import com.google.gson.GsonBuilder;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import me.englishhugging.core.model.Phrase;
-import me.englishhugging.core.model.Translation;
-import me.englishhugging.core.model.WordEntry;
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.core.vocabulary.VocabularyCatalog;
-import me.englishhugging.core.vocabulary.VocabularyJsonLoader;
 import me.englishhugging.desktop.ui.DesktopUi;
 
 import java.io.File;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 final class VocabularySettingsTab {
     static final String CUSTOM_VOCABULARY_LABEL = "自定义词汇";
@@ -81,25 +70,7 @@ final class VocabularySettingsTab {
         vocabGrid.add(new HBox(6, vocabularyChoice, importBtn), 1, 0);
         vocabGrid.add(reloadBtn, 1, 1);
 
-        TextField customWord = DesktopUi.compactTextField();
-        TextField customType = DesktopUi.compactTextField();
-        TextField customMeaning = DesktopUi.compactTextField();
-        TextField customPhrase = DesktopUi.compactTextField();
-        TextField customPhraseMeaning = DesktopUi.compactTextField();
-        TextField customExample = DesktopUi.compactTextField();
-        Button addBtn = DesktopUi.compactButton("添加");
-        addBtn.setOnAction(e -> addCustomWord(customWord, customType, customMeaning, customPhrase, customPhraseMeaning, customExample));
-
-        GridPane customGrid = DesktopUi.settingsGrid();
-        customGrid.add(new Label("单词："), 0, 0); customGrid.add(customWord, 1, 0);
-        customGrid.add(new Label("词性："), 0, 1); customGrid.add(customType, 1, 1);
-        customGrid.add(new Label("意思："), 0, 2); customGrid.add(customMeaning, 1, 2);
-        customGrid.add(new Label("词组："), 0, 3); customGrid.add(customPhrase, 1, 3);
-        customGrid.add(new Label("词组意思："), 0, 4); customGrid.add(customPhraseMeaning, 1, 4);
-        customGrid.add(new Label("例句："), 0, 5); customGrid.add(customExample, 1, 5);
-        customGrid.add(addBtn, 1, 6);
-
-        VBox page = new VBox(10, DesktopUi.groupBox("词汇本", vocabGrid), DesktopUi.groupBox("自定义词汇", customGrid));
+        VBox page = new VBox(10, DesktopUi.groupBox("词汇本", vocabGrid));
         page.setPadding(new Insets(10));
         
         javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(page);
@@ -164,45 +135,4 @@ final class VocabularySettingsTab {
         return false;
     }
 
-    private void addCustomWord(TextField wordField, TextField typeField, TextField meaningField, TextField phraseField, TextField phraseMeaningField, TextField exampleField) {
-        String word = wordField.getText().trim();
-        if (word.isEmpty()) return;
-        try {
-            Path path = customVocabularyPath();
-            List<WordEntry> words = new ArrayList<>();
-            if (Files.exists(path)) words.addAll(new VocabularyJsonLoader().load(path));
-
-            String type = typeField.getText().trim();
-            String meaning = meaningField.getText().trim();
-            String phrase = phraseField.getText().trim();
-            String phraseMeaning = phraseMeaningField.getText().trim();
-            String example = exampleField.getText().trim();
-
-            List<Translation> translations = meaning.isEmpty() && type.isEmpty()
-                    ? Collections.emptyList()
-                    : Collections.singletonList(new Translation(meaning, type));
-            List<Phrase> phrases = new ArrayList<>();
-            if (!phrase.isEmpty()) phrases.add(new Phrase(phrase, phraseMeaning));
-            if (!example.isEmpty()) phrases.add(new Phrase(example, ""));
-            words.add(new WordEntry(word, translations, phrases));
-
-            Files.createDirectories(path.getParent());
-            try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-                new GsonBuilder().setPrettyPrinting().create().toJson(words, writer);
-            }
-
-            if (!vocabularyChoice.getItems().contains(CUSTOM_VOCABULARY_LABEL)) vocabularyChoice.getItems().add(CUSTOM_VOCABULARY_LABEL);
-            vocabularyChoice.setValue(CUSTOM_VOCABULARY_LABEL);
-            applyVocabularyChoice(CUSTOM_VOCABULARY_LABEL);
-            wordField.clear(); typeField.clear(); meaningField.clear(); phraseField.clear(); phraseMeaningField.clear(); exampleField.clear();
-        } catch (Exception e) {
-            System.err.println("Failed to add custom word: " + e.getMessage());
-            e.printStackTrace();
-            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
-            alert.setTitle("添加失败");
-            alert.setHeaderText("无法保存自定义词汇");
-            alert.setContentText(e.getMessage());
-            alert.show();
-        }
-    }
 }

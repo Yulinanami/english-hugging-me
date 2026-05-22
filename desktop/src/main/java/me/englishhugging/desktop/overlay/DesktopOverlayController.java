@@ -98,6 +98,10 @@ public final class DesktopOverlayController {
         renderMessage("词库加载失败\n请在设置中选择 JSON 词库");
     }
 
+    public void showPlaybackFinished() {
+        renderMessage("播放结束");
+    }
+
     private Stage createOverlayStage() {
         Stage stage = new Stage(StageStyle.TRANSPARENT);
         stage.setTitle(overlayTitle);

@@ -50,7 +50,10 @@ final class AppearanceSettingsTab {
 
         VBox page = new VBox(10, DesktopUi.groupBox("外观", grid));
         page.setPadding(new Insets(10));
-        return page;
+        javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(page);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
+        return scroll;
     }
 
     private void save() {

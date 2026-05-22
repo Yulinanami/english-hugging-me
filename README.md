@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="english_hugging_icon.png" width="128" height="128" alt="English Hugging Me Logo" />
+</p>
+
 # English Hugging Me
 
 **悬浮背词** — 一款跨平台桌面/移动端英语词汇悬浮窗应用，让你在使用电脑或手机的同时，随时随地沉浸式背单词。

@@ -79,7 +79,16 @@ public final class FloatingWordsDesktopApp extends Application {
                 words, settings.getIntervalSeconds(), settings.getPlaybackMode(),
                 settings.getNextWordIndex(), settings.getShuffleOrder(),
                 settings.getShufflePosition(), settings.getRandomPlayedCount(),
-                wordEntry -> Platform.runLater(() -> overlayController.updateCurrentWord(wordEntry)),
+                settings.getStartingPrefix(), settings.isLoopPlayback(),
+                new WordScheduler.Listener() {
+                    @Override public void onWord(WordEntry wordEntry) { Platform.runLater(() -> overlayController.updateCurrentWord(wordEntry)); }
+                    @Override public void onPlaybackFinished() {
+                        Platform.runLater(() -> {
+                            overlayController.showPlaybackFinished();
+                            // Optional: Could pause or hide overlay entirely here
+                        });
+                    }
+                },
                 (nextWordIndex, shuffleOrder, shufflePosition, randomPlayedCount) -> {
                     settings.setNextWordIndex(nextWordIndex);
                     settings.setShuffleOrder(shuffleOrder);

@@ -2,10 +2,12 @@ package me.englishhugging.desktop.settings;
 
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -50,6 +52,24 @@ final class GeneralSettingsTab {
         ComboBox<OverlayMode> overlayMode = enumCombo(OverlayMode.values(), settings.getOverlayMode());
         overlayMode.setOnAction(e -> { settings.setOverlayMode(overlayMode.getValue()); settingsStore.save(settings); overlayController.applyOverlayMode(); });
 
+        CheckBox loopPlayback = new CheckBox("循环");
+        loopPlayback.setSelected(settings.isLoopPlayback());
+        loopPlayback.setOnAction(e -> {
+            settings.setLoopPlayback(loopPlayback.isSelected());
+            settingsStore.save(settings);
+            onVocabularyChanged.run();
+        });
+
+        TextField startingPrefix = new TextField(settings.getStartingPrefix());
+        startingPrefix.setPrefWidth(140);
+        startingPrefix.setPromptText("留空表示播放全部");
+        DesktopUi.styleModernControl(startingPrefix);
+        startingPrefix.textProperty().addListener((o, ov, nv) -> {
+            settings.setStartingPrefix(nv);
+            settingsStore.save(settings);
+            onVocabularyChanged.run();
+        });
+
         Spinner<Integer> interval = new Spinner<>(2, 300, settings.getIntervalSeconds());
         interval.setEditable(true);
         interval.setPrefWidth(92);
@@ -66,16 +86,28 @@ final class GeneralSettingsTab {
             settingsStore.save(settings);
         });
 
-        GridPane grid = DesktopUi.settingsGrid();
-        grid.add(new Label("显示内容："), 0, 0); grid.add(displayMode, 1, 0);
-        grid.add(new Label("播放顺序："), 0, 1); grid.add(playbackMode, 1, 1);
-        grid.add(new Label("悬浮行为："), 0, 2); grid.add(overlayMode, 1, 2);
-        grid.add(new Label("切换间隔："), 0, 3); grid.add(new HBox(6, interval, new Label("秒")), 1, 3);
-        grid.add(new Label("透明度："), 0, 4); grid.add(opacity, 1, 4);
+        GridPane grid1 = DesktopUi.settingsGrid();
+        grid1.add(new Label("显示内容："), 0, 0); grid1.add(displayMode, 1, 0);
+        grid1.add(new Label("播放顺序："), 0, 1); grid1.add(playbackMode, 1, 1);
+        grid1.add(new Label("悬浮行为："), 0, 2); grid1.add(overlayMode, 1, 2);
+        grid1.add(new Label("切换间隔："), 0, 3); grid1.add(new HBox(6, interval, new Label("秒")), 1, 3);
+        grid1.add(new Label("透明度："), 0, 4); grid1.add(opacity, 1, 4);
 
-        VBox page = new VBox(10, DesktopUi.groupBox("常规", grid));
+        GridPane grid2 = DesktopUi.settingsGrid();
+        grid2.add(new Label("特定前缀："), 0, 0); grid2.add(startingPrefix, 1, 0);
+        
+        Label loopHint = new Label("开启：无限循环；关闭：播完一遍即停");
+        loopHint.setStyle("-fx-text-fill: #94A3B8; -fx-font-size: 11px;");
+        VBox loopBox = new VBox(4, loopPlayback, loopHint);
+        
+        grid2.add(new Label("循环模式："), 0, 1); grid2.add(loopBox, 1, 1);
+
+        VBox page = new VBox(14, DesktopUi.groupBox("基础设置", grid1), DesktopUi.groupBox("按前缀播放", grid2));
         page.setPadding(new Insets(10));
-        return page;
+        javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(page);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
+        return scroll;
     }
 
     private <T extends Enum<T>> ComboBox<T> enumCombo(T[] values, T selected) {

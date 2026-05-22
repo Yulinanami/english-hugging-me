@@ -18,13 +18,14 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.text.SpannableStringBuilder;
-import android.text.Spanned;
+import android.text.style.AbsoluteSizeSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import java.util.Collections;
@@ -53,7 +54,8 @@ public final class OverlayService extends Service {
     private final WordDisplayFormatter wordDisplayFormatter = new WordDisplayFormatter();
 
     private WindowManager windowManager;
-    private TextView overlayView;
+    private FrameLayout overlayRoot;
+    private TextView overlayText;
     private WindowManager.LayoutParams layoutParams;
     private WordScheduler scheduler;
     private AppSettings settings;
@@ -105,7 +107,7 @@ public final class OverlayService extends Service {
         isRunning = false;
         try { unregisterReceiver(screenReceiver); } catch (RuntimeException ignored) {}
         if (scheduler != null) { scheduler.stop(); scheduler = null; }
-        if (overlayView != null) { windowManager.removeView(overlayView); overlayView = null; }
+        if (overlayRoot != null) { windowManager.removeView(overlayRoot); overlayRoot = null; }
         super.onDestroy();
     }
 
@@ -116,10 +118,10 @@ public final class OverlayService extends Service {
         settings = AndroidSettingsStore.load(this);
         AndroidSettingsStore.loadPlaybackProgress(this, settings, settings.getVocabularyFileName());
         List<WordEntry> words = loadWords(settings.getVocabularyFileName());
-        if (overlayView != null) windowManager.removeView(overlayView);
-        overlayView = createOverlayView();
+        if (overlayRoot != null) windowManager.removeView(overlayRoot);
+        overlayRoot = createOverlayView();
         layoutParams = createLayoutParams(settings.getOverlayMode());
-        windowManager.addView(overlayView, layoutParams);
+        windowManager.addView(overlayRoot, layoutParams);
         startScheduler(words);
     }
 
@@ -128,14 +130,26 @@ public final class OverlayService extends Service {
         settings = AndroidSettingsStore.load(this);
         AndroidSettingsStore.loadPlaybackProgress(this, settings, settings.getVocabularyFileName());
 
-        if (overlayView != null) {
-            overlayView.setAlpha((float) settings.getOpacity());
-            if (currentWord != null) overlayView.setText(formatWord(currentWord));
+        if (overlayRoot != null) {
+            overlayRoot.setAlpha((float) settings.getOpacity());
+            if (currentWord != null) overlayText.setText(formatWord(currentWord));
         }
 
-        if (previous == null || previous.getOverlayMode() != settings.getOverlayMode()) {
-            layoutParams = createLayoutParams(settings.getOverlayMode());
-            if (overlayView != null) windowManager.updateViewLayout(overlayView, layoutParams);
+        if (previous == null || previous.getOverlayMode() != settings.getOverlayMode() ||
+            previous.getWidth() != settings.getWidth() || previous.getHeight() != settings.getHeight() ||
+            previous.isResizeMode() != settings.isResizeMode()) {
+            
+            // Recreate overlay view entirely to apply or remove resize handle if changed
+            if (previous != null && previous.isResizeMode() != settings.isResizeMode() && overlayRoot != null) {
+                windowManager.removeView(overlayRoot);
+                overlayRoot = createOverlayView();
+                layoutParams = createLayoutParams(settings.getOverlayMode());
+                windowManager.addView(overlayRoot, layoutParams);
+                if (currentWord != null) overlayText.setText(formatWord(currentWord));
+            } else {
+                layoutParams = createLayoutParams(settings.getOverlayMode());
+                if (overlayRoot != null) windowManager.updateViewLayout(overlayRoot, layoutParams);
+            }
         }
 
         if (scheduler != null) scheduler.updateIntervalSeconds(settings.getIntervalSeconds());
@@ -146,26 +160,50 @@ public final class OverlayService extends Service {
         }
     }
 
-    private TextView createOverlayView() {
-        TextView tv = new TextView(this);
-        tv.setTextColor(Color.WHITE);
-        tv.setTextSize(22);
-        tv.setGravity(Gravity.CENTER);
-        tv.setPadding(28, 18, 28, 18);
-        tv.setAlpha((float) settings.getOpacity());
+    private FrameLayout createOverlayView() {
+        FrameLayout root = new FrameLayout(this);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.argb(166, 0, 0, 0));
         bg.setCornerRadius(28);
-        tv.setBackground(bg);
-        tv.setOnTouchListener(this::onOverlayTouch);
-        return tv;
+        root.setBackground(bg);
+        root.setAlpha((float) settings.getOpacity());
+
+        overlayText = new TextView(this);
+        overlayText.setTextColor(Color.WHITE);
+        overlayText.setGravity(Gravity.CENTER);
+        overlayText.setPadding(28, 18, 28, 18);
+        FrameLayout.LayoutParams textParams = new FrameLayout.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+        root.addView(overlayText, textParams);
+        overlayText.setOnTouchListener(this::onOverlayTouch);
+
+        if (settings.isResizeMode()) {
+            TextView handle = new TextView(this);
+            try {
+                handle.setTypeface(Typeface.createFromAsset(getAssets(), "fonts/MaterialIcons-Regular.ttf"));
+                handle.setText("zoom_out_map"); // ligatures
+            } catch (Exception e) {
+                handle.setText("↘");
+            }
+            handle.setTextColor(Color.WHITE);
+            handle.setTextSize(24);
+            handle.setPadding(10, 10, 30, 30);
+            FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+                    Gravity.BOTTOM | Gravity.END);
+            root.addView(handle, handleParams);
+            handle.setOnTouchListener(this::onResizeTouch);
+        }
+        return root;
     }
 
     private WindowManager.LayoutParams createLayoutParams(OverlayMode overlayMode) {
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
         if (overlayMode == OverlayMode.CLICK_THROUGH) flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+        int width = settings.getWidth() > 0 ? (int) (settings.getWidth() * getResources().getDisplayMetrics().density + 0.5f) : WindowManager.LayoutParams.WRAP_CONTENT;
+        int height = settings.getHeight() > 0 ? (int) (settings.getHeight() * getResources().getDisplayMetrics().density + 0.5f) : WindowManager.LayoutParams.WRAP_CONTENT;
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+                width, height,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, flags, PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.TOP | Gravity.START;
         params.x = (int) settings.getX();
@@ -185,7 +223,34 @@ public final class OverlayService extends Service {
                 layoutParams.y = initialY + (int) (event.getRawY() - initialTouchY);
                 settings.setX(layoutParams.x); settings.setY(layoutParams.y);
                 AndroidSettingsStore.save(this, settings);
-                windowManager.updateViewLayout(overlayView, layoutParams);
+                windowManager.updateViewLayout(overlayRoot, layoutParams);
+                return true;
+            default: return true;
+        }
+    }
+
+    private int initialWidth, initialHeight;
+    private float initialResizeTouchX, initialResizeTouchY;
+
+    private boolean onResizeTouch(View view, MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                initialWidth = layoutParams.width;
+                initialHeight = layoutParams.height;
+                if (initialWidth <= 0) initialWidth = overlayRoot.getWidth();
+                if (initialHeight <= 0) initialHeight = overlayRoot.getHeight();
+                initialResizeTouchX = event.getRawX();
+                initialResizeTouchY = event.getRawY();
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                int newWidth = initialWidth + (int) (event.getRawX() - initialResizeTouchX);
+                int newHeight = initialHeight + (int) (event.getRawY() - initialResizeTouchY);
+                layoutParams.width = Math.max(260, newWidth);
+                layoutParams.height = Math.max(80, newHeight);
+                settings.setWidth(layoutParams.width / getResources().getDisplayMetrics().density);
+                settings.setHeight(layoutParams.height / getResources().getDisplayMetrics().density);
+                AndroidSettingsStore.save(this, settings);
+                windowManager.updateViewLayout(overlayRoot, layoutParams);
                 return true;
             default: return true;
         }
@@ -197,7 +262,16 @@ public final class OverlayService extends Service {
                 words, settings.getIntervalSeconds(), settings.getPlaybackMode(),
                 settings.getNextWordIndex(), settings.getShuffleOrder(),
                 settings.getShufflePosition(), settings.getRandomPlayedCount(),
-                wordEntry -> mainHandler.post(() -> { currentWord = wordEntry; overlayView.setText(formatWord(currentWord)); }),
+                settings.getStartingPrefix(), settings.isLoopPlayback(),
+                new WordScheduler.Listener() {
+                    @Override public void onWord(WordEntry wordEntry) { mainHandler.post(() -> { currentWord = wordEntry; overlayText.setText(formatWord(currentWord)); }); }
+                    @Override public void onPlaybackFinished() {
+                        mainHandler.post(() -> {
+                            currentWord = new WordEntry("播放结束", Collections.emptyList(), Collections.emptyList());
+                            overlayText.setText(formatWord(currentWord));
+                        });
+                    }
+                },
                 (nextWordIndex, shuffleOrder, shufflePosition, randomPlayedCount) -> {
                     settings.setNextWordIndex(nextWordIndex); settings.setShuffleOrder(shuffleOrder);
                     settings.setShufflePosition(shufflePosition); settings.setRandomPlayedCount(randomPlayedCount);
@@ -215,8 +289,11 @@ public final class OverlayService extends Service {
             builder.append(segment.getText());
             int end = builder.length();
             if (segment.getType() == WordDisplaySegment.Type.LINE_BREAK || start == end) continue;
-            builder.setSpan(new ForegroundColorSpan(colorForSegment(segment.getType())), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            if (isBoldSegment(segment.getType())) builder.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            builder.setSpan(new ForegroundColorSpan(colorForSegment(segment.getType())), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if (isBoldSegment(segment.getType())) builder.setSpan(new StyleSpan(Typeface.BOLD), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            
+            int fontSizeSp = segment.getType() == WordDisplaySegment.Type.WORD ? settings.getWordFontSize() : settings.getDetailFontSize();
+            builder.setSpan(new AbsoluteSizeSpan(fontSizeSp, true), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         return builder;
     }

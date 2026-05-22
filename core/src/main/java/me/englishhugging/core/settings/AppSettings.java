@@ -70,10 +70,10 @@ public final class AppSettings {
     public void setY(double y) { this.y = y; }
 
     public double getWidth() { return width; }
-    public void setWidth(double width) { this.width = Math.max(260, width); }
+    public void setWidth(double width) { this.width = width <= 0 ? 0 : Math.max(260, width); }
 
     public double getHeight() { return height; }
-    public void setHeight(double height) { this.height = Math.max(80, height); }
+    public void setHeight(double height) { this.height = height <= 0 ? 0 : Math.max(80, height); }
 
     public double getOpacity() { return opacity; }
     public void setOpacity(double opacity) {
@@ -97,6 +97,19 @@ public final class AppSettings {
 
     public int getDetailFontSize() { return detailFontSize; }
     public void setDetailFontSize(int detailFontSize) { this.detailFontSize = clamp(detailFontSize, 12, 60); }
+
+    private String startingPrefix = "";
+    private boolean loopPlayback = true;
+
+    public String getStartingPrefix() { return startingPrefix; }
+    public void setStartingPrefix(String startingPrefix) { this.startingPrefix = startingPrefix == null ? "" : startingPrefix.trim().toLowerCase(); }
+
+    public boolean isLoopPlayback() { return loopPlayback; }
+    public void setLoopPlayback(boolean loopPlayback) { this.loopPlayback = loopPlayback; }
+
+    private boolean resizeMode = false;
+    public boolean isResizeMode() { return resizeMode; }
+    public void setResizeMode(boolean resizeMode) { this.resizeMode = resizeMode; }
 
     private static String validColorOrCurrent(String value, String current) {
         if (value == null) return current;
