@@ -21,7 +21,8 @@ public final class WindowsClickThrough {
     }
 
     public static void apply(Stage stage, boolean clickThrough) {
-        if (!com.sun.jna.Platform.isWindows()) return;
+        if (!com.sun.jna.Platform.isWindows())
+            return;
         Platform.runLater(() -> applyNow(stage, clickThrough));
     }
 
@@ -39,14 +40,16 @@ public final class WindowsClickThrough {
     }
 
     public static boolean isNotifyIconOverflowVisible() {
-        if (!com.sun.jna.Platform.isWindows()) return false;
+        if (!com.sun.jna.Platform.isWindows())
+            return false;
         HWND hwnd = User32.INSTANCE.FindWindow(NOTIFY_ICON_OVERFLOW_WINDOW, null);
         return hwnd != null && User32.INSTANCE.IsWindowVisible(hwnd);
     }
 
     private static void applyNow(Stage stage, boolean clickThrough) {
         HWND hwnd = User32.INSTANCE.FindWindow(null, stage.getTitle());
-        if (hwnd == null) return;
+        if (hwnd == null)
+            return;
         int style = User32.INSTANCE.GetWindowLong(hwnd, GWL_EXSTYLE);
         int updated = clickThrough
                 ? style | WS_EX_TRANSPARENT | WS_EX_LAYERED

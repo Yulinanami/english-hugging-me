@@ -53,14 +53,13 @@ public final class DesktopOverlayController {
 
     public void init() {
         overlayStage = createOverlayStage();
+        overlayStage.show();
+
         moveHandleStage = createMoveHandleStage();
         resizeHandleStage = createResizeHandleStage();
-        overlayStage.show();
         moveHandleStage.show();
         resizeHandleStage.show();
         WindowsClickThrough.hideFromTaskbar(overlayStage);
-        WindowsClickThrough.hideFromTaskbar(moveHandleStage);
-        WindowsClickThrough.hideFromTaskbar(resizeHandleStage);
         syncControlHandlePositions();
         applyOverlayMode();
     }
@@ -68,6 +67,7 @@ public final class DesktopOverlayController {
     public void close() {
         if (moveHandleStage != null) moveHandleStage.close();
         if (resizeHandleStage != null) resizeHandleStage.close();
+        if (overlayStage != null) overlayStage.close();
     }
 
     public Stage getOverlayStage() { return overlayStage; }
@@ -141,6 +141,7 @@ public final class DesktopOverlayController {
 
     private Stage createMoveHandleStage() {
         Stage stage = new Stage(StageStyle.TRANSPARENT);
+        stage.initOwner(overlayStage);
         stage.setTitle(moveHandleTitle);
         stage.setAlwaysOnTop(true);
 
@@ -194,6 +195,7 @@ public final class DesktopOverlayController {
 
     private Stage createResizeHandleStage() {
         Stage stage = new Stage(StageStyle.TRANSPARENT);
+        stage.initOwner(overlayStage);
         stage.setTitle(resizeHandleTitle);
         stage.setAlwaysOnTop(true);
 
