@@ -78,7 +78,6 @@ final class GeneralSettingsTab {
         return page;
     }
 
-    @SuppressWarnings("unchecked")
     private <T extends Enum<T>> ComboBox<T> enumCombo(T[] values, T selected) {
         ComboBox<T> combo = new ComboBox<>();
         combo.getItems().addAll(values);

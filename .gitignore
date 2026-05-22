@@ -1,7 +1,37 @@
+# Gradle & Build Output
 .gradle/
 build/
 **/build/
+bin/
+**/bin/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android & Secrets
 local.properties
+*.jks
+*.keystore
+*.apk
+*.ap_
+*.aab
+.cxx/
+.externalNativeBuild/
+
+# IDE (IntelliJ / Android Studio / VSCode)
 .idea/
+.vscode/
 *.iml
+*.iws
+out/
+workspace.xml
+
+# Java & Logs
+*.class
+*.log
+hs_err_pid*
+
+# OS Specific
 .DS_Store
+.AppleDouble
+._*
+Thumbs.db
+Desktop.ini

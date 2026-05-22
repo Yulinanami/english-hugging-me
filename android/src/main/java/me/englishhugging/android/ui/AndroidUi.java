@@ -204,7 +204,8 @@ public final class AndroidUi {
         MaterialButton button = new MaterialButton(context);
         button.setText(text);
         button.setAllCaps(false);
-        button.setTextSize(15);
+        button.setTextSize(24);
+        button.setTypeface(getIconFont());
         button.setGravity(Gravity.CENTER);
         button.setInsetTop(0);
         button.setInsetBottom(0);
@@ -220,8 +221,8 @@ public final class AndroidUi {
     public void styleTab(MaterialButton button, boolean selected) {
         button.setAllCaps(false);
         button.setTextColor(selected ? Color.WHITE : Color.rgb(98, 99, 110));
-        button.setTextSize(15);
-        button.setTypeface(selected ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
+        button.setTextSize(24);
+        button.setTypeface(getIconFont());
         button.setCornerRadius(dp(20));
         button.setStrokeWidth(0);
         button.setBackgroundTintList(ColorStateList.valueOf(selected ? PRIMARY : Color.TRANSPARENT));
