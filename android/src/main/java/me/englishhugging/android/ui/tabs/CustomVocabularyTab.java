@@ -26,7 +26,7 @@ import me.englishhugging.core.model.WordEntry;
 public final class CustomVocabularyTab {
     private final MainActivity activity;
     private final AndroidUi ui;
-    private final LinearLayout listContainer;
+    private LinearLayout listContainer;
     
     private EditText customWordInput;
     private EditText customTypeInput;
@@ -38,8 +38,6 @@ public final class CustomVocabularyTab {
     public CustomVocabularyTab(MainActivity activity, AndroidUi ui) {
         this.activity = activity;
         this.ui = ui;
-        this.listContainer = new LinearLayout(activity);
-        this.listContainer.setOrientation(LinearLayout.VERTICAL);
     }
 
     public View getView() {
@@ -50,6 +48,9 @@ public final class CustomVocabularyTab {
         content.addView(createAddWordSection());
 
         content.addView(ui.sectionLabel("已添加的词汇"), ui.matchWidthWithBottomMargin(12));
+
+        listContainer = new LinearLayout(activity);
+        listContainer.setOrientation(LinearLayout.VERTICAL);
 
         ScrollView scrollView = new ScrollView(activity);
         scrollView.addView(listContainer);
