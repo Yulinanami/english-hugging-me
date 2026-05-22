@@ -22,6 +22,8 @@ import me.englishhugging.android.ui.tabs.CustomVocabularyTab;
 
 public final class MainActivity extends Activity {
     private AndroidUi ui;
+    private LinearLayout pageContainer;
+    private LinearLayout pageHeaderContainer;
     private LinearLayout pageContent;
     private MaterialButton homeTabBtn;
     private MaterialButton recordsTabBtn;
@@ -60,14 +62,27 @@ public final class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(AndroidUi.PAGE_BACKGROUND);
 
+        pageContainer = new LinearLayout(this);
+        pageContainer.setOrientation(LinearLayout.VERTICAL);
+        root.addView(pageContainer, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1
+        ));
+
+        pageHeaderContainer = new LinearLayout(this);
+        pageHeaderContainer.setOrientation(LinearLayout.VERTICAL);
+        pageHeaderContainer.setPadding(ui.dp(24), ui.getStatusBarHeight() + ui.dp(28), ui.dp(24), 0);
+        pageContainer.addView(pageHeaderContainer, ui.matchWidthWrapHeight());
+
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
         scrollView.setBackgroundColor(AndroidUi.PAGE_BACKGROUND);
+        
         pageContent = new LinearLayout(this);
         pageContent.setOrientation(LinearLayout.VERTICAL);
-        pageContent.setPadding(ui.dp(24), ui.getStatusBarHeight() + ui.dp(28), ui.dp(24), ui.dp(18));
+        pageContent.setPadding(ui.dp(24), ui.dp(16), ui.dp(24), ui.dp(18));
+        
         scrollView.addView(pageContent, ui.matchWidthWrapHeight());
-        root.addView(scrollView, new LinearLayout.LayoutParams(
+        pageContainer.addView(scrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1
         ));
 
@@ -102,34 +117,36 @@ public final class MainActivity extends Activity {
     }
 
     private void switchPage(MaterialButton tabBtn, Runnable buildContent) {
-        if (pageContent.getChildCount() > 0) {
-            pageContent.animate().alpha(0f).translationY(ui.dp(10)).setDuration(150).withEndAction(() -> {
+        if (pageContent.getChildCount() > 0 || pageHeaderContainer.getChildCount() > 0) {
+            pageContainer.animate().alpha(0f).translationY(ui.dp(10)).setDuration(150).withEndAction(() -> {
                 selectTab(tabBtn);
+                pageHeaderContainer.removeAllViews();
                 pageContent.removeAllViews();
                 buildContent.run();
-                pageContent.setTranslationY(ui.dp(-10));
-                pageContent.animate().alpha(1f).translationY(0).setDuration(150).start();
+                pageContainer.setTranslationY(ui.dp(-10));
+                pageContainer.animate().alpha(1f).translationY(0).setDuration(150).start();
             }).start();
         } else {
             selectTab(tabBtn);
+            pageHeaderContainer.removeAllViews();
             pageContent.removeAllViews();
             buildContent.run();
-            pageContent.setAlpha(0f);
-            pageContent.setTranslationY(ui.dp(10));
-            pageContent.animate().alpha(1f).translationY(0).setDuration(300).start();
+            pageContainer.setAlpha(0f);
+            pageContainer.setTranslationY(ui.dp(10));
+            pageContainer.animate().alpha(1f).translationY(0).setDuration(300).start();
         }
     }
 
     private void showHomePage() {
-        switchPage(homeTabBtn, () -> homeTab.buildContent(pageContent));
+        switchPage(homeTabBtn, () -> homeTab.buildContent(pageHeaderContainer, pageContent));
     }
 
     private void showSettingsPage() {
-        switchPage(null, () -> settingsTab.buildContent(pageContent));
+        switchPage(null, () -> settingsTab.buildContent(pageHeaderContainer, pageContent));
     }
 
     private void showRecordsPage() {
-        switchPage(recordsTabBtn, () -> recordsTab.buildContent(pageContent));
+        switchPage(recordsTabBtn, () -> recordsTab.buildContent(pageHeaderContainer, pageContent));
     }
 
     private void showCustomVocabPage() {
@@ -145,7 +162,7 @@ public final class MainActivity extends Activity {
             backIcon.setOnClickListener(v -> showHomePage());
             header.addView(backIcon, 0, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             
-            pageContent.addView(header, ui.matchWidthWithBottomMargin(28));
+            pageHeaderContainer.addView(header, ui.matchWidthWithBottomMargin(12));
             pageContent.addView(customVocabTab.getView());
         });
     }
