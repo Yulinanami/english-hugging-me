@@ -86,6 +86,25 @@ final class GeneralSettingsTab {
             settingsStore.save(settings);
         });
 
+        // Fill Blank Mode Settings
+        CheckBox fillBlankMode = new CheckBox("开启挖空模式");
+        fillBlankMode.setSelected(settings.isFillBlankMode());
+        fillBlankMode.setOnAction(e -> { settings.setFillBlankMode(fillBlankMode.isSelected()); settingsStore.save(settings); onSettingsChanged.run(); });
+
+        Spinner<Integer> fillBlankInterval = new Spinner<>(1, 30, settings.getFillBlankIntervalSeconds());
+        fillBlankInterval.setEditable(true);
+        fillBlankInterval.setPrefWidth(92);
+        DesktopUi.styleModernControl(fillBlankInterval);
+        fillBlankInterval.valueProperty().addListener((o, ov, nv) -> { settings.setFillBlankIntervalSeconds(nv); settingsStore.save(settings); onSettingsChanged.run(); });
+
+        CheckBox fillBlankHidePhrases = new CheckBox("挖空时关闭短语");
+        fillBlankHidePhrases.setSelected(settings.isFillBlankHidePhrases());
+        fillBlankHidePhrases.setOnAction(e -> { settings.setFillBlankHidePhrases(fillBlankHidePhrases.isSelected()); settingsStore.save(settings); onSettingsChanged.run(); });
+
+        CheckBox fillBlankShowTranslation = new CheckBox("挖空时显示释义");
+        fillBlankShowTranslation.setSelected(settings.isFillBlankShowTranslation());
+        fillBlankShowTranslation.setOnAction(e -> { settings.setFillBlankShowTranslation(fillBlankShowTranslation.isSelected()); settingsStore.save(settings); onSettingsChanged.run(); });
+
         GridPane grid1 = DesktopUi.settingsGrid();
         grid1.add(new Label("显示内容："), 0, 0); grid1.add(displayMode, 1, 0);
         grid1.add(new Label("播放顺序："), 0, 1); grid1.add(playbackMode, 1, 1);
@@ -102,7 +121,12 @@ final class GeneralSettingsTab {
         
         grid2.add(new Label("循环模式："), 0, 1); grid2.add(loopBox, 1, 1);
 
-        VBox page = new VBox(14, DesktopUi.groupBox("基础设置", grid1), DesktopUi.groupBox("按前缀播放", grid2));
+        GridPane grid3 = DesktopUi.settingsGrid();
+        grid3.add(new Label("挖空模式："), 0, 0); grid3.add(fillBlankMode, 1, 0);
+        grid3.add(new Label("填充间隔："), 0, 1); grid3.add(new HBox(6, fillBlankInterval, new Label("秒")), 1, 1);
+        grid3.add(new Label("显示设置："), 0, 2); grid3.add(new VBox(6, fillBlankHidePhrases, fillBlankShowTranslation), 1, 2);
+
+        VBox page = new VBox(14, DesktopUi.groupBox("基础设置", grid1), DesktopUi.groupBox("按前缀播放", grid2), DesktopUi.groupBox("挖空模式设置", grid3));
         page.setPadding(new Insets(10));
         javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(page);
         scroll.setFitToWidth(true);

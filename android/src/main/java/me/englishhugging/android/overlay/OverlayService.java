@@ -139,7 +139,7 @@ public final class OverlayService extends Service {
 
         if (overlayRoot != null) {
             overlayRoot.setAlpha((float) settings.getOpacity());
-            if (currentWord != null) overlayText.setText(formatWord(currentWord));
+            if (currentWord != null) overlayText.setText(formatWord(currentWord, false, false));
         }
 
         if (previous == null || previous.getOverlayMode() != settings.getOverlayMode() ||
@@ -153,7 +153,7 @@ public final class OverlayService extends Service {
                 layoutParams = createLayoutParams(settings.getOverlayMode());
                 windowManager.addView(overlayRoot, layoutParams);
                 manageResizeHandleWindow();
-                if (currentWord != null) overlayText.setText(formatWord(currentWord));
+                if (currentWord != null) overlayText.setText(formatWord(currentWord, false, false));
             } else {
                 layoutParams = createLayoutParams(settings.getOverlayMode());
                 if (overlayRoot != null) windowManager.updateViewLayout(overlayRoot, layoutParams);
@@ -161,7 +161,15 @@ public final class OverlayService extends Service {
             }
         }
 
-        if (scheduler != null) scheduler.updateIntervalSeconds(settings.getIntervalSeconds());
+        if (scheduler != null) {
+            scheduler.updateIntervalSeconds(settings.getIntervalSeconds());
+            scheduler.updateFillBlankSettings(
+                    settings.isFillBlankMode(),
+                    settings.getFillBlankIntervalSeconds(),
+                    settings.isFillBlankHidePhrases(),
+                    settings.isFillBlankShowTranslation()
+            );
+        }
 
         if (previous == null || !previous.getVocabularyFileName().equals(settings.getVocabularyFileName()) || previous.getPlaybackMode() != settings.getPlaybackMode()) {
             List<WordEntry> words = loadWords(settings.getVocabularyFileName());
@@ -317,12 +325,21 @@ public final class OverlayService extends Service {
                 settings.getNextWordIndex(), settings.getShuffleOrder(),
                 settings.getShufflePosition(), settings.getRandomPlayedCount(),
                 settings.getStartingPrefix(), settings.isLoopPlayback(),
+                settings.isFillBlankMode(), settings.getFillBlankIntervalSeconds(),
+                settings.isFillBlankHidePhrases(), settings.isFillBlankShowTranslation(),
                 new WordScheduler.Listener() {
-                    @Override public void onWord(WordEntry wordEntry) { mainHandler.post(() -> { currentWord = wordEntry; overlayText.setText(formatWord(currentWord)); }); }
+                    @Override public void onWord(WordEntry wordEntry) { mainHandler.post(() -> { currentWord = wordEntry; overlayText.setText(formatWord(currentWord, false, false)); }); }
+                    @Override public void onFillBlankWord(String displayWord, WordEntry originalEntry, boolean hidePhrases, boolean hideTranslation) {
+                        mainHandler.post(() -> {
+                            // Create a temporary WordEntry that replaces the word with the blanked version
+                            WordEntry tempEntry = new WordEntry(displayWord, originalEntry.getTranslations(), originalEntry.getPhrases());
+                            overlayText.setText(formatWord(tempEntry, hidePhrases, hideTranslation));
+                        });
+                    }
                     @Override public void onPlaybackFinished() {
                         mainHandler.post(() -> {
                             currentWord = new WordEntry("播放结束", Collections.emptyList(), Collections.emptyList());
-                            overlayText.setText(formatWord(currentWord));
+                            overlayText.setText(formatWord(currentWord, false, false));
                         });
                     }
                 },
@@ -336,9 +353,9 @@ public final class OverlayService extends Service {
         scheduler.start();
     }
 
-    private CharSequence formatWord(WordEntry wordEntry) {
+    private CharSequence formatWord(WordEntry wordEntry, boolean hidePhrases, boolean hideTranslation) {
         SpannableStringBuilder builder = new SpannableStringBuilder();
-        for (WordDisplaySegment segment : wordDisplayFormatter.format(wordEntry, settings.getDisplayMode())) {
+        for (WordDisplaySegment segment : wordDisplayFormatter.format(wordEntry, settings.getDisplayMode(), hidePhrases, hideTranslation)) {
             int start = builder.length();
             builder.append(segment.getText());
             int end = builder.length();

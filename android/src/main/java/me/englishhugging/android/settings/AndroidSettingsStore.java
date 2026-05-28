@@ -53,6 +53,10 @@ public final class AndroidSettingsStore {
         s.setStartingPrefix(p.getString(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix()));
         s.setLoopPlayback(p.getBoolean(SettingsKeys.LOOP_PLAYBACK, s.isLoopPlayback()));
         s.setResizeMode(p.getBoolean(SettingsKeys.RESIZE_MODE, s.isResizeMode()));
+        s.setFillBlankMode(p.getBoolean(SettingsKeys.FILL_BLANK_MODE, s.isFillBlankMode()));
+        s.setFillBlankIntervalSeconds(p.getInt(SettingsKeys.FILL_BLANK_INTERVAL_SECONDS, s.getFillBlankIntervalSeconds()));
+        s.setFillBlankHidePhrases(p.getBoolean(SettingsKeys.FILL_BLANK_HIDE_PHRASES, s.isFillBlankHidePhrases()));
+        s.setFillBlankShowTranslation(p.getBoolean(SettingsKeys.FILL_BLANK_SHOW_TRANSLATION, s.isFillBlankShowTranslation()));
         return s;
     }
 
@@ -81,6 +85,10 @@ public final class AndroidSettingsStore {
                 .putString(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix())
                 .putBoolean(SettingsKeys.LOOP_PLAYBACK, s.isLoopPlayback())
                 .putBoolean(SettingsKeys.RESIZE_MODE, s.isResizeMode())
+                .putBoolean(SettingsKeys.FILL_BLANK_MODE, s.isFillBlankMode())
+                .putInt(SettingsKeys.FILL_BLANK_INTERVAL_SECONDS, s.getFillBlankIntervalSeconds())
+                .putBoolean(SettingsKeys.FILL_BLANK_HIDE_PHRASES, s.isFillBlankHidePhrases())
+                .putBoolean(SettingsKeys.FILL_BLANK_SHOW_TRANSLATION, s.isFillBlankShowTranslation())
                 .apply();
     }
 

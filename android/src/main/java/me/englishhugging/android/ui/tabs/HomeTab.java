@@ -9,6 +9,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,6 +26,7 @@ public final class HomeTab {
 
     private TextView startCircle;
     private TextView connectedStatus;
+    private Switch fillBlankSwitch;
 
     public HomeTab(MainActivity activity, AndroidUi ui, Runnable onNavigateToSettings) {
         this.activity = activity;
@@ -72,7 +74,21 @@ public final class HomeTab {
         connectedStatus = ui.titleText("点击启动悬浮背词");
         connectedStatus.setTextColor(AndroidUi.PRIMARY);
         connectedStatus.setGravity(Gravity.CENTER);
-        pageContent.addView(connectedStatus, ui.matchWidthWithBottomMargin(72));
+        pageContent.addView(connectedStatus, ui.matchWidthWithBottomMargin(32));
+
+        // Fill-blank mode switch
+        LinearLayout fillBlankCard = ui.card();
+        fillBlankSwitch = new Switch(activity);
+        fillBlankSwitch.setChecked(settings.isFillBlankMode());
+        fillBlankCard.addView(ui.settingSwitchItem("挖空模式", "播放后挖空复习拼写", fillBlankSwitch), ui.matchWidthWrapHeight());
+        pageContent.addView(fillBlankCard, ui.matchWidthWithBottomMargin(16));
+
+        fillBlankSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings current = AndroidSettingsStore.load(activity);
+            current.setFillBlankMode(isChecked);
+            AndroidSettingsStore.save(activity, current);
+            notifyServiceReload();
+        });
 
         updateStartCircleState();
     }
@@ -108,6 +124,14 @@ public final class HomeTab {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             activity.startForegroundService(intent);
         } else {
+            activity.startService(intent);
+        }
+    }
+
+    private void notifyServiceReload() {
+        if (OverlayService.isRunning) {
+            Intent intent = new Intent(activity, OverlayService.class);
+            intent.setAction(OverlayService.ACTION_RELOAD);
             activity.startService(intent);
         }
     }

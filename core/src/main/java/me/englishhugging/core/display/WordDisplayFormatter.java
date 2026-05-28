@@ -14,6 +14,10 @@ public final class WordDisplayFormatter {
     private static final int PHRASE_DISPLAY_LIMIT = 2;
 
     public List<WordDisplaySegment> format(WordEntry wordEntry, DisplayMode displayMode) {
+        return format(wordEntry, displayMode, false, false);
+    }
+
+    public List<WordDisplaySegment> format(WordEntry wordEntry, DisplayMode displayMode, boolean hidePhrases, boolean hideTranslation) {
         if (wordEntry == null) {
             return Collections.emptyList();
         }
@@ -22,7 +26,7 @@ public final class WordDisplayFormatter {
         List<WordDisplaySegment> segments = new ArrayList<>();
         segments.add(new WordDisplaySegment(WordDisplaySegment.Type.WORD, safe(wordEntry.getWord())));
 
-        if (safeMode == DisplayMode.WORD_ONLY) {
+        if (safeMode == DisplayMode.WORD_ONLY || hideTranslation) {
             return segments;
         }
 
@@ -42,7 +46,7 @@ public final class WordDisplayFormatter {
             segments.add(new WordDisplaySegment(WordDisplaySegment.Type.TRANSLATION, meaning));
         }
 
-        if (safeMode == DisplayMode.WORD_WITH_TRANSLATION_AND_PHRASE) {
+        if (safeMode == DisplayMode.WORD_WITH_TRANSLATION_AND_PHRASE && !hidePhrases) {
             int displayed = 0;
             for (Phrase phrase : wordEntry.getPhrases()) {
                 if (phrase == null) {

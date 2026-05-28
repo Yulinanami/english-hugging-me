@@ -25,6 +25,10 @@ public final class SettingsKeys {
     public static final String STARTING_PREFIX = "startingPrefix";
     public static final String LOOP_PLAYBACK = "loopPlayback";
     public static final String RESIZE_MODE = "resizeMode";
+    public static final String FILL_BLANK_MODE = "fillBlankMode";
+    public static final String FILL_BLANK_INTERVAL_SECONDS = "fillBlankIntervalSeconds";
+    public static final String FILL_BLANK_HIDE_PHRASES = "fillBlankHidePhrases";
+    public static final String FILL_BLANK_SHOW_TRANSLATION = "fillBlankShowTranslation";
 
     private SettingsKeys() {
     }

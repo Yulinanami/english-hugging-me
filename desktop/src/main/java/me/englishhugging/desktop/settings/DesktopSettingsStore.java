@@ -46,6 +46,10 @@ public final class DesktopSettingsStore {
         settings.setDetailFontSize(parseInt(p.getProperty(SettingsKeys.DETAIL_FONT_SIZE), settings.getDetailFontSize()));
         settings.setStartingPrefix(p.getProperty(SettingsKeys.STARTING_PREFIX));
         settings.setLoopPlayback(Boolean.parseBoolean(p.getProperty(SettingsKeys.LOOP_PLAYBACK, Boolean.toString(settings.isLoopPlayback()))));
+        settings.setFillBlankMode(Boolean.parseBoolean(p.getProperty(SettingsKeys.FILL_BLANK_MODE, Boolean.toString(settings.isFillBlankMode()))));
+        settings.setFillBlankIntervalSeconds(parseInt(p.getProperty(SettingsKeys.FILL_BLANK_INTERVAL_SECONDS), settings.getFillBlankIntervalSeconds()));
+        settings.setFillBlankHidePhrases(Boolean.parseBoolean(p.getProperty(SettingsKeys.FILL_BLANK_HIDE_PHRASES, Boolean.toString(settings.isFillBlankHidePhrases()))));
+        settings.setFillBlankShowTranslation(Boolean.parseBoolean(p.getProperty(SettingsKeys.FILL_BLANK_SHOW_TRANSLATION, Boolean.toString(settings.isFillBlankShowTranslation()))));
         return settings;
     }
 
@@ -73,6 +77,10 @@ public final class DesktopSettingsStore {
         p.setProperty(SettingsKeys.DETAIL_FONT_SIZE, Integer.toString(s.getDetailFontSize()));
         p.setProperty(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix());
         p.setProperty(SettingsKeys.LOOP_PLAYBACK, Boolean.toString(s.isLoopPlayback()));
+        p.setProperty(SettingsKeys.FILL_BLANK_MODE, Boolean.toString(s.isFillBlankMode()));
+        p.setProperty(SettingsKeys.FILL_BLANK_INTERVAL_SECONDS, Integer.toString(s.getFillBlankIntervalSeconds()));
+        p.setProperty(SettingsKeys.FILL_BLANK_HIDE_PHRASES, Boolean.toString(s.isFillBlankHidePhrases()));
+        p.setProperty(SettingsKeys.FILL_BLANK_SHOW_TRANSLATION, Boolean.toString(s.isFillBlankShowTranslation()));
         writeProperties(p);
     }
 

@@ -39,7 +39,17 @@ public final class FloatingWordsDesktopApp extends Application {
 
         settingsPanel = new DesktopSettingsPanel(
                 settings, settingsStore, overlayController,
-                () -> { if (scheduler != null) scheduler.updateIntervalSeconds(settings.getIntervalSeconds()); },
+                () -> {
+                    if (scheduler != null) {
+                        scheduler.updateIntervalSeconds(settings.getIntervalSeconds());
+                        scheduler.updateFillBlankSettings(
+                                settings.isFillBlankMode(),
+                                settings.getFillBlankIntervalSeconds(),
+                                settings.isFillBlankHidePhrases(),
+                                settings.isFillBlankShowTranslation()
+                        );
+                    }
+                },
                 this::reloadVocabulary
         );
         settingsPanel.init();
@@ -80,8 +90,13 @@ public final class FloatingWordsDesktopApp extends Application {
                 settings.getNextWordIndex(), settings.getShuffleOrder(),
                 settings.getShufflePosition(), settings.getRandomPlayedCount(),
                 settings.getStartingPrefix(), settings.isLoopPlayback(),
+                settings.isFillBlankMode(), settings.getFillBlankIntervalSeconds(),
+                settings.isFillBlankHidePhrases(), settings.isFillBlankShowTranslation(),
                 new WordScheduler.Listener() {
                     @Override public void onWord(WordEntry wordEntry) { Platform.runLater(() -> overlayController.updateCurrentWord(wordEntry)); }
+                    @Override public void onFillBlankWord(String displayWord, WordEntry originalEntry, boolean hidePhrases, boolean hideTranslation) {
+                        Platform.runLater(() -> overlayController.updateFillBlankWord(displayWord, originalEntry, hidePhrases, hideTranslation));
+                    }
                     @Override public void onPlaybackFinished() {
                         Platform.runLater(() -> {
                             overlayController.showPlaybackFinished();

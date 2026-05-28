@@ -54,6 +54,9 @@ public final class SettingsTab {
     private EditText startingPrefix;
     private MaterialAutoCompleteTextView loopPlaybackDropdown;
     private SeekBar opacitySeekBar;
+    private EditText fillBlankInterval;
+    private Switch fillBlankHidePhrasesSwitch;
+    private Switch fillBlankShowTranslationSwitch;
 
     private final Runnable goHome;
 
@@ -151,6 +154,17 @@ public final class SettingsTab {
         
         pageContent.addView(colorCard, ui.matchWidthWithBottomMargin(26));
 
+        pageContent.addView(ui.sectionLabel("挖空模式设置"), ui.matchWidthWithBottomMargin(12));
+        LinearLayout fillBlankCard = ui.card();
+        fillBlankInterval = ui.input(Integer.toString(settings.getFillBlankIntervalSeconds()));
+        fillBlankInterval.setInputType(InputType.TYPE_CLASS_NUMBER);
+        fillBlankHidePhrasesSwitch = new Switch(activity);
+        fillBlankShowTranslationSwitch = new Switch(activity);
+        fillBlankCard.addView(ui.settingItem("填充间隔", "每次自动填写一个空位的时间（秒）", fillBlankInterval), ui.matchWidthWrapHeight());
+        fillBlankCard.addView(ui.settingSwitchItem("挖空时关闭短语", "挖空阶段不显示短语/例句", fillBlankHidePhrasesSwitch), ui.matchWidthWrapHeight());
+        fillBlankCard.addView(ui.settingSwitchItem("挖空时显示释义", "挖空阶段显示词性和释义", fillBlankShowTranslationSwitch), ui.matchWidthWrapHeight());
+        pageContent.addView(fillBlankCard, ui.matchWidthWithBottomMargin(26));
+
 
 
         bindSettings(settings);
@@ -177,6 +191,10 @@ public final class SettingsTab {
         autoSizeSwitch.setChecked(settings.getWidth() <= 0 && settings.getHeight() <= 0 && !settings.isResizeMode());
         resizeModeSwitch.setChecked(settings.isResizeMode());
         isUpdatingSwitches = false;
+
+        fillBlankInterval.setText(Integer.toString(settings.getFillBlankIntervalSeconds()));
+        fillBlankHidePhrasesSwitch.setChecked(settings.isFillBlankHidePhrases());
+        fillBlankShowTranslationSwitch.setChecked(settings.isFillBlankShowTranslation());
     }
 
     private void saveAndReload() {
@@ -223,6 +241,10 @@ public final class SettingsTab {
         }
         settings.setResizeMode(resizeModeSwitch.isChecked());
         
+        try { settings.setFillBlankIntervalSeconds(Integer.parseInt(fillBlankInterval.getText().toString())); } catch (Exception ignored) { settings.setFillBlankIntervalSeconds(3); }
+        settings.setFillBlankHidePhrases(fillBlankHidePhrasesSwitch.isChecked());
+        settings.setFillBlankShowTranslation(fillBlankShowTranslationSwitch.isChecked());
+
         AndroidSettingsStore.save(activity, settings);
         AndroidSettingsStore.savePlaybackProgress(activity, settings, settings.getVocabularyFileName());
         notifyServiceReload();
@@ -262,6 +284,7 @@ public final class SettingsTab {
         phraseColor.addTextChangedListener(textChangeListener);
         wordFontSize.addTextChangedListener(textChangeListener);
         detailFontSize.addTextChangedListener(textChangeListener);
+        fillBlankInterval.addTextChangedListener(textChangeListener);
         
         autoSizeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isUpdatingSwitches) return;
@@ -284,6 +307,8 @@ public final class SettingsTab {
         });
         
         loopPlaybackSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> saveAndReload());
+        fillBlankHidePhrasesSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> saveAndReload());
+        fillBlankShowTranslationSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> saveAndReload());
 
         opacitySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) { if (fromUser) saveAndReload(); }

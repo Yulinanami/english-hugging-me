@@ -272,6 +272,23 @@ public final class DesktopOverlayController {
         }
     }
 
+    public void updateFillBlankWord(String displayWord, WordEntry originalEntry, boolean hidePhrases, boolean hideTranslation) {
+        WordEntry tempEntry = new WordEntry(displayWord, originalEntry.getTranslations(), originalEntry.getPhrases());
+        wordFlow.getChildren().clear();
+        for (WordDisplaySegment segment : wordDisplayFormatter.format(tempEntry, settings.getDisplayMode(), hidePhrases, hideTranslation)) {
+            if (segment.getType() == WordDisplaySegment.Type.WORD) {
+                appendText(segment.getText(), settings.getWordColor(), settings.getWordFontSize(), FontWeight.BOLD);
+            } else if (segment.getType() == WordDisplaySegment.Type.TYPE) {
+                appendText(segment.getText(), settings.getTypeColor(), settings.getDetailFontSize(), FontWeight.BOLD);
+            } else if (segment.getType() == WordDisplaySegment.Type.PHRASE) {
+                appendText(segment.getText(), settings.getPhraseColor(), settings.getDetailFontSize(), FontWeight.BOLD);
+            } else {
+                appendText(segment.getText(), settings.getTranslationColor(), settings.getDetailFontSize(), FontWeight.NORMAL);
+            }
+        }
+        ensureOverlayFitsText();
+    }
+
     private void renderMessage(String message) {
         wordFlow.getChildren().clear();
         appendText(message, settings.getWordColor(), settings.getDetailFontSize(), FontWeight.NORMAL);

@@ -6,9 +6,9 @@ public final class AppSettings {
 
     private String vocabularyPath = DEFAULT_VOCABULARY_PATH;
     private String vocabularyFileName = DEFAULT_VOCABULARY_FILE_NAME;
-    private DisplayMode displayMode = DisplayMode.WORD_WITH_TRANSLATION;
-    private OverlayMode overlayMode = OverlayMode.DRAGGABLE;
-    private PlaybackMode playbackMode = PlaybackMode.SHUFFLE_NO_REPEAT;
+    private DisplayMode displayMode = DisplayMode.WORD_WITH_TRANSLATION_AND_PHRASE;
+    private OverlayMode overlayMode = OverlayMode.CLICK_THROUGH;
+    private PlaybackMode playbackMode = PlaybackMode.RANDOM;
     private int intervalSeconds = 8;
     private int nextWordIndex = 0;
     private String shuffleOrder = "";
@@ -110,6 +110,22 @@ public final class AppSettings {
     private boolean resizeMode = false;
     public boolean isResizeMode() { return resizeMode; }
     public void setResizeMode(boolean resizeMode) { this.resizeMode = resizeMode; }
+
+    private boolean fillBlankMode = false;
+    public boolean isFillBlankMode() { return fillBlankMode; }
+    public void setFillBlankMode(boolean fillBlankMode) { this.fillBlankMode = fillBlankMode; }
+
+    private int fillBlankIntervalSeconds = 3;
+    public int getFillBlankIntervalSeconds() { return fillBlankIntervalSeconds; }
+    public void setFillBlankIntervalSeconds(int fillBlankIntervalSeconds) { this.fillBlankIntervalSeconds = Math.max(1, fillBlankIntervalSeconds); }
+
+    private boolean fillBlankHidePhrases = true;
+    public boolean isFillBlankHidePhrases() { return fillBlankHidePhrases; }
+    public void setFillBlankHidePhrases(boolean fillBlankHidePhrases) { this.fillBlankHidePhrases = fillBlankHidePhrases; }
+
+    private boolean fillBlankShowTranslation = true;
+    public boolean isFillBlankShowTranslation() { return fillBlankShowTranslation; }
+    public void setFillBlankShowTranslation(boolean fillBlankShowTranslation) { this.fillBlankShowTranslation = fillBlankShowTranslation; }
 
     private static String validColorOrCurrent(String value, String current) {
         if (value == null) return current;
