@@ -1,159 +1,291 @@
 package me.englishhugging.desktop.settings;
 
+import me.englishhugging.core.model.WordEntry;
 import me.englishhugging.core.settings.AppSettings;
-import me.englishhugging.core.settings.DisplayMode;
-import me.englishhugging.core.settings.OverlayMode;
-import me.englishhugging.core.settings.PlaybackMode;
-import me.englishhugging.core.settings.SettingsKeys;
+import me.englishhugging.core.settings.SettingsMapper;
+import me.englishhugging.core.settings.SettingsStorage;
+import me.englishhugging.core.vocabulary.VocabularyJsonLoader;
+import com.google.gson.GsonBuilder;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
+/**
+ * 桌面端的本地配置存储引擎。
+ *
+ * <p>这个类是桌面端持久化的核心。它内部实现了一个基于 Java {@link Properties} 文件的 {@link SettingsStorage}，
+ * 用于在用户的主目录下以文本文件的形式读写全局的配置参数以及自定义的生词本。
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * DesktopSettingsStore store = new DesktopSettingsStore();
+ * 
+ * // 启动时加载最新的持久化数据到内存
+ * AppSettings settings = store.load();
+ * 
+ * // 追加一个用户手敲的自定义单词
+ * store.appendCustomWord(new WordEntry("awesome", ...));
+ * </code></pre>
+ */
 public final class DesktopSettingsStore {
-    private final Path configPath = Paths.get(
-            System.getProperty("user.home"), ".english-hugging-me", "desktop.properties"
-    );
 
+    /** 跨平台的自定义词库虚拟键名标识 */
+    public static final String CUSTOM_VOCABULARY_FILE_NAME = SettingsMapper.CUSTOM_VOCABULARY_FILE_NAME;
+
+    /** 桌面端全局配置保存位置：用户家目录下的隐藏属性文件 */
+    private static final File SETTINGS_FILE = new File(System.getProperty("user.home"), ".english-hugging-me.properties");
+    
+    /** 桌面端自定义生词本保存位置：用户家目录下的隐藏 JSON 文件 */
+    private static final File CUSTOM_WORDS_FILE = new File(System.getProperty("user.home"), ".english-hugging-me-custom.json");
+
+    /**
+     * 默认构造函数。
+     */
+    public DesktopSettingsStore() {
+        // 留空，通过内部类桥接读写逻辑
+    }
+
+    /**
+     * 私有的本地持久化实现，它扮演了 Core 模块中抽象的 {@link SettingsStorage} 角色。
+     */
+    private static class PropertiesStorage implements SettingsStorage {
+        
+        private final Properties p;
+        private boolean modified = false;
+
+        /**
+         * 初始化物理存储。如果本地文件存在则预先加载它。
+         */
+        PropertiesStorage() {
+            this.p = new Properties();
+            if (SETTINGS_FILE.exists()) {
+                try (InputStreamReader reader = new InputStreamReader(new FileInputStream(SETTINGS_FILE), StandardCharsets.UTF_8)) {
+                    this.p.load(reader);
+                } catch (IOException ignored) {
+                    // 读取失败时忽略，将其视为一张白纸
+                }
+            }
+        }
+
+        @Override
+        public String getString(String key, String defaultValue) {
+            return this.p.getProperty(key, defaultValue);
+        }
+
+        @Override
+        public int getInt(String key, int defaultValue) {
+            try {
+                return Integer.parseInt(this.p.getProperty(key));
+            } catch (Exception e) {
+                return defaultValue;
+            }
+        }
+
+        @Override
+        public double getDouble(String key, double defaultValue) {
+            try {
+                return Double.parseDouble(this.p.getProperty(key));
+            } catch (Exception e) {
+                return defaultValue;
+            }
+        }
+
+        @Override
+        public boolean getBoolean(String key, boolean defaultValue) {
+            String value = this.p.getProperty(key);
+            if (value != null) {
+                return Boolean.parseBoolean(value);
+            } else {
+                return defaultValue;
+            }
+        }
+
+        @Override
+        public void putString(String key, String value) {
+            if (value != null) {
+                this.p.setProperty(key, value);
+            } else {
+                this.p.remove(key);
+            }
+            this.modified = true;
+        }
+
+        @Override
+        public void putInt(String key, int value) {
+            this.p.setProperty(key, String.valueOf(value));
+            this.modified = true;
+        }
+
+        @Override
+        public void putDouble(String key, double value) {
+            this.p.setProperty(key, String.valueOf(value));
+            this.modified = true;
+        }
+
+        @Override
+        public void putBoolean(String key, boolean value) {
+            this.p.setProperty(key, String.valueOf(value));
+            this.modified = true;
+        }
+
+        @Override
+        public void remove(String key) {
+            this.p.remove(key);
+            this.modified = true;
+        }
+
+        @Override
+        public Iterable<String> getAllKeys() {
+            return this.p.stringPropertyNames();
+        }
+
+        @Override
+        public void commit() {
+            if (!this.modified) {
+                return;
+            }
+            
+            try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(SETTINGS_FILE), StandardCharsets.UTF_8)) {
+                this.p.store(writer, "English Hugging Me Settings");
+            } catch (IOException ignored) {
+                // 如果写入磁盘被拒绝或发生 IO 异常，暂且丢弃本次落盘
+            }
+            this.modified = false;
+        }
+    }
+
+    /**
+     * 将整个应用配置反序列化到内存。
+     *
+     * @return 最新的配置实例
+     */
     public AppSettings load() {
-        AppSettings settings = new AppSettings();
-        if (!Files.exists(configPath)) return settings;
-
-        Properties p = readProperties();
-        settings.setVocabularyPath(migrateVocabularyPath(p.getProperty(SettingsKeys.VOCABULARY_PATH)));
-        settings.setDisplayMode(parseEnum(DisplayMode.class, p.getProperty(SettingsKeys.DISPLAY_MODE), settings.getDisplayMode()));
-        settings.setOverlayMode(parseEnum(OverlayMode.class, p.getProperty(SettingsKeys.OVERLAY_MODE), settings.getOverlayMode()));
-        settings.setPlaybackMode(parseEnum(PlaybackMode.class, p.getProperty(SettingsKeys.PLAYBACK_MODE), settings.getPlaybackMode()));
-        settings.setIntervalSeconds(parseInt(p.getProperty(SettingsKeys.INTERVAL_SECONDS), settings.getIntervalSeconds()));
-        settings.setNextWordIndex(parseInt(p.getProperty(SettingsKeys.NEXT_WORD_INDEX), settings.getNextWordIndex()));
-        settings.setShuffleOrder(p.getProperty(SettingsKeys.SHUFFLE_ORDER));
-        settings.setShufflePosition(parseInt(p.getProperty(SettingsKeys.SHUFFLE_POSITION), settings.getShufflePosition()));
-        settings.setRandomPlayedCount(parseInt(p.getProperty(SettingsKeys.RANDOM_PLAYED_COUNT), settings.getRandomPlayedCount()));
-        settings.setX(parseDouble(p.getProperty(SettingsKeys.X), settings.getX()));
-        settings.setY(parseDouble(p.getProperty(SettingsKeys.Y), settings.getY()));
-        settings.setWidth(parseDouble(p.getProperty(SettingsKeys.WIDTH), settings.getWidth()));
-        settings.setHeight(parseDouble(p.getProperty(SettingsKeys.HEIGHT), settings.getHeight()));
-        settings.setOpacity(parseDouble(p.getProperty(SettingsKeys.OPACITY), settings.getOpacity()));
-        settings.setWordColor(p.getProperty(SettingsKeys.WORD_COLOR));
-        settings.setTypeColor(p.getProperty(SettingsKeys.TYPE_COLOR));
-        settings.setTranslationColor(p.getProperty(SettingsKeys.TRANSLATION_COLOR));
-        settings.setPhraseColor(p.getProperty(SettingsKeys.PHRASE_COLOR));
-        settings.setWordFontSize(parseInt(p.getProperty(SettingsKeys.WORD_FONT_SIZE), settings.getWordFontSize()));
-        settings.setDetailFontSize(parseInt(p.getProperty(SettingsKeys.DETAIL_FONT_SIZE), settings.getDetailFontSize()));
-        settings.setStartingPrefix(p.getProperty(SettingsKeys.STARTING_PREFIX));
-        settings.setLoopPlayback(Boolean.parseBoolean(p.getProperty(SettingsKeys.LOOP_PLAYBACK, Boolean.toString(settings.isLoopPlayback()))));
-        settings.setFillBlankMode(Boolean.parseBoolean(p.getProperty(SettingsKeys.FILL_BLANK_MODE, Boolean.toString(settings.isFillBlankMode()))));
-        settings.setFillBlankIntervalSeconds(parseInt(p.getProperty(SettingsKeys.FILL_BLANK_INTERVAL_SECONDS), settings.getFillBlankIntervalSeconds()));
-        settings.setFillBlankHidePhrases(Boolean.parseBoolean(p.getProperty(SettingsKeys.FILL_BLANK_HIDE_PHRASES, Boolean.toString(settings.isFillBlankHidePhrases()))));
-        settings.setFillBlankShowTranslation(Boolean.parseBoolean(p.getProperty(SettingsKeys.FILL_BLANK_SHOW_TRANSLATION, Boolean.toString(settings.isFillBlankShowTranslation()))));
-        return settings;
+        return SettingsMapper.load(new PropertiesStorage());
     }
 
-    public void save(AppSettings s) {
-        Properties p = readProperties();
-        p.setProperty(SettingsKeys.VOCABULARY_PATH, s.getVocabularyPath());
-        p.setProperty(SettingsKeys.DISPLAY_MODE, s.getDisplayMode().name());
-        p.setProperty(SettingsKeys.OVERLAY_MODE, s.getOverlayMode().name());
-        p.setProperty(SettingsKeys.PLAYBACK_MODE, s.getPlaybackMode().name());
-        p.setProperty(SettingsKeys.INTERVAL_SECONDS, Integer.toString(s.getIntervalSeconds()));
-        p.setProperty(SettingsKeys.NEXT_WORD_INDEX, Integer.toString(s.getNextWordIndex()));
-        p.setProperty(SettingsKeys.SHUFFLE_ORDER, s.getShuffleOrder());
-        p.setProperty(SettingsKeys.SHUFFLE_POSITION, Integer.toString(s.getShufflePosition()));
-        p.setProperty(SettingsKeys.RANDOM_PLAYED_COUNT, Integer.toString(s.getRandomPlayedCount()));
-        p.setProperty(SettingsKeys.X, Double.toString(s.getX()));
-        p.setProperty(SettingsKeys.Y, Double.toString(s.getY()));
-        p.setProperty(SettingsKeys.WIDTH, Double.toString(s.getWidth()));
-        p.setProperty(SettingsKeys.HEIGHT, Double.toString(s.getHeight()));
-        p.setProperty(SettingsKeys.OPACITY, Double.toString(s.getOpacity()));
-        p.setProperty(SettingsKeys.WORD_COLOR, s.getWordColor());
-        p.setProperty(SettingsKeys.TYPE_COLOR, s.getTypeColor());
-        p.setProperty(SettingsKeys.TRANSLATION_COLOR, s.getTranslationColor());
-        p.setProperty(SettingsKeys.PHRASE_COLOR, s.getPhraseColor());
-        p.setProperty(SettingsKeys.WORD_FONT_SIZE, Integer.toString(s.getWordFontSize()));
-        p.setProperty(SettingsKeys.DETAIL_FONT_SIZE, Integer.toString(s.getDetailFontSize()));
-        p.setProperty(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix());
-        p.setProperty(SettingsKeys.LOOP_PLAYBACK, Boolean.toString(s.isLoopPlayback()));
-        p.setProperty(SettingsKeys.FILL_BLANK_MODE, Boolean.toString(s.isFillBlankMode()));
-        p.setProperty(SettingsKeys.FILL_BLANK_INTERVAL_SECONDS, Integer.toString(s.getFillBlankIntervalSeconds()));
-        p.setProperty(SettingsKeys.FILL_BLANK_HIDE_PHRASES, Boolean.toString(s.isFillBlankHidePhrases()));
-        p.setProperty(SettingsKeys.FILL_BLANK_SHOW_TRANSLATION, Boolean.toString(s.isFillBlankShowTranslation()));
-        writeProperties(p);
+    /**
+     * 将整个应用配置序列化落盘。
+     *
+     * @param settings 更新后的配置实例
+     */
+    public void save(AppSettings settings) {
+        SettingsMapper.save(new PropertiesStorage(), settings);
     }
 
-    public void loadPlaybackProgress(AppSettings s, String vocabularyKey) {
-        Properties p = readProperties();
-        s.setNextWordIndex(parseInt(p.getProperty(progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX)), s.getNextWordIndex()));
-        s.setShuffleOrder(p.getProperty(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_ORDER), s.getShuffleOrder()));
-        s.setShufflePosition(parseInt(p.getProperty(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_POSITION)), s.getShufflePosition()));
-        s.setRandomPlayedCount(parseInt(p.getProperty(progressKey(vocabularyKey, SettingsKeys.RANDOM_PLAYED_COUNT)), s.getRandomPlayedCount()));
+    /**
+     * 从持久化文件中提取某一个专属词库的当前进度。
+     *
+     * @param settings      需要被注入进度的目标配置对象
+     * @param vocabularyKey 词库的唯一标识（通常是文件名）
+     */
+    public void loadPlaybackProgress(AppSettings settings, String vocabularyKey) {
+        SettingsMapper.loadPlaybackProgress(new PropertiesStorage(), settings, vocabularyKey);
     }
 
-    public void savePlaybackProgress(AppSettings s, String vocabularyKey) {
-        Properties p = readProperties();
-        p.setProperty(progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX), Integer.toString(s.getNextWordIndex()));
-        p.setProperty(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_ORDER), s.getShuffleOrder());
-        p.setProperty(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_POSITION), Integer.toString(s.getShufflePosition()));
-        p.setProperty(progressKey(vocabularyKey, SettingsKeys.RANDOM_PLAYED_COUNT), Integer.toString(s.getRandomPlayedCount()));
-        writeProperties(p);
+    /**
+     * 仅将某个词库对应的进度保存至磁盘。
+     *
+     * @param settings      作为数据源的配置对象
+     * @param vocabularyKey 词库唯一标识
+     */
+    public void savePlaybackProgress(AppSettings settings, String vocabularyKey) {
+        SettingsMapper.savePlaybackProgress(new PropertiesStorage(), settings, vocabularyKey);
     }
 
+    /**
+     * 销毁所有词库产生的播放记录快照。
+     */
     public void clearAllPlaybackProgress() {
-        Properties p = readProperties();
-        p.entrySet().removeIf(entry -> entry.getKey().toString().startsWith("progress."));
-        writeProperties(p);
+        SettingsMapper.clearAllPlaybackProgress(new PropertiesStorage());
     }
 
+    /**
+     * 生成包含所有可用词库历史进度摘要的文本行数组，用于在 UI 的记录面板展示。
+     *
+     * @return 多行进度字符串
+     */
+    public String[] playbackRecordLines() {
+        return SettingsMapper.playbackRecordLines(new PropertiesStorage(), hasCustomVocabulary());
+    }
+
+    /**
+     * 获取单一词库的一句进度描述。
+     *
+     * @param vocabularyKey 词库文件键名
+     * @param label         展示的中文别名标签
+     * @return 一行进度总结
+     */
     public String playbackRecordLine(String vocabularyKey, String label) {
-        Properties p = readProperties();
-        int nextWordIndex = parseInt(p.getProperty(progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX)), 0);
-        int shufflePosition = parseInt(p.getProperty(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_POSITION)), 0);
-        int randomPlayedCount = parseInt(p.getProperty(progressKey(vocabularyKey, SettingsKeys.RANDOM_PLAYED_COUNT)), 0);
-        return label + "：顺序播放到第 " + (nextWordIndex + 1) + " 个；随机播放 " + randomPlayedCount + " 个；随机不重复 " + shufflePosition + " 个";
+        return SettingsMapper.playbackRecordLine(new PropertiesStorage(), vocabularyKey, label);
     }
 
-    private Properties readProperties() {
-        Properties p = new Properties();
-        if (!Files.exists(configPath)) return p;
-        try (InputStream in = Files.newInputStream(configPath)) { p.load(in); } catch (IOException e) {
-            System.err.println("Failed to read settings file: " + e.getMessage());
-            e.printStackTrace();
+    /**
+     * 加载当前桌面系统的自定义生词本文件。
+     * 如果文件破损或不存在，将优雅地返回一个空集合。
+     *
+     * @return 完整的用户自定义词汇列表
+     */
+    public List<WordEntry> loadCustomWords() {
+        if (!CUSTOM_WORDS_FILE.exists()) {
+            return new ArrayList<>();
         }
-        return p;
-    }
-
-    private void writeProperties(Properties p) {
-        try {
-            Files.createDirectories(configPath.getParent());
-            try (OutputStream out = Files.newOutputStream(configPath)) { p.store(out, "English Hugging Me desktop settings"); }
-        } catch (IOException e) {
-            System.err.println("Failed to write settings file: " + e.getMessage());
-            e.printStackTrace();
+        
+        try (InputStreamReader reader = new InputStreamReader(new FileInputStream(CUSTOM_WORDS_FILE), StandardCharsets.UTF_8)) {
+            VocabularyJsonLoader loader = new VocabularyJsonLoader();
+            return new ArrayList<>(loader.load(reader));
+        } catch (Exception ignored) {
+            return new ArrayList<>();
         }
     }
 
-    private static String progressKey(String vocabularyKey, String key) {
-        String safe = vocabularyKey == null ? "" : vocabularyKey.replace('\\', '/');
-        return "progress." + safe + "." + key;
+    /**
+     * 向自定义生词本中追加一个全新的词汇并直接落地。
+     * 如果新词汇已经存在（按照拼写判断），则它会覆写掉旧的条目。
+     *
+     * @param wordEntry 要加入的新词条对象
+     */
+    public void appendCustomWord(WordEntry wordEntry) {
+        List<WordEntry> words = loadCustomWords();
+        
+        // 删除已经存在的同拼写单词
+        words.removeIf(w -> w.getWord().equals(wordEntry.getWord()));
+        words.add(wordEntry);
+        
+        saveCustomWords(words);
     }
 
-    private static int parseInt(String value, int fallback) {
-        try { return Integer.parseInt(value); } catch (RuntimeException ignored) { return fallback; }
+    /**
+     * 将整个自定义词汇列表写回 JSON 文件，使用美化的格式以方便用户在外部编辑器中查看。
+     *
+     * @param words 词汇列表
+     */
+    public void saveCustomWords(List<WordEntry> words) {
+        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(CUSTOM_WORDS_FILE), StandardCharsets.UTF_8)) {
+            new GsonBuilder().setPrettyPrinting().create().toJson(words, writer);
+        } catch (Exception ignored) {
+            // 如果无法打开文件流进行写入，忽略异常
+        }
     }
 
-    private static double parseDouble(String value, double fallback) {
-        try { return Double.parseDouble(value); } catch (RuntimeException ignored) { return fallback; }
+    /**
+     * 辅助判断方法：当前的文件名是否命中了约定的自定义生词本特征。
+     *
+     * @param fileName 候选文件名
+     * @return 是否为自定义生词本
+     */
+    public boolean isCustomVocabulary(String fileName) {
+        return CUSTOM_VOCABULARY_FILE_NAME.equals(fileName);
     }
 
-    private static String migrateVocabularyPath(String value) {
-        if (value == null) return null;
-        return value.replace("english-vocabulary/json/", "vocabulary/").replace("english-vocabulary\\json\\", "vocabulary\\");
-    }
-
-    private static <T extends Enum<T>> T parseEnum(Class<T> type, String value, T fallback) {
-        try { return Enum.valueOf(type, value); } catch (RuntimeException ignored) { return fallback; }
+    /**
+     * 内部辅助方法：判断用户的设备上是否真的存在非空的自定义词库文件。
+     *
+     * @return 包含内容则返回 true
+     */
+    private boolean hasCustomVocabulary() {
+        return CUSTOM_WORDS_FILE.exists() && CUSTOM_WORDS_FILE.length() > 0;
     }
 }
