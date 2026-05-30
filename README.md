@@ -40,12 +40,16 @@ english-hugging-me/
 │       ├── settings/                  # 应用配置
 │       │   ├── AppSettings            #   全局设置（词库、显示模式、颜色等）
 │       │   ├── SettingsKeys           #   配置键名常量
+│       │   ├── SettingsMapper         #   配置项读写映射
+│       │   ├── SettingsStorage        #   存储引擎接口
 │       │   ├── DisplayMode            #   显示模式枚举
 │       │   ├── PlaybackMode           #   播放模式枚举
 │       │   └── OverlayMode            #   悬浮行为枚举
-│       ├── display/                   # 显示格式化
+│       ├── display/                   # 显示处理
+│       │   ├── FillBlankGenerator     #   填空考核算法
 │       │   └── WordDisplayFormatter   #   单词 → 显示片段的格式化器
-│       └── WordScheduler              # 定时轮播调度器
+│       ├── WordSchedulerConfig        # 定时轮播配置参数
+│       └── WordScheduler              # 定时轮播调度多线程引擎
 │
 ├── desktop/                           # 桌面端模块（JavaFX + AtlantaFX）
 │   └── me.englishhugging.desktop
@@ -53,9 +57,10 @@ english-hugging-me/
 │       │   ├── DesktopOverlayController  # 悬浮窗生命周期、拖动、缩放、渲染
 │       │   └── WindowsClickThrough       # Windows 点击穿透（JNA + Win32 API）
 │       ├── settings/                  # 设置面板
-│       │   ├── DesktopSettingsPanel    #   设置窗口主框架（Tab 组装）
+│       │   ├── DesktopSettingsPanel   #   设置窗口主框架（Tab 组装）
 │       │   ├── GeneralSettingsTab     #   常规设置 Tab
-│       │   ├── VocabularySettingsTab  #   词库设置 + 自定义词汇 Tab
+│       │   ├── VocabularySettingsTab  #   词库设置 Tab
+│       │   ├── CustomVocabularyTab    #   自定义词汇 Tab
 │       │   ├── AppearanceSettingsTab  #   外观设置 Tab（颜色、字号）
 │       │   ├── PlaybackRecordsTab     #   播放记录 Tab
 │       │   └── DesktopSettingsStore   #   桌面端设置持久化（Properties 文件）
@@ -64,7 +69,8 @@ english-hugging-me/
 │       │   └── DesktopTrayController  #   系统托盘图标与菜单
 │       ├── FloatingWordsDesktopApp    # 应用入口与协调器
 │       ├── DesktopLauncher            # main 方法启动器
-│       └── DesktopVocabularyLoader    # 词库文件加载
+│       ├── DesktopVocabularyLoader    # 词库文件加载
+│       └── ScreenStateMonitor         # 屏幕边界与状态监控
 │
 ├── android/                           # Android 端模块
 │   └── me.englishhugging.android
@@ -72,9 +78,14 @@ english-hugging-me/
 │       │   └── OverlayService         #   悬浮窗前台服务 + 单词渲染
 │       ├── settings/                  # 设置持久化
 │       │   └── AndroidSettingsStore   #   Android 设置（SharedPreferences）
-│       ├── ui/                        # UI 组件
-│       │   └── AndroidUi              #   UI 工具方法（按钮、卡片、下拉框等）
-│       └── MainActivity               # 主界面（首页 + 设置 + 记录）
+│       ├── ui/                        # UI 组件与页面
+│       │   ├── tabs/                  #   纯 Java 实现的页面组件
+│       │   │   ├── HomeTab            #     首页仪表盘
+│       │   │   ├── SettingsTab        #     全局设置页
+│       │   │   ├── RecordsTab         #     历史进度记录
+│       │   │   └── CustomVocabularyTab#     自定义词库编辑面板
+│       │   └── AndroidUi              #   UI 工具与工厂方法
+│       └── MainActivity               # 主界面（生命周期宿主）
 │
 └── vocabulary/                        # 内置 JSON 词库（初中 ~ SAT）
 ```
