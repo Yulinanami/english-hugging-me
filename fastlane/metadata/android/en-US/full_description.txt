@@ -1,0 +1,35 @@
+English Hugging Me is an open-source, cross-platform vocabulary learning tool for Desktop and Android. It displays a translucent floating window over your screen that automatically rotates through English words, allowing users to memorize vocabulary while performing other tasks.
+
+### Core Features
+
+- **Floating Window Display**
+  - Features a translucent, rounded floating window that remains on top of all other applications.
+  - Supports three window behaviors: draggable positioning, locked position, and a click-through mode (on Desktop) where mouse events pass through to the applications below.
+
+- **Playback Logic & Controls**
+  - **Playback Order**: Choose from sequential playback, pure random playback, and a shuffle mode without repeats.
+  - **Prefix Filtering**: Set a specific starting letter or prefix to only play words that match.
+  - **Playback Settings**: Customize the time interval (in seconds) between words and toggle infinite looping.
+
+- **Fill-in-the-Blank Mode**
+  - When enabled, words are displayed with randomly hidden letters (e.g., `a_p_e`).
+  - The hidden letters are revealed one by one at a customizable interval.
+  - Options available to hide the translation or example phrases during the blanking phase to reinforce spelling memory.
+
+- **Customizable Content Display**
+  - Switch between different display levels: Word only, Word + Translation, or Word + Translation + Phrases.
+  - The application automatically tracks playback progress for each individual vocabulary list and allows users to clear progress history.
+
+- **Appearance Customization**
+  - Adjust the background opacity of the floating window.
+  - Set independent font colors for the Word, Part of Speech, Translation, and Phrases.
+  - Separately configure the font sizes for the English words and the translation text.
+  - The floating window can automatically resize based on text content, or be manually resized via dragging.
+
+- **Vocabulary Management**
+  - Includes built-in vocabulary lists for various educational levels (Junior High, High School, CET-4/6, TOEFL, IELTS, GRE, SAT, etc.).
+  - Includes a Custom Vocabulary feature, allowing users to add, edit, and delete their own words directly within the app.
+
+- **Open Source & Privacy**
+  - Fully open-source project.
+  - Contains zero advertisements, requires no network permissions, and stores all user configuration and progress data locally on the device.
