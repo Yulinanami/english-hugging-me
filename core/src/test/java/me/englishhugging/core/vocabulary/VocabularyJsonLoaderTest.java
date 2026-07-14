@@ -18,8 +18,8 @@ class VocabularyJsonLoaderTest {
         );
 
         assertEquals(3223, entries.size());
-        assertEquals("ability", entries.get(0).getWord());
-        assertNotNull(entries.get(0).getTranslations());
-        assertFalse(entries.get(0).getTranslations().isEmpty());
+        assertEquals("ability", entries.get(0).word());
+        assertNotNull(entries.get(0).translations());
+        assertFalse(entries.get(0).translations().isEmpty());
     }
 }

@@ -24,8 +24,8 @@ class WordDisplayFormatterTest {
     void testFormatWordOnly() {
         List<WordDisplaySegment> segments = formatter.format(wordEntry, DisplayMode.WORD_ONLY);
         assertEquals(1, segments.size());
-        assertEquals("apple", segments.get(0).getText());
-        assertEquals(WordDisplaySegment.Type.WORD, segments.get(0).getType());
+        assertEquals("apple", segments.get(0).text());
+        assertEquals(WordDisplaySegment.Type.WORD, segments.get(0).type());
     }
 
     @Test
@@ -33,18 +33,18 @@ class WordDisplayFormatterTest {
         List<WordDisplaySegment> segments = formatter.format(wordEntry, DisplayMode.WORD_WITH_TRANSLATION);
         // Expected: apple \n n.  苹果
         assertEquals(4, segments.size());
-        assertEquals("apple", segments.get(0).getText());
-        assertEquals(WordDisplaySegment.Type.LINE_BREAK, segments.get(1).getType());
-        assertEquals("n. ", segments.get(2).getText());
-        assertEquals(WordDisplaySegment.Type.TYPE, segments.get(2).getType());
-        assertEquals("苹果", segments.get(3).getText());
-        assertEquals(WordDisplaySegment.Type.TRANSLATION, segments.get(3).getType());
+        assertEquals("apple", segments.get(0).text());
+        assertEquals(WordDisplaySegment.Type.LINE_BREAK, segments.get(1).type());
+        assertEquals("n. ", segments.get(2).text());
+        assertEquals(WordDisplaySegment.Type.TYPE, segments.get(2).type());
+        assertEquals("苹果", segments.get(3).text());
+        assertEquals(WordDisplaySegment.Type.TRANSLATION, segments.get(3).type());
     }
 
     @Test
     void testFormatHideTranslation() {
         List<WordDisplaySegment> segments = formatter.format(wordEntry, DisplayMode.WORD_WITH_TRANSLATION, false, true);
         assertEquals(1, segments.size());
-        assertEquals("apple", segments.get(0).getText());
+        assertEquals("apple", segments.get(0).text());
     }
 }

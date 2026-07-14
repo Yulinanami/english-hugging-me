@@ -479,7 +479,7 @@ public final class OverlayService extends Service {
                     @Override 
                     public void onFillBlankWord(String displayWord, WordEntry originalEntry, boolean hidePhrases, boolean hideTranslation) {
                         mainHandler.post(() -> {
-                            WordEntry tempEntry = new WordEntry(displayWord, originalEntry.getTranslations(), originalEntry.getPhrases());
+                            WordEntry tempEntry = new WordEntry(displayWord, originalEntry.translations(), originalEntry.phrases());
                             overlayText.setText(formatWord(tempEntry, hidePhrases, hideTranslation));
                         });
                     }
@@ -514,23 +514,23 @@ public final class OverlayService extends Service {
         
         for (WordDisplaySegment segment : this.wordDisplayFormatter.format(wordEntry, this.settings.getDisplayMode(), hidePhrases, hideTranslation)) {
             int start = builder.length();
-            builder.append(segment.getText());
+            builder.append(segment.text());
             int end = builder.length();
             
-            if (segment.getType() == WordDisplaySegment.Type.LINE_BREAK || start == end) {
+            if (segment.type() == WordDisplaySegment.Type.LINE_BREAK || start == end) {
                 continue;
             }
             
             // 染色
-            builder.setSpan(new ForegroundColorSpan(colorForSegment(segment.getType())), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            builder.setSpan(new ForegroundColorSpan(colorForSegment(segment.type())), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             
             // 加粗
-            if (isBoldSegment(segment.getType())) {
+            if (isBoldSegment(segment.type())) {
                 builder.setSpan(new StyleSpan(Typeface.BOLD), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
             
             // 字号（区分主标题和副标题大小）
-            int fontSizeSp = segment.getType() == WordDisplaySegment.Type.WORD ? this.settings.getWordFontSize() : this.settings.getDetailFontSize();
+            int fontSizeSp = segment.type() == WordDisplaySegment.Type.WORD ? this.settings.getWordFontSize() : this.settings.getDetailFontSize();
             builder.setSpan(new AbsoluteSizeSpan(fontSizeSp, true), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         

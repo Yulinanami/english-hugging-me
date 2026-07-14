@@ -92,16 +92,16 @@ final class CustomVocabularyTab {
         editBtn.setOnAction(e -> {
             WordItem selected = tableView.getSelectionModel().getSelectedItem();
             if (selected != null) {
-                customWord.setText(selected.getEntry().getWord());
-                if (!selected.getEntry().getTranslations().isEmpty()) {
-                    customType.setText(selected.getEntry().getTranslations().get(0).getType());
-                    customMeaning.setText(selected.getEntry().getTranslations().get(0).getTranslation());
+                customWord.setText(selected.getEntry().word());
+                if (!selected.getEntry().translations().isEmpty()) {
+                    customType.setText(selected.getEntry().translations().get(0).type());
+                    customMeaning.setText(selected.getEntry().translations().get(0).translation());
                 } else { customType.clear(); customMeaning.clear(); }
                 
                 customPhrase.clear(); customPhraseMeaning.clear(); customExample.clear();
-                for (Phrase p : selected.getEntry().getPhrases()) {
-                    if (p.getTranslation().isEmpty()) { customExample.setText(p.getPhrase()); }
-                    else { customPhrase.setText(p.getPhrase()); customPhraseMeaning.setText(p.getTranslation()); }
+                for (Phrase p : selected.getEntry().phrases()) {
+                    if (p.translation().isEmpty()) { customExample.setText(p.phrase()); }
+                    else { customPhrase.setText(p.phrase()); customPhraseMeaning.setText(p.translation()); }
                 }
             }
         });
@@ -139,16 +139,16 @@ final class CustomVocabularyTab {
                 List<WordEntry> words = new VocabularyJsonLoader().load(path);
                 for (WordEntry word : words) {
                     String meaning = "";
-                    if (!word.getTranslations().isEmpty()) {
-                        Translation t = word.getTranslations().get(0);
-                        meaning = t.getType() + " " + t.getTranslation();
+                    if (!word.translations().isEmpty()) {
+                        Translation t = word.translations().get(0);
+                        meaning = t.type() + " " + t.translation();
                     }
                     String phrase = ""; String phraseMeaning = ""; String example = "";
-                    for (Phrase p : word.getPhrases()) {
-                        if (p.getTranslation().isEmpty()) example = p.getPhrase();
-                        else { phrase = p.getPhrase(); phraseMeaning = p.getTranslation(); }
+                    for (Phrase p : word.phrases()) {
+                        if (p.translation().isEmpty()) example = p.phrase();
+                        else { phrase = p.phrase(); phraseMeaning = p.translation(); }
                     }
-                    wordItems.add(new WordItem(word.getWord(), meaning, phrase, phraseMeaning, example, word));
+                    wordItems.add(new WordItem(word.word(), meaning, phrase, phraseMeaning, example, word));
                 }
             } catch (Exception e) {
                 System.err.println("Failed to load custom words: " + e.getMessage());
@@ -177,7 +177,7 @@ final class CustomVocabularyTab {
             if (!phrase.isEmpty()) phrases.add(new Phrase(phrase, phraseMeaning));
             if (!example.isEmpty()) phrases.add(new Phrase(example, ""));
             WordEntry newEntry = new WordEntry(word, translations, phrases);
-            words.removeIf(w -> w.getWord().equals(word));
+            words.removeIf(w -> w.word().equals(word));
             words.add(newEntry);
 
             saveCustomWords(path, words);
@@ -200,7 +200,7 @@ final class CustomVocabularyTab {
             Path path = VocabularySettingsTab.customVocabularyPath();
             if (!Files.exists(path)) return;
             List<WordEntry> words = new ArrayList<>(new VocabularyJsonLoader().load(path));
-            words.removeIf(w -> w.getWord().equals(item.getWord()));
+            words.removeIf(w -> w.word().equals(item.getWord()));
             saveCustomWords(path, words);
             onVocabularyChanged.run();
             loadCustomWords();

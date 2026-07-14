@@ -188,18 +188,18 @@ public final class CustomVocabularyTab {
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
         textLayout.setLayoutParams(textParams);
 
-        textLayout.addView(this.ui.titleText(entry.getWord()));
+        textLayout.addView(this.ui.titleText(entry.word()));
 
-        if (!entry.getTranslations().isEmpty()) {
-            Translation t = entry.getTranslations().get(0);
-            textLayout.addView(this.ui.bodyText(t.getType() + " " + t.getTranslation()));
+        if (!entry.translations().isEmpty()) {
+            Translation t = entry.translations().get(0);
+            textLayout.addView(this.ui.bodyText(t.type() + " " + t.translation()));
         }
         
-        for (Phrase p : entry.getPhrases()) {
-            if (p.getTranslation().isEmpty()) {
-                textLayout.addView(this.ui.bodyText("例句: " + p.getPhrase()));
+        for (Phrase p : entry.phrases()) {
+            if (p.translation().isEmpty()) {
+                textLayout.addView(this.ui.bodyText("例句: " + p.phrase()));
             } else {
-                textLayout.addView(this.ui.bodyText("词组: " + p.getPhrase() + " (" + p.getTranslation() + ")"));
+                textLayout.addView(this.ui.bodyText("词组: " + p.phrase() + " (" + p.translation() + ")"));
             }
         }
 
@@ -216,10 +216,10 @@ public final class CustomVocabularyTab {
             ScrollView sv = (ScrollView) this.listContainer.getParent();
             sv.smoothScrollTo(0, 0);
             
-            this.customWordInput.setText(entry.getWord());
-            if (!entry.getTranslations().isEmpty()) {
-                this.customTypeInput.setText(entry.getTranslations().get(0).getType());
-                this.customMeaningInput.setText(entry.getTranslations().get(0).getTranslation());
+            this.customWordInput.setText(entry.word());
+            if (!entry.translations().isEmpty()) {
+                this.customTypeInput.setText(entry.translations().get(0).type());
+                this.customMeaningInput.setText(entry.translations().get(0).translation());
             } else { 
                 this.customTypeInput.setText(""); 
                 this.customMeaningInput.setText(""); 
@@ -229,12 +229,12 @@ public final class CustomVocabularyTab {
             this.customPhraseMeaningInput.setText(""); 
             this.customExampleInput.setText("");
             
-            for (Phrase p : entry.getPhrases()) {
-                if (p.getTranslation().isEmpty()) { 
-                    this.customExampleInput.setText(p.getPhrase()); 
+            for (Phrase p : entry.phrases()) {
+                if (p.translation().isEmpty()) { 
+                    this.customExampleInput.setText(p.phrase()); 
                 } else { 
-                    this.customPhraseInput.setText(p.getPhrase()); 
-                    this.customPhraseMeaningInput.setText(p.getTranslation()); 
+                    this.customPhraseInput.setText(p.phrase()); 
+                    this.customPhraseMeaningInput.setText(p.translation()); 
                 }
             }
             Toast.makeText(this.activity, "可在上方修改该单词", Toast.LENGTH_SHORT).show();
@@ -245,9 +245,9 @@ public final class CustomVocabularyTab {
         deleteBtn.setTextColor(Color.RED);
         deleteBtn.setOnClickListener(v -> new AlertDialog.Builder(this.activity)
                 .setTitle("确认删除")
-                .setMessage("要删除单词 " + entry.getWord() + " 吗？")
+                .setMessage("要删除单词 " + entry.word() + " 吗？")
                 .setPositiveButton("删除", (dialog, which) -> {
-                    deleteWord(entry.getWord());
+                    deleteWord(entry.word());
                 })
                 .setNegativeButton("取消", null)
                 .show());
@@ -265,7 +265,7 @@ public final class CustomVocabularyTab {
         List<WordEntry> words = AndroidSettingsStore.loadCustomWords(this.activity);
         if (words != null) {
             // 通过拼写来定位并剔除
-            words.removeIf(w -> w.getWord().equals(word));
+            words.removeIf(w -> w.word().equals(word));
             
             AndroidSettingsStore.saveCustomWords(this.activity, words);
             refreshList();

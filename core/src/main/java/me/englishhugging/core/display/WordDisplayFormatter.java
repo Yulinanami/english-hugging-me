@@ -24,8 +24,8 @@ import java.util.List;
  * List&lt;WordDisplaySegment&gt; segments = formatter.format(entry, DisplayMode.WORD_WITH_TRANSLATION);
  * 
  * for (WordDisplaySegment segment : segments) {
- *     // UI 引擎根据 segment.getType() 渲染不同颜色
- *     renderToScreen(segment.getText(), getColor(segment.getType()));
+ *     // UI 引擎根据 segment.type() 渲染不同颜色
+ *     renderToScreen(segment.text(), getColor(segment.type()));
  * }
  * </code></pre>
  */
@@ -73,7 +73,7 @@ public final class WordDisplayFormatter {
         List<WordDisplaySegment> segments = new ArrayList<>();
         
         // 1. 恒定插入：单词的主体字母
-        String safeWord = safe(wordEntry.getWord());
+        String safeWord = safe(wordEntry.word());
         segments.add(new WordDisplaySegment(WordDisplaySegment.Type.WORD, safeWord));
 
         // 如果用户选择了极简模式，或者当前处于严格的填空模式下，则提前返回 (Early Return)
@@ -97,17 +97,9 @@ public final class WordDisplayFormatter {
      * 辅助方法：处理并追加翻译片段到集合中。
      */
     private void appendTranslations(WordEntry wordEntry, List<WordDisplaySegment> segments) {
-        if (wordEntry.getTranslations() == null) {
-            return;
-        }
-        
-        for (Translation translation : wordEntry.getTranslations()) {
-            if (translation == null) {
-                continue;
-            }
-            
-            String type = safe(translation.getType());
-            String meaning = safe(translation.getTranslation());
+        for (Translation translation : wordEntry.translations()) {
+            String type = safe(translation.type());
+            String meaning = safe(translation.translation());
             
             if (type.length() == 0 && meaning.length() == 0) {
                 continue;
@@ -127,19 +119,11 @@ public final class WordDisplayFormatter {
      * 辅助方法：处理并追加例句短语片段到集合中，受 {@link #PHRASE_DISPLAY_LIMIT} 约束。
      */
     private void appendPhrases(WordEntry wordEntry, List<WordDisplaySegment> segments) {
-        if (wordEntry.getPhrases() == null) {
-            return;
-        }
-        
         int displayed = 0;
-        
-        for (Phrase phrase : wordEntry.getPhrases()) {
-            if (phrase == null) {
-                continue;
-            }
-            
-            String phraseText = safe(phrase.getPhrase());
-            String phraseTranslation = safe(phrase.getTranslation());
+
+        for (Phrase phrase : wordEntry.phrases()) {
+            String phraseText = safe(phrase.phrase());
+            String phraseTranslation = safe(phrase.translation());
             
             if (phraseText.length() == 0 && phraseTranslation.length() == 0) {
                 continue;

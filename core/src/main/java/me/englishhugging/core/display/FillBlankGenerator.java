@@ -17,10 +17,10 @@ import java.util.Random;
  * 
  * // 1. 根据原词生成填空初始态
  * FillBlankGenerator.BlankResult result = generator.generateBlanked("hello");
- * System.out.println(result.getBlankedWord()); // 比如: "h_ll_"
- * 
+ * System.out.println(result.blankedWord()); // 比如: "h_ll_"
+ *
  * // 2. 揭示（填回）其中一个字母
- * String nextWord = generator.fillOneBlank("h_ll_", "hello", result.getBlankPositions());
+ * String nextWord = generator.fillOneBlank("h_ll_", "hello", result.blankPositions());
  * System.out.println(nextWord); // 比如: "he_ll_"
  * </code></pre>
  */
@@ -34,30 +34,15 @@ public final class FillBlankGenerator {
 
     /**
      * 内部不可变值对象：包装了挖空生成后的状态结果。
+     *
+     * @param blankedWord    带有下划线的单词字符串
+     * @param blankPositions 那些被成功替换成下划线的字符数组下标（不可变包装）
      */
-    public static final class BlankResult {
-        
-        private final String blankedWord;
-        private final List<Integer> blankPositions;
+    public record BlankResult(String blankedWord, List<Integer> blankPositions) {
 
-        /**
-         * 构造生成结果。
-         *
-         * @param blankedWord    带有下划线的单词字符串
-         * @param blankPositions 那些被成功替换成下划线的字符数组下标
-         */
-        public BlankResult(String blankedWord, List<Integer> blankPositions) {
-            this.blankedWord = blankedWord;
+        public BlankResult {
             // 进行防卫性不可变包装，防止外部修改挖空位点集合
-            this.blankPositions = Collections.unmodifiableList(new ArrayList<>(blankPositions));
-        }
-
-        public String getBlankedWord() { 
-            return this.blankedWord; 
-        }
-        
-        public List<Integer> getBlankPositions() { 
-            return this.blankPositions; 
+            blankPositions = Collections.unmodifiableList(new ArrayList<>(blankPositions));
         }
     }
 

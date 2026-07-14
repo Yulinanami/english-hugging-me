@@ -57,7 +57,14 @@ public final class DesktopUi {
         button.setMinHeight(32);
         button.setPrefHeight(32);
         
-        String modernStyle = "-fx-background-color: #EEF2FF; -fx-text-fill: #52699A; -fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #D8E0F3; -fx-padding: 5 14 5 14;";
+        String modernStyle = """
+                -fx-background-color: #EEF2FF;
+                -fx-text-fill: #52699A;
+                -fx-background-radius: 10;
+                -fx-border-radius: 10;
+                -fx-border-color: #D8E0F3;
+                -fx-padding: 5 14 5 14;
+                """;
         button.setStyle(modernStyle);
         
         return button;
@@ -93,7 +100,13 @@ public final class DesktopUi {
         VBox box = new VBox(8, label, content);
         box.setPadding(new Insets(12));
         
-        String cardStyle = "-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #E4E8F2; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0, 0, 3);";
+        String cardStyle = """
+                -fx-background-color: white;
+                -fx-background-radius: 14;
+                -fx-border-color: #E4E8F2;
+                -fx-border-radius: 14;
+                -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0, 0, 3);
+                """;
         box.setStyle(cardStyle);
         
         return box;
@@ -105,7 +118,13 @@ public final class DesktopUi {
      * @param node 任意待着色的 JavaFX 节点
      */
     public static void styleModernControl(Node node) {
-        String baseStyle = "-fx-background-color: white; -fx-background-radius: 10; -fx-border-radius: 10; -fx-border-color: #D8E0F3; -fx-padding: 3 8 3 8;";
+        String baseStyle = """
+                -fx-background-color: white;
+                -fx-background-radius: 10;
+                -fx-border-radius: 10;
+                -fx-border-color: #D8E0F3;
+                -fx-padding: 3 8 3 8;
+                """;
         node.setStyle(baseStyle);
     }
 

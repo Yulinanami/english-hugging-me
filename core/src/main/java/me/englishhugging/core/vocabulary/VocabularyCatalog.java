@@ -14,7 +14,7 @@ import java.util.List;
  * <pre><code>
  * // 获取所有内置词汇表并在控制台打印
  * for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
- *     System.out.println(item.getDisplayName() + " -> " + item.getFileName());
+ *     System.out.println(item.displayName() + " -> " + item.fileName());
  * }
  * </code></pre>
  */
@@ -59,45 +59,17 @@ public final class VocabularyCatalog {
     public static String[] fileNames() {
         String[] fileNames = new String[ITEMS.length];
         for (int i = 0; i < ITEMS.length; i++) {
-            fileNames[i] = ITEMS[i].getFileName();
+            fileNames[i] = ITEMS[i].fileName();
         }
         return fileNames;
     }
 
     /**
-     * 内部静态不可变类，用于封装单个词库的信息（显示名和文件名）。
+     * 单个词库的信息节点（显示名和文件名）。
+     *
+     * @param displayName 面向用户展示的名字
+     * @param fileName    实际存储在文件系统中的文件名
      */
-    public static final class VocabularyItem {
-        private final String displayName;
-        private final String fileName;
-
-        /**
-         * 构造一个新的词库信息节点。
-         *
-         * @param displayName 面向用户展示的名字
-         * @param fileName    实际存储在文件系统中的文件名
-         */
-        private VocabularyItem(String displayName, String fileName) {
-            this.displayName = displayName;
-            this.fileName = fileName;
-        }
-
-        /**
-         * 获取人类可读的显示名称。
-         *
-         * @return 显示名字符串
-         */
-        public String getDisplayName() {
-            return this.displayName;
-        }
-
-        /**
-         * 获取真实的文件名。
-         *
-         * @return 文件名字符串
-         */
-        public String getFileName() {
-            return this.fileName;
-        }
+    public record VocabularyItem(String displayName, String fileName) {
     }
 }

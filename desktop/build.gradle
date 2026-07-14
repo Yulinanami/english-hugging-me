@@ -16,9 +16,9 @@ javafx {
 
 dependencies {
     implementation project(':core')
-    implementation 'io.github.mkpaz:atlantafx-base:2.0.1'
-    implementation 'net.java.dev.jna:jna:5.15.0'
-    implementation 'net.java.dev.jna:jna-platform:5.15.0'
+    implementation libs.atlantafx
+    implementation libs.jna
+    implementation libs.jna.platform
 }
 
 application {

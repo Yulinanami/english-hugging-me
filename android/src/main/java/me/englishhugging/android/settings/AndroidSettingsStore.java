@@ -180,7 +180,7 @@ public final class AndroidSettingsStore {
         List<WordEntry> words = loadCustomWords(context);
         
         // 移除同名老单词
-        words.removeIf(w -> w.getWord().equals(wordEntry.getWord()));
+        words.removeIf(w -> w.word().equals(wordEntry.word()));
         
         words.add(wordEntry);
         saveCustomWords(context, words);

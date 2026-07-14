@@ -59,8 +59,8 @@ final class PlaybackRecordsTab {
         recordsBox.getChildren().clear();
         recordsBox.getChildren().add(new Label("记录各词汇本当前顺序位置和随机播放数量。"));
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
-            String key = VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName();
-            recordsBox.getChildren().add(new Label(settingsStore.playbackRecordLine(key, item.getDisplayName())));
+            String key = VocabularyCatalog.BASE_DIRECTORY + "/" + item.fileName();
+            recordsBox.getChildren().add(new Label(settingsStore.playbackRecordLine(key, item.displayName())));
         }
         Path customPath = VocabularySettingsTab.customVocabularyPath();
         if (Files.exists(customPath)) {

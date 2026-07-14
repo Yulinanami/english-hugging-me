@@ -20,7 +20,7 @@ import java.util.List;
  * 将 JSON 文件反序列化为 {@link WordEntry} 对象的加载工具类。
  *
  * <p>该类封装了 Gson 库的调用，专门用于从文件系统或输入流中安全地读取并解析 JSON 格式的词库。
- * 解析过程中会过滤掉不合法或空缺的单词，并进行防卫性拷贝。
+ * 解析过程中会过滤掉不合法或空缺的单词；{@link WordEntry} 本身是不可变 record，无需额外拷贝。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
@@ -76,7 +76,7 @@ public final class VocabularyJsonLoader {
     }
 
     /**
-     * 核心加载逻辑，从 Reader 读取文本并反序列化，执行必要的清洗与拷贝操作。
+     * 核心加载逻辑，从 Reader 读取文本并反序列化，执行必要的清洗操作。
      *
      * @param reader 数据读取器
      * @return 一个不可变的 {@link WordEntry} 集合
@@ -97,15 +97,14 @@ public final class VocabularyJsonLoader {
             if (entry == null) {
                 continue;
             }
-            if (entry.getWord() == null) {
+            if (entry.word() == null) {
                 continue;
             }
-            if (entry.getWord().trim().length() == 0) {
+            if (entry.word().trim().length() == 0) {
                 continue;
             }
-            
-            // 加入集合前执行防卫性拷贝，阻断外部对原词条内部属性的意外篡改
-            entries.add(entry.defensiveCopy());
+
+            entries.add(entry);
         }
         
         return Collections.unmodifiableList(entries);

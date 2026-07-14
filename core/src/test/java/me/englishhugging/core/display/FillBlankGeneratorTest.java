@@ -14,11 +14,11 @@ class FillBlankGeneratorTest {
         String word = "hello";
         FillBlankGenerator.BlankResult result = generator.generateBlanked(word);
         
-        String blanked = result.getBlankedWord();
+        String blanked = result.blankedWord();
         assertNotNull(blanked);
         assertEquals(word.length(), blanked.length());
         
-        List<Integer> positions = result.getBlankPositions();
+        List<Integer> positions = result.blankPositions();
         assertFalse(positions.isEmpty(), "There should be at least one blank position");
         
         for (int pos : positions) {

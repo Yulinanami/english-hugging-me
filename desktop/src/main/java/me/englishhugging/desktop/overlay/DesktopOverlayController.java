@@ -426,14 +426,14 @@ public final class DesktopOverlayController {
         this.wordFlow.getChildren().clear();
         
         for (WordDisplaySegment segment : this.wordDisplayFormatter.format(wordEntry, this.settings.getDisplayMode())) {
-            if (segment.getType() == WordDisplaySegment.Type.WORD) {
-                appendText(segment.getText(), this.settings.getWordColor(), this.settings.getWordFontSize(), FontWeight.BOLD);
-            } else if (segment.getType() == WordDisplaySegment.Type.TYPE) {
-                appendText(segment.getText(), this.settings.getTypeColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
-            } else if (segment.getType() == WordDisplaySegment.Type.PHRASE) {
-                appendText(segment.getText(), this.settings.getPhraseColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
+            if (segment.type() == WordDisplaySegment.Type.WORD) {
+                appendText(segment.text(), this.settings.getWordColor(), this.settings.getWordFontSize(), FontWeight.BOLD);
+            } else if (segment.type() == WordDisplaySegment.Type.TYPE) {
+                appendText(segment.text(), this.settings.getTypeColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
+            } else if (segment.type() == WordDisplaySegment.Type.PHRASE) {
+                appendText(segment.text(), this.settings.getPhraseColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
             } else {
-                appendText(segment.getText(), this.settings.getTranslationColor(), this.settings.getDetailFontSize(), FontWeight.NORMAL);
+                appendText(segment.text(), this.settings.getTranslationColor(), this.settings.getDetailFontSize(), FontWeight.NORMAL);
             }
         }
     }
@@ -448,18 +448,18 @@ public final class DesktopOverlayController {
      */
     public void updateFillBlankWord(String displayWord, WordEntry originalEntry, boolean hidePhrases, boolean hideTranslation) {
         // 利用原始属性组合成一个虚假的填空模型去欺骗 Formatter 渲染颜色分片
-        WordEntry tempEntry = new WordEntry(displayWord, originalEntry.getTranslations(), originalEntry.getPhrases());
+        WordEntry tempEntry = new WordEntry(displayWord, originalEntry.translations(), originalEntry.phrases());
         this.wordFlow.getChildren().clear();
         
         for (WordDisplaySegment segment : this.wordDisplayFormatter.format(tempEntry, this.settings.getDisplayMode(), hidePhrases, hideTranslation)) {
-            if (segment.getType() == WordDisplaySegment.Type.WORD) {
-                appendText(segment.getText(), this.settings.getWordColor(), this.settings.getWordFontSize(), FontWeight.BOLD);
-            } else if (segment.getType() == WordDisplaySegment.Type.TYPE) {
-                appendText(segment.getText(), this.settings.getTypeColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
-            } else if (segment.getType() == WordDisplaySegment.Type.PHRASE) {
-                appendText(segment.getText(), this.settings.getPhraseColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
+            if (segment.type() == WordDisplaySegment.Type.WORD) {
+                appendText(segment.text(), this.settings.getWordColor(), this.settings.getWordFontSize(), FontWeight.BOLD);
+            } else if (segment.type() == WordDisplaySegment.Type.TYPE) {
+                appendText(segment.text(), this.settings.getTypeColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
+            } else if (segment.type() == WordDisplaySegment.Type.PHRASE) {
+                appendText(segment.text(), this.settings.getPhraseColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
             } else {
-                appendText(segment.getText(), this.settings.getTranslationColor(), this.settings.getDetailFontSize(), FontWeight.NORMAL);
+                appendText(segment.text(), this.settings.getTranslationColor(), this.settings.getDetailFontSize(), FontWeight.NORMAL);
             }
         }
         

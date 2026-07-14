@@ -142,34 +142,34 @@ public final class WordScheduler implements AutoCloseable {
         }
 
         // 1. 根据前缀过滤出候选词库
-        this.words = filterWordsByPrefix(words, config.getStartingPrefix());
+        this.words = filterWordsByPrefix(words, config.startingPrefix());
 
         this.listener = listener;
         this.progressListener = progressListener;
-        
+
         // 2. 初始化核心参数
-        if (config.getPlaybackMode() != null) {
-            this.playbackMode = config.getPlaybackMode();
+        if (config.playbackMode() != null) {
+            this.playbackMode = config.playbackMode();
         } else {
             this.playbackMode = PlaybackMode.SEQUENTIAL;
         }
 
         initProgressCounters(config);
-        
-        this.intervalSeconds = Math.max(2, config.getIntervalSeconds());
-        
-        boolean hasPrefix = config.getStartingPrefix() != null && !config.getStartingPrefix().trim().isEmpty();
+
+        this.intervalSeconds = Math.max(2, config.intervalSeconds());
+
+        boolean hasPrefix = config.startingPrefix() != null && !config.startingPrefix().trim().isEmpty();
         if (hasPrefix) {
-            this.loopPlayback = config.isLoopPlayback();
+            this.loopPlayback = config.loopPlayback();
         } else {
             this.loopPlayback = true;
         }
 
         // 3. 初始化填空考核相关参数
-        this.fillBlankMode = config.isFillBlankMode();
-        this.fillBlankIntervalSeconds = Math.max(1, config.getFillBlankIntervalSeconds());
-        this.fillBlankHidePhrases = config.isFillBlankHidePhrases();
-        this.fillBlankShowTranslation = config.isFillBlankShowTranslation();
+        this.fillBlankMode = config.fillBlankMode();
+        this.fillBlankIntervalSeconds = Math.max(1, config.fillBlankIntervalSeconds());
+        this.fillBlankHidePhrases = config.fillBlankHidePhrases();
+        this.fillBlankShowTranslation = config.fillBlankShowTranslation();
     }
 
     /**
@@ -184,7 +184,7 @@ public final class WordScheduler implements AutoCloseable {
         String targetPrefix = prefix.toLowerCase();
         
         for (WordEntry w : originalWords) {
-            if (w.getWord().toLowerCase().startsWith(targetPrefix)) {
+            if (w.word().toLowerCase().startsWith(targetPrefix)) {
                 filtered.add(w);
             }
         }
@@ -202,23 +202,23 @@ public final class WordScheduler implements AutoCloseable {
      */
     private void initProgressCounters(WordSchedulerConfig config) {
         // 顺序播放索引
-        if (config.getNextWordIndex() < 0 || config.getNextWordIndex() > this.words.size()) {
+        if (config.nextWordIndex() < 0 || config.nextWordIndex() > this.words.size()) {
             this.nextWordIndex = 0;
         } else {
-            this.nextWordIndex = config.getNextWordIndex();
+            this.nextWordIndex = config.nextWordIndex();
             // 如果恰巧保存的进度是最后一个词且开启了循环，自动归零
-            if (config.isLoopPlayback() && this.nextWordIndex == this.words.size()) {
+            if (config.loopPlayback() && this.nextWordIndex == this.words.size()) {
                 this.nextWordIndex = 0;
             }
         }
 
         // 乱序播放状态
-        this.shuffleOrder = parseShuffleOrder(config.getShuffleOrder(), this.words.size());
-        
-        int safeShufflePosition = Math.max(0, config.getShufflePosition());
+        this.shuffleOrder = parseShuffleOrder(config.shuffleOrder(), this.words.size());
+
+        int safeShufflePosition = Math.max(0, config.shufflePosition());
         this.shufflePosition = Math.min(safeShufflePosition, this.words.size());
-        
-        this.randomPlayedCount = Math.max(0, config.getRandomPlayedCount());
+
+        this.randomPlayedCount = Math.max(0, config.randomPlayedCount());
     }
 
     /**
@@ -422,7 +422,7 @@ public final class WordScheduler implements AutoCloseable {
             // 第二步：慢慢地一个一个把空填补回去
             this.fillBlankCurrentWord = this.fillBlankGenerator.fillOneBlank(
                     this.fillBlankCurrentWord, 
-                    this.fillBlankOriginalEntry.getWord(), 
+                    this.fillBlankOriginalEntry.word(), 
                     this.fillBlankRemainingBlanks
             );
             scheduleNext(this.fillBlankIntervalSeconds);
@@ -465,14 +465,14 @@ public final class WordScheduler implements AutoCloseable {
         WordEntry wordToEmit = this.words.get(position);
 
         // 如果用户开启了全局的填空考核，且这个单词本身的长度值得被挖空（长度大于1）
-        boolean canBeBlanked = this.fillBlankMode && wordToEmit.getWord() != null && wordToEmit.getWord().length() > 1;
+        boolean canBeBlanked = this.fillBlankMode && wordToEmit.word() != null && wordToEmit.word().length() > 1;
         if (canBeBlanked) {
             // 组装填空所需要的一切材料，并启动它的专属状态机
             this.fillBlankOriginalEntry = wordToEmit;
-            FillBlankGenerator.BlankResult result = this.fillBlankGenerator.generateBlanked(wordToEmit.getWord());
+            FillBlankGenerator.BlankResult result = this.fillBlankGenerator.generateBlanked(wordToEmit.word());
             
-            this.fillBlankCurrentWord = result.getBlankedWord();
-            this.fillBlankRemainingBlanks = new ArrayList<>(result.getBlankPositions());
+            this.fillBlankCurrentWord = result.blankedWord();
+            this.fillBlankRemainingBlanks = new ArrayList<>(result.blankPositions());
             
             this.inFillBlankPhase = true;
             this.initialBlankShown = false;
@@ -493,46 +493,50 @@ public final class WordScheduler implements AutoCloseable {
      * @return 有效的下标，返回 -1 代表没有剩余可用的词汇了
      */
     private synchronized int nextPosition() {
-        if (this.playbackMode == PlaybackMode.RANDOM) {
-            this.randomPlayedCount++;
-            return this.random.nextInt(this.words.size());
-        }
-
-        if (this.playbackMode == PlaybackMode.SHUFFLE_NO_REPEAT) {
-            // 乱序池为空或尺寸不对则重建
-            if (this.shuffleOrder.size() != this.words.size()) {
-                this.shuffleOrder = newShuffleOrder(this.words.size());
-                this.shufflePosition = 0;
+        // 穷尽匹配 PlaybackMode，勿加 default：新增播放模式时漏写分支应直接编译失败
+        return switch (this.playbackMode) {
+            case RANDOM -> {
+                this.randomPlayedCount++;
+                yield this.random.nextInt(this.words.size());
             }
-            
-            // 当前这批乱序列表消费殆尽了
-            if (this.shufflePosition >= this.shuffleOrder.size()) {
-                if (!this.loopPlayback) {
-                    return -1;
+
+            case SHUFFLE_NO_REPEAT -> {
+                // 乱序池为空或尺寸不对则重建
+                if (this.shuffleOrder.size() != this.words.size()) {
+                    this.shuffleOrder = newShuffleOrder(this.words.size());
+                    this.shufflePosition = 0;
                 }
-                // 如果允许循环，那么就新洗一副牌，从头抽
-                this.shuffleOrder = newShuffleOrder(this.words.size());
-                this.shufflePosition = 0;
-            }
-            
-            int targetIndex = this.shuffleOrder.get(this.shufflePosition);
-            this.shufflePosition++;
-            return targetIndex;
-        }
 
-        // 默认的 SEQUENTIAL 顺序模式
-        if (!this.loopPlayback && this.nextWordIndex >= this.words.size()) {
-            return -1;
-        }
-        
-        int position = Math.floorMod(this.nextWordIndex, this.words.size());
-        this.nextWordIndex = position + 1;
-        
-        if (this.loopPlayback) {
-            this.nextWordIndex = Math.floorMod(this.nextWordIndex, this.words.size());
-        }
-        
-        return position;
+                // 当前这批乱序列表消费殆尽了
+                if (this.shufflePosition >= this.shuffleOrder.size()) {
+                    if (!this.loopPlayback) {
+                        yield -1;
+                    }
+                    // 如果允许循环，那么就新洗一副牌，从头抽
+                    this.shuffleOrder = newShuffleOrder(this.words.size());
+                    this.shufflePosition = 0;
+                }
+
+                int targetIndex = this.shuffleOrder.get(this.shufflePosition);
+                this.shufflePosition++;
+                yield targetIndex;
+            }
+
+            case SEQUENTIAL -> {
+                if (!this.loopPlayback && this.nextWordIndex >= this.words.size()) {
+                    yield -1;
+                }
+
+                int position = Math.floorMod(this.nextWordIndex, this.words.size());
+                this.nextWordIndex = position + 1;
+
+                if (this.loopPlayback) {
+                    this.nextWordIndex = Math.floorMod(this.nextWordIndex, this.words.size());
+                }
+
+                yield position;
+            }
+        };
     }
 
     /**

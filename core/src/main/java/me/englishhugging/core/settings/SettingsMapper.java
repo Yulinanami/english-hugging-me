@@ -205,7 +205,7 @@ public final class SettingsMapper {
         List<String> lines = new ArrayList<>();
         
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
-            String line = playbackRecordLine(storage, item.getFileName(), item.getDisplayName());
+            String line = playbackRecordLine(storage, item.fileName(), item.displayName());
             lines.add(line);
         }
         

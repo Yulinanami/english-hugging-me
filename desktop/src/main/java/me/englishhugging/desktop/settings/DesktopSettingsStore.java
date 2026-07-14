@@ -251,7 +251,7 @@ public final class DesktopSettingsStore {
         List<WordEntry> words = loadCustomWords();
         
         // 删除已经存在的同拼写单词
-        words.removeIf(w -> w.getWord().equals(wordEntry.getWord()));
+        words.removeIf(w -> w.word().equals(wordEntry.word()));
         words.add(wordEntry);
         
         saveCustomWords(words);

@@ -97,7 +97,7 @@ final class VocabularySettingsTab {
     private String vocabularyPathForChoice(String choice) {
         if (CUSTOM_VOCABULARY_LABEL.equals(choice)) return customVocabularyPath().toString();
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
-            if (item.getFileName().equals(choice)) return VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName();
+            if (item.fileName().equals(choice)) return VocabularyCatalog.BASE_DIRECTORY + "/" + item.fileName();
         }
         return choice;
     }
@@ -105,7 +105,7 @@ final class VocabularySettingsTab {
     private String vocabularyFileNameForChoice(String choice) {
         if (CUSTOM_VOCABULARY_LABEL.equals(choice)) return CUSTOM_VOCABULARY_LABEL;
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
-            if (item.getFileName().equals(choice)) return item.getFileName();
+            if (item.fileName().equals(choice)) return item.fileName();
         }
         return Paths.get(choice).getFileName().toString();
     }
@@ -114,10 +114,10 @@ final class VocabularySettingsTab {
         if (value == null || value.trim().isEmpty()) return AppSettings.DEFAULT_VOCABULARY_FILE_NAME;
         String normalized = value.replace('\\', '/');
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
-            if (normalized.equals(item.getFileName())
-                    || normalized.equals(VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName())
-                    || normalized.endsWith("/" + VocabularyCatalog.BASE_DIRECTORY + "/" + item.getFileName())) {
-                return item.getFileName();
+            if (normalized.equals(item.fileName())
+                    || normalized.equals(VocabularyCatalog.BASE_DIRECTORY + "/" + item.fileName())
+                    || normalized.endsWith("/" + VocabularyCatalog.BASE_DIRECTORY + "/" + item.fileName())) {
+                return item.fileName();
             }
         }
         if (normalized.equals(customVocabularyPath().toString().replace('\\', '/'))) return CUSTOM_VOCABULARY_LABEL;
@@ -130,7 +130,7 @@ final class VocabularySettingsTab {
 
     static boolean isBuiltInVocabularyChoice(String choice) {
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
-            if (item.getFileName().equals(choice)) return true;
+            if (item.fileName().equals(choice)) return true;
         }
         return false;
     }
