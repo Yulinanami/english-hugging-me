@@ -2,6 +2,7 @@
 gson = "2.14.0"
 junit = "6.0.3"
 jna = "5.15.0"
+lombok = "1.18.46"
 
 [libraries]
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
@@ -9,5 +10,6 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "jun
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 atlantafx = "io.github.mkpaz:atlantafx-base:2.0.1"
 material = "com.google.android.material:material:1.12.0"
