@@ -7,6 +7,7 @@ import com.google.gson.GsonBuilder;
 
 import me.englishhugging.core.model.WordEntry;
 import me.englishhugging.core.settings.AppSettings;
+import me.englishhugging.core.settings.SettingsKeys;
 import me.englishhugging.core.settings.SettingsMapper;
 import me.englishhugging.core.settings.SettingsStorage;
 import me.englishhugging.core.vocabulary.VocabularyCatalog;
@@ -122,7 +123,18 @@ public final class AndroidSettingsStore {
      * 从本地存储中完整反序列化出 AppSettings 模型。
      */
     public static AppSettings load(Context context) {
-        return SettingsMapper.load(new SharedPrefsStorage(context));
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        AppSettings settings = SettingsMapper.load(new SharedPrefsStorage(context));
+
+        // Android 首次启动默认让悬浮窗随内容自动适配；已保存的手动尺寸仍按用户设置加载。
+        if (!prefs.contains(SettingsKeys.WIDTH)) {
+            settings.setWidth(0);
+        }
+        if (!prefs.contains(SettingsKeys.HEIGHT)) {
+            settings.setHeight(0);
+        }
+
+        return settings;
     }
 
     /**
