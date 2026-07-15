@@ -31,6 +31,7 @@ import android.widget.TextView;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import me.englishhugging.android.MainActivity;
 import me.englishhugging.android.R;
@@ -88,7 +89,11 @@ public final class OverlayService extends Service {
     // --- 业务模型与状态 ---
     private WordScheduler scheduler;
     private AppSettings settings;
-    private WordEntry currentWord;
+
+    // 保存悬浮窗当前真正显示的内容，热更新颜色或字号时不会破坏正在进行的填空画面。
+    private WordEntry displayedWord;
+    private boolean displayedHidePhrases;
+    private boolean displayedHideTranslation;
     
     // 拖拽手势中间状态缓存
     private int initialX;
@@ -217,9 +222,7 @@ public final class OverlayService extends Service {
 
         if (this.overlayRoot != null) {
             this.overlayRoot.setAlpha((float) this.settings.getOpacity());
-            if (this.currentWord != null) {
-                this.overlayText.setText(formatWord(this.currentWord, false, false));
-            }
+            renderDisplayedWord();
         }
 
         boolean modeChanged = previous == null || previous.getOverlayMode() != this.settings.getOverlayMode();
@@ -234,10 +237,7 @@ public final class OverlayService extends Service {
                 this.layoutParams = createLayoutParams(this.settings.getOverlayMode());
                 this.windowManager.addView(this.overlayRoot, this.layoutParams);
                 manageResizeHandleWindow();
-                
-                if (this.currentWord != null) {
-                    this.overlayText.setText(formatWord(this.currentWord, false, false));
-                }
+                renderDisplayedWord();
             } else {
                 // 否则只是简单刷新外壳属性
                 this.layoutParams = createLayoutParams(this.settings.getOverlayMode());
@@ -248,22 +248,21 @@ public final class OverlayService extends Service {
             }
         }
 
-        // 热更新正在运行的后台调度引擎参数
-        if (this.scheduler != null) {
-            this.scheduler.updateIntervalSeconds(this.settings.getIntervalSeconds());
-            this.scheduler.updateFillBlankSettings(
-                    this.settings.isFillBlankMode(),
-                    this.settings.getFillBlankIntervalSeconds(),
-                    this.settings.isFillBlankHidePhrases(),
-                    this.settings.isFillBlankShowTranslation()
-            );
-        }
-
-        // 如果用户在设置里换了一本词库，或者是从顺序改成了乱序，则必须停止引擎从头再来
+        // 这些设置都参与调度器构造；变化后立即用已保存进度重建，避免等到下一轮才生效。
         boolean vocabularyChanged = previous == null || !previous.getVocabularyFileName().equals(this.settings.getVocabularyFileName());
         boolean playbackModeChanged = previous == null || previous.getPlaybackMode() != this.settings.getPlaybackMode();
-        
-        if (vocabularyChanged || playbackModeChanged) {
+        boolean schedulerSettingsChanged = previous == null
+                || vocabularyChanged
+                || playbackModeChanged
+                || !Objects.equals(previous.getStartingPrefix(), this.settings.getStartingPrefix())
+                || previous.isLoopPlayback() != this.settings.isLoopPlayback()
+                || previous.getIntervalSeconds() != this.settings.getIntervalSeconds()
+                || previous.isFillBlankMode() != this.settings.isFillBlankMode()
+                || previous.getFillBlankIntervalSeconds() != this.settings.getFillBlankIntervalSeconds()
+                || previous.isFillBlankHidePhrases() != this.settings.isFillBlankHidePhrases()
+                || previous.isFillBlankShowTranslation() != this.settings.isFillBlankShowTranslation();
+
+        if (schedulerSettingsChanged) {
             List<WordEntry> words = loadWords(this.settings.getVocabularyFileName());
             startScheduler(words);
         }
@@ -470,25 +469,26 @@ public final class OverlayService extends Service {
                 new WordScheduler.Listener() {
                     @Override 
                     public void onWord(WordEntry wordEntry) { 
-                        mainHandler.post(() -> { 
-                            currentWord = wordEntry; 
-                            overlayText.setText(formatWord(currentWord, false, false)); 
-                        }); 
+                        mainHandler.post(() -> showWord(wordEntry, false, false));
                     }
                     
                     @Override 
                     public void onFillBlankWord(String displayWord, WordEntry originalEntry, boolean hidePhrases, boolean hideTranslation) {
                         mainHandler.post(() -> {
                             WordEntry tempEntry = new WordEntry(displayWord, originalEntry.translations(), originalEntry.phrases());
-                            overlayText.setText(formatWord(tempEntry, hidePhrases, hideTranslation));
+                            showWord(tempEntry, hidePhrases, hideTranslation);
                         });
                     }
                     
                     @Override 
                     public void onPlaybackFinished() {
                         mainHandler.post(() -> {
-                            currentWord = new WordEntry("播放结束", Collections.emptyList(), Collections.emptyList());
-                            overlayText.setText(formatWord(currentWord, false, false));
+                            WordEntry finished = new WordEntry(
+                                    "播放结束",
+                                    Collections.emptyList(),
+                                    Collections.emptyList()
+                            );
+                            showWord(finished, false, false);
                         });
                     }
                 },
@@ -501,6 +501,30 @@ public final class OverlayService extends Service {
         );
         
         this.scheduler.start();
+    }
+
+    /** 保存并渲染调度器刚刚发送到悬浮窗的内容。 */
+    private void showWord(
+            WordEntry wordToDisplay,
+            boolean hidePhrases,
+            boolean hideTranslation
+    ) {
+        this.displayedWord = wordToDisplay;
+        this.displayedHidePhrases = hidePhrases;
+        this.displayedHideTranslation = hideTranslation;
+        renderDisplayedWord();
+    }
+
+    /** 使用最新外观设置重新渲染当前画面，并保留填空状态。 */
+    private void renderDisplayedWord() {
+        if (this.overlayText == null || this.displayedWord == null) {
+            return;
+        }
+        this.overlayText.setText(formatWord(
+                this.displayedWord,
+                this.displayedHidePhrases,
+                this.displayedHideTranslation
+        ));
     }
 
     /**
