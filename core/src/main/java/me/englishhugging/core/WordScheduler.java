@@ -3,13 +3,11 @@ package me.englishhugging.core;
 import me.englishhugging.core.display.FillBlankGenerator;
 import me.englishhugging.core.model.WordEntry;
 import me.englishhugging.core.settings.PlaybackMode;
+import me.englishhugging.core.settings.PlaybackProgress;
 
-import java.util.List;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -22,6 +20,11 @@ import java.util.concurrent.TimeUnit;
  * 根据用户配置（顺序、随机、间隔时间、填空模式等），源源不断地向外部接口发射
  * {@link WordEntry} 或被处理过的填空字符串。
  *
+ * <p>内部职责已按状态机拆分：
+ * “下一个播放哪个下标”由 {@link PlaybackCursor} 负责，
+ * “挖空逐步揭字”由 {@link FillBlankSession} 负责，
+ * 本类只保留定时线程、暂停恢复与两段式（锁内运算、锁外派发）的事件分发。
+ *
  * <p>所有的状态修改和播放逻辑都使用了 {@code synchronized} 加锁，确保即使 UI 线程频繁修改设置，
  * 引擎内部也不会出现状态撕裂或竞态条件。
  *
@@ -30,13 +33,13 @@ import java.util.concurrent.TimeUnit;
  * // 1. 构建环境与监听器
  * WordSchedulerConfig config = WordSchedulerConfig.fromAppSettings(appSettings);
  * WordScheduler scheduler = new WordScheduler(words, config, new Listener() { ... }, null);
- * 
+ *
  * // 2. 启动引擎
  * scheduler.start();
- * 
+ *
  * // 3. 用户在 UI 上修改了间隔时间，动态打入引擎
  * scheduler.updateIntervalSeconds(5);
- * 
+ *
  * // 4. 退出程序前释放线程池
  * scheduler.close();
  * </code></pre>
@@ -76,49 +79,39 @@ public final class WordScheduler implements AutoCloseable {
      * 专门用于通知外部存储系统，引擎的内部计数器和伪随机序列已发生变动，需要落盘保存。
      */
     public interface ProgressListener {
-        void onProgress(int nextWordIndex, String shuffleOrder, int shufflePosition, int randomPlayedCount);
+        void onProgress(PlaybackProgress progress);
     }
 
     // --- 核心依赖与组件 ---
-    
+
     /** 原始的过滤后词库源数据，一旦初始化不可更改 */
     private final List<WordEntry> words;
     private final Listener listener;
     private final ProgressListener progressListener;
-    private final Random random = new Random();
     private final FillBlankGenerator fillBlankGenerator = new FillBlankGenerator();
-    
+
+    /** 播放顺序状态机（顺序/随机/乱序的进度推进全在这里面） */
+    private final PlaybackCursor cursor;
+
     // --- 调度器运行时配置 ---
-    
-    private PlaybackMode playbackMode;
+
     private int intervalSeconds;
-    private boolean loopPlayback;
-    
-    // --- 播放进度状态 ---
-    
-    private int nextWordIndex;
-    private List<Integer> shuffleOrder;
-    private int shufflePosition;
-    private int randomPlayedCount;
-    private int sessionPlayedCount = 0;
-    
+
     // --- 并发与线程控制 ---
-    
+
     private ScheduledExecutorService executor;
     private ScheduledFuture<?> future;
     private boolean paused;
-    
-    // --- 填空考核模式状态机 ---
-    
+
+    // --- 填空考核模式 ---
+
     private boolean fillBlankMode;
     private int fillBlankIntervalSeconds;
     private boolean fillBlankHidePhrases;
     private boolean fillBlankShowTranslation;
-    private boolean inFillBlankPhase = false;
-    private boolean initialBlankShown = false;
-    private WordEntry fillBlankOriginalEntry;
-    private String fillBlankCurrentWord;
-    private List<Integer> fillBlankRemainingBlanks;
+
+    /** 当前进行中的填空会话；null 表示不在填空阶段 */
+    private FillBlankSession fillBlankSession;
 
     /**
      * 构造并初始化调度器引擎。
@@ -147,23 +140,21 @@ public final class WordScheduler implements AutoCloseable {
         this.listener = listener;
         this.progressListener = progressListener;
 
-        // 2. 初始化核心参数
+        // 2. 初始化播放游标
+        PlaybackMode playbackMode;
         if (config.playbackMode() != null) {
-            this.playbackMode = config.playbackMode();
+            playbackMode = config.playbackMode();
         } else {
-            this.playbackMode = PlaybackMode.SEQUENTIAL;
+            playbackMode = PlaybackMode.SEQUENTIAL;
         }
 
-        initProgressCounters(config);
+        // 只有按前缀播放时才允许不循环；全量播放强制循环
+        boolean hasPrefix = config.startingPrefix() != null && !config.startingPrefix().trim().isEmpty();
+        boolean loopPlayback = !hasPrefix || config.loopPlayback();
+
+        this.cursor = new PlaybackCursor(this.words.size(), playbackMode, loopPlayback, config.progress(), new Random());
 
         this.intervalSeconds = Math.max(2, config.intervalSeconds());
-
-        boolean hasPrefix = config.startingPrefix() != null && !config.startingPrefix().trim().isEmpty();
-        if (hasPrefix) {
-            this.loopPlayback = config.loopPlayback();
-        } else {
-            this.loopPlayback = true;
-        }
 
         // 3. 初始化填空考核相关参数
         this.fillBlankMode = config.fillBlankMode();
@@ -179,16 +170,16 @@ public final class WordScheduler implements AutoCloseable {
         if (prefix == null || prefix.isEmpty()) {
             return originalWords;
         }
-        
+
         List<WordEntry> filtered = new ArrayList<>();
         String targetPrefix = prefix.toLowerCase();
-        
+
         for (WordEntry w : originalWords) {
             if (w.word().toLowerCase().startsWith(targetPrefix)) {
                 filtered.add(w);
             }
         }
-        
+
         if (filtered.isEmpty()) {
             // 如果一个都没匹配上，则退化使用整个原始词库
             return originalWords;
@@ -198,49 +189,25 @@ public final class WordScheduler implements AutoCloseable {
     }
 
     /**
-     * 辅助方法：初始化四个核心进度计数器（顺序、乱序等）。
-     */
-    private void initProgressCounters(WordSchedulerConfig config) {
-        // 顺序播放索引
-        if (config.nextWordIndex() < 0 || config.nextWordIndex() > this.words.size()) {
-            this.nextWordIndex = 0;
-        } else {
-            this.nextWordIndex = config.nextWordIndex();
-            // 如果恰巧保存的进度是最后一个词且开启了循环，自动归零
-            if (config.loopPlayback() && this.nextWordIndex == this.words.size()) {
-                this.nextWordIndex = 0;
-            }
-        }
-
-        // 乱序播放状态
-        this.shuffleOrder = parseShuffleOrder(config.shuffleOrder(), this.words.size());
-
-        int safeShufflePosition = Math.max(0, config.shufflePosition());
-        this.shufflePosition = Math.min(safeShufflePosition, this.words.size());
-
-        this.randomPlayedCount = Math.max(0, config.randomPlayedCount());
-    }
-
-    /**
      * 启动或重新启动引擎。
      * 这将分配一个新的后台独立线程，并立即派发第一枚单词。
      */
     public synchronized void start() {
         stop();
-        
+
         this.paused = false;
-        this.inFillBlankPhase = false;
-        
+        this.fillBlankSession = null;
+
         this.executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "word-scheduler-worker");
             thread.setDaemon(true);
             return thread;
         });
-        
-        this.sessionPlayedCount = 0;
-        
+
+        this.cursor.resetSession();
+
         // 发射第一弹，并在内部自循环安排未来的调度
-        emitNext(); 
+        emitNext();
     }
 
     /**
@@ -295,12 +262,9 @@ public final class WordScheduler implements AutoCloseable {
         this.fillBlankShowTranslation = showTranslation;
 
         // 如果用户要求关闭填空模式，而当前正处于某个单词的逐步提示中，则必须阻断并清理
-        if (!enabled && this.inFillBlankPhase) {
-            this.inFillBlankPhase = false;
-            this.fillBlankOriginalEntry = null;
-            this.fillBlankCurrentWord = null;
-            this.fillBlankRemainingBlanks = null;
-            
+        if (!enabled && this.fillBlankSession != null) {
+            this.fillBlankSession = null;
+
             // 立即砍掉未来的填空延迟任务，马上排期下一个完整单词（0秒延时）
             if (this.future != null) {
                 this.future.cancel(false);
@@ -314,13 +278,13 @@ public final class WordScheduler implements AutoCloseable {
      */
     public synchronized void stop() {
         this.paused = false;
-        this.inFillBlankPhase = false;
-        
+        this.fillBlankSession = null;
+
         if (this.future != null) {
             this.future.cancel(true);
             this.future = null;
         }
-        
+
         if (this.executor != null) {
             this.executor.shutdownNow();
             this.executor = null;
@@ -336,20 +300,18 @@ public final class WordScheduler implements AutoCloseable {
         if (this.paused || this.executor == null) {
             return;
         }
-        
+
         if (this.future != null) {
             this.future.cancel(false);
         }
-        
+
         this.future = this.executor.schedule(this::emitNext, delaySeconds, TimeUnit.SECONDS);
     }
 
     /**
      * 引擎的核心“心脏”脉冲方法。
-     * 这个方法极其复杂，它首先通过状态机（正常模式 vs 填空模式）推导出需要派发的数据，
-     * 然后调度下一次心跳，最后在释放锁之后安全地通知外部的 UI。
-     *
-     * <p>由于复杂度的关系，我将通过提取辅助方法的方式（{@code handleFillBlankPhase} 和 {@code handleNormalPhase}）对其进行解耦。
+     * 先在锁内推进状态机（填空会话优先，其次正常取词）并安排下一次心跳，
+     * 再在锁外把结果派发给 UI，防止 UI 线程阻塞导致死锁。
      */
     private void emitNext() {
         WordEntry wordToEmit = null;
@@ -363,20 +325,23 @@ public final class WordScheduler implements AutoCloseable {
                 return; // 被暂停或被销毁，心脏停跳
             }
 
-            // 如果当前在填空状态机中，则交给专属方法推进
-            if (this.inFillBlankPhase) {
-                boolean filledSomething = handleFillBlankPhase();
-                // 只要状态机还在活跃返回，就向外输出填空内容
-                if (filledSomething) {
-                    blankedWordToEmit = this.fillNormalWordIfPossible();
-                    originalBlankEntry = this.fillBlankOriginalEntry;
+            // 填空会话进行中：先推进一帧
+            if (this.fillBlankSession != null) {
+                String frame = this.fillBlankSession.nextFrame();
+                if (frame != null) {
+                    blankedWordToEmit = frame;
+                    originalBlankEntry = this.fillBlankSession.entry();
+                    scheduleNext(this.fillBlankIntervalSeconds);
+                } else {
+                    // 所有空位揭完，会话结束，同一次心跳内落回正常取词
+                    this.fillBlankSession = null;
                 }
             }
 
-            // 如果不在填空模式，或者填空刚好在这个 tick 结束了，则进入正常的取词循环
-            if (!this.inFillBlankPhase && blankedWordToEmit == null) {
-                WordEntry newWord = handleNormalPhase();
-                
+            // 不在填空会话中（或刚刚结束）：正常取词
+            if (this.fillBlankSession == null && blankedWordToEmit == null) {
+                WordEntry newWord = takeNextWord();
+
                 if (newWord == null) {
                     // 没有可播放的单词了（例如不循环播放且到头了）
                     isFinished = true;
@@ -384,7 +349,7 @@ public final class WordScheduler implements AutoCloseable {
                     wordToEmit = newWord;
                 }
             }
-            
+
             if (isFinished) {
                 stop();
             }
@@ -403,207 +368,37 @@ public final class WordScheduler implements AutoCloseable {
             publishProgress();
         }
     }
-    
-    /**
-     * 内部辅助方法：处理填空模式的心跳推进。
-     * 
-     * @return true 表示仍在填空进行中，外部应该展示填空字符串；false 表示填空已经彻底结束（被填满了）
-     */
-    private boolean handleFillBlankPhase() {
-        if (!this.initialBlankShown) {
-            // 第一步：展示第一次刚被挖出很多洞的样子（此时一个空都没填）
-            this.initialBlankShown = true;
-            scheduleNext(this.fillBlankIntervalSeconds);
-            return true;
-        } 
-        
-        boolean hasBlanksLeft = this.fillBlankRemainingBlanks != null && !this.fillBlankRemainingBlanks.isEmpty();
-        if (hasBlanksLeft) {
-            // 第二步：慢慢地一个一个把空填补回去
-            this.fillBlankCurrentWord = this.fillBlankGenerator.fillOneBlank(
-                    this.fillBlankCurrentWord, 
-                    this.fillBlankOriginalEntry.word(), 
-                    this.fillBlankRemainingBlanks
-            );
-            scheduleNext(this.fillBlankIntervalSeconds);
-            return true;
-        } 
-        
-        // 第三步：所有的空位都填完了，重置填空状态机标识，为下一次心跳准备
-        this.inFillBlankPhase = false;
-        this.fillBlankOriginalEntry = null;
-        this.fillBlankCurrentWord = null;
-        this.fillBlankRemainingBlanks = null;
-        return false;
-    }
-    
-    /**
-     * 防止局部变量不可见问题的内部提取物。
-     */
-    private String fillNormalWordIfPossible() {
-        return this.fillBlankCurrentWord;
-    }
 
     /**
-     * 内部辅助方法：处理正常取词阶段。
-     * 
-     * @return 取出的下一个实体；如果结束了则返回 null
+     * 正常取词：向游标要下一个下标，必要时为该词开启填空会话，并安排下一次心跳。
+     *
+     * @return 取出的下一个实体；如果播放结束则返回 null
      */
-    private WordEntry handleNormalPhase() {
-        // 前置校验：判断在某些极端模式下是否已经播放完所有的单词而需要宣告结束
-        boolean isRandomFinished = (!this.loopPlayback) && (this.playbackMode == PlaybackMode.RANDOM) && (this.sessionPlayedCount >= this.words.size());
-        if (isRandomFinished) {
+    private WordEntry takeNextWord() {
+        int position = this.cursor.next();
+        if (position == -1) {
             return null;
         }
 
-        int position = nextPosition();
-        if (position == -1) {
-            return null; // 根据乱序或顺序算法返回宣告结束
-        }
-
-        this.sessionPlayedCount++;
         WordEntry wordToEmit = this.words.get(position);
 
         // 如果用户开启了全局的填空考核，且这个单词本身的长度值得被挖空（长度大于1）
         boolean canBeBlanked = this.fillBlankMode && wordToEmit.word() != null && wordToEmit.word().length() > 1;
         if (canBeBlanked) {
-            // 组装填空所需要的一切材料，并启动它的专属状态机
-            this.fillBlankOriginalEntry = wordToEmit;
-            FillBlankGenerator.BlankResult result = this.fillBlankGenerator.generateBlanked(wordToEmit.word());
-            
-            this.fillBlankCurrentWord = result.blankedWord();
-            this.fillBlankRemainingBlanks = new ArrayList<>(result.blankPositions());
-            
-            this.inFillBlankPhase = true;
-            this.initialBlankShown = false;
-            
-            // 下一次心跳安排在主间隔时间之后
-            scheduleNext(this.intervalSeconds);
-        } else {
-            // 普通单词，不参与填空状态机，仅仅安排正常倒计时
-            scheduleNext(this.intervalSeconds);
+            this.fillBlankSession = new FillBlankSession(wordToEmit, this.fillBlankGenerator);
         }
-        
+
+        scheduleNext(this.intervalSeconds);
         return wordToEmit;
     }
 
     /**
-     * 算法核心：计算物理数据集合中的哪一个下标应该被下一次取出。
-     * 
-     * @return 有效的下标，返回 -1 代表没有剩余可用的词汇了
-     */
-    private synchronized int nextPosition() {
-        // 穷尽匹配 PlaybackMode，勿加 default：新增播放模式时漏写分支应直接编译失败
-        return switch (this.playbackMode) {
-            case RANDOM -> {
-                this.randomPlayedCount++;
-                yield this.random.nextInt(this.words.size());
-            }
-
-            case SHUFFLE_NO_REPEAT -> {
-                // 乱序池为空或尺寸不对则重建
-                if (this.shuffleOrder.size() != this.words.size()) {
-                    this.shuffleOrder = newShuffleOrder(this.words.size());
-                    this.shufflePosition = 0;
-                }
-
-                // 当前这批乱序列表消费殆尽了
-                if (this.shufflePosition >= this.shuffleOrder.size()) {
-                    if (!this.loopPlayback) {
-                        yield -1;
-                    }
-                    // 如果允许循环，那么就新洗一副牌，从头抽
-                    this.shuffleOrder = newShuffleOrder(this.words.size());
-                    this.shufflePosition = 0;
-                }
-
-                int targetIndex = this.shuffleOrder.get(this.shufflePosition);
-                this.shufflePosition++;
-                yield targetIndex;
-            }
-
-            case SEQUENTIAL -> {
-                if (!this.loopPlayback && this.nextWordIndex >= this.words.size()) {
-                    yield -1;
-                }
-
-                int position = Math.floorMod(this.nextWordIndex, this.words.size());
-                this.nextWordIndex = position + 1;
-
-                if (this.loopPlayback) {
-                    this.nextWordIndex = Math.floorMod(this.nextWordIndex, this.words.size());
-                }
-
-                yield position;
-            }
-        };
-    }
-
-    /**
-     * 将当前的所有计数器打包交由配置引擎落地。
+     * 将游标当前的所有计数器打包交由外部落地。
      */
     private void publishProgress() {
         if (this.progressListener != null) {
-            String orderString = serializeShuffleOrder(this.shuffleOrder);
-            this.progressListener.onProgress(this.nextWordIndex, orderString, this.shufflePosition, this.randomPlayedCount);
+            this.progressListener.onProgress(this.cursor.snapshot());
         }
-    }
-
-    /**
-     * 将字符串化的乱序数组重新反序列化为可操作的 List。
-     * 进行强容错，只要发现异常的乱数序列，立马丢弃重塑。
-     */
-    private List<Integer> parseShuffleOrder(String value, int wordCount) {
-        if (value == null || value.trim().length() == 0) {
-            return newShuffleOrder(wordCount);
-        }
-
-        String[] parts = value.split(",");
-        if (parts.length != wordCount) {
-            return newShuffleOrder(wordCount);
-        }
-
-        List<Integer> parsed = new ArrayList<>();
-        Set<Integer> seen = new HashSet<>();
-        
-        try {
-            for (String part : parts) {
-                int index = Integer.parseInt(part.trim());
-                if (index < 0 || index >= wordCount || !seen.add(index)) {
-                    return newShuffleOrder(wordCount);
-                }
-                parsed.add(index);
-            }
-        } catch (RuntimeException ignored) {
-            return newShuffleOrder(wordCount);
-        }
-        return parsed;
-    }
-
-    /**
-     * 生成一副全新的打乱乱序数组。
-     */
-    private List<Integer> newShuffleOrder(int wordCount) {
-        List<Integer> order = new ArrayList<>();
-        for (int i = 0; i < wordCount; i++) {
-            order.add(i);
-        }
-        Collections.shuffle(order, this.random);
-        return order;
-    }
-
-    /**
-     * 将打乱的数组序列化为逗号分割的普通字符串。
-     */
-    private String serializeShuffleOrder(List<Integer> order) {
-        StringBuilder builder = new StringBuilder();
-        for (Integer index : order) {
-            if (builder.length() > 0) {
-                builder.append(',');
-            }
-            builder.append(index);
-        }
-        return builder.toString();
     }
 
     @Override

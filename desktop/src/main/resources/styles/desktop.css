@@ -1,0 +1,36 @@
+/*
+ * 设置面板的静态样式表（由 DesktopUi.applyStylesheet 挂载到 Scene）。
+ * 悬浮窗的文字颜色与字号由用户设置在运行时驱动，保留在代码中，勿移入此表。
+ * 与 AtlantaFX 主题共存：此处为 author stylesheet，优先级高于主题的 user-agent stylesheet。
+ */
+
+.compact-button {
+    -fx-background-color: #EEF2FF;
+    -fx-text-fill: #52699A;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: #D8E0F3;
+    -fx-padding: 5 14 5 14;
+}
+
+.modern-control {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: #D8E0F3;
+    -fx-padding: 3 8 3 8;
+}
+
+.group-box {
+    -fx-background-color: white;
+    -fx-background-radius: 14;
+    -fx-border-color: #E4E8F2;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0, 0, 3);
+}
+
+.group-box-title {
+    -fx-text-fill: #52699A;
+    -fx-font-weight: bold;
+    -fx-padding: 0 0 2 0;
+}

@@ -104,7 +104,9 @@ public final class VocabularyJsonLoader {
                 continue;
             }
 
-            entries.add(entry);
+            // Gson 反序列化 record 时可能绕过紧凑构造器，导致 JSON 中缺失的集合字段仍为 null。
+            // 重新构造一次，统一执行 WordEntry 的空集合归一化，避免播放时遍历 null 崩溃。
+            entries.add(new WordEntry(entry.word(), entry.translations(), entry.phrases()));
         }
         
         return Collections.unmodifiableList(entries);

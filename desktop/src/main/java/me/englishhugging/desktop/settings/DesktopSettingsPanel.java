@@ -174,7 +174,9 @@ public final class DesktopSettingsPanel {
         root.setPadding(new Insets(10));
         root.setStyle("-fx-background-color: #F6F8FC; -fx-font-family: 'Microsoft YaHei UI', 'Microsoft YaHei', 'SimSun'; -fx-font-size: 13px;");
         
-        stage.setScene(new Scene(root, 560, 460));
+        Scene scene = new Scene(root, 560, 460);
+        DesktopUi.applyStylesheet(scene);
+        stage.setScene(scene);
         return stage;
     }
 

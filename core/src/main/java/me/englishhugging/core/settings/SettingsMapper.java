@@ -59,10 +59,13 @@ public final class SettingsMapper {
         
         // 3. 播放器行为进度
         s.setIntervalSeconds(storage.getInt(SettingsKeys.INTERVAL_SECONDS, s.getIntervalSeconds()));
-        s.setNextWordIndex(storage.getInt(SettingsKeys.NEXT_WORD_INDEX, s.getNextWordIndex()));
-        s.setShuffleOrder(storage.getString(SettingsKeys.SHUFFLE_ORDER, s.getShuffleOrder()));
-        s.setShufflePosition(storage.getInt(SettingsKeys.SHUFFLE_POSITION, s.getShufflePosition()));
-        s.setRandomPlayedCount(storage.getInt(SettingsKeys.RANDOM_PLAYED_COUNT, s.getRandomPlayedCount()));
+        PlaybackProgress defaults = s.getPlaybackProgress();
+        s.setPlaybackProgress(new PlaybackProgress(
+                storage.getInt(SettingsKeys.NEXT_WORD_INDEX, defaults.nextWordIndex()),
+                storage.getString(SettingsKeys.SHUFFLE_ORDER, defaults.shuffleOrder()),
+                storage.getInt(SettingsKeys.SHUFFLE_POSITION, defaults.shufflePosition()),
+                storage.getInt(SettingsKeys.RANDOM_PLAYED_COUNT, defaults.randomPlayedCount())
+        ));
         s.setStartingPrefix(storage.getString(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix()));
         s.setLoopPlayback(storage.getBoolean(SettingsKeys.LOOP_PLAYBACK, s.isLoopPlayback()));
         
@@ -109,10 +112,11 @@ public final class SettingsMapper {
         
         // 状态相关
         storage.putInt(SettingsKeys.INTERVAL_SECONDS, s.getIntervalSeconds());
-        storage.putInt(SettingsKeys.NEXT_WORD_INDEX, s.getNextWordIndex());
-        storage.putString(SettingsKeys.SHUFFLE_ORDER, s.getShuffleOrder());
-        storage.putInt(SettingsKeys.SHUFFLE_POSITION, s.getShufflePosition());
-        storage.putInt(SettingsKeys.RANDOM_PLAYED_COUNT, s.getRandomPlayedCount());
+        PlaybackProgress progress = s.getPlaybackProgress();
+        storage.putInt(SettingsKeys.NEXT_WORD_INDEX, progress.nextWordIndex());
+        storage.putString(SettingsKeys.SHUFFLE_ORDER, progress.shuffleOrder());
+        storage.putInt(SettingsKeys.SHUFFLE_POSITION, progress.shufflePosition());
+        storage.putInt(SettingsKeys.RANDOM_PLAYED_COUNT, progress.randomPlayedCount());
         storage.putString(SettingsKeys.STARTING_PREFIX, s.getStartingPrefix());
         storage.putBoolean(SettingsKeys.LOOP_PLAYBACK, s.isLoopPlayback());
         
@@ -151,17 +155,13 @@ public final class SettingsMapper {
      * @param vocabularyKey 用于区分词库的唯一键名（如文件名）
      */
     public static void loadPlaybackProgress(SettingsStorage storage, AppSettings s, String vocabularyKey) {
-        String keyNextWordIndex = progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX);
-        s.setNextWordIndex(storage.getInt(keyNextWordIndex, s.getNextWordIndex()));
-        
-        String keyShuffleOrder = progressKey(vocabularyKey, SettingsKeys.SHUFFLE_ORDER);
-        s.setShuffleOrder(storage.getString(keyShuffleOrder, s.getShuffleOrder()));
-        
-        String keyShufflePosition = progressKey(vocabularyKey, SettingsKeys.SHUFFLE_POSITION);
-        s.setShufflePosition(storage.getInt(keyShufflePosition, s.getShufflePosition()));
-        
-        String keyRandomCount = progressKey(vocabularyKey, SettingsKeys.RANDOM_PLAYED_COUNT);
-        s.setRandomPlayedCount(storage.getInt(keyRandomCount, s.getRandomPlayedCount()));
+        PlaybackProgress defaults = s.getPlaybackProgress();
+        s.setPlaybackProgress(new PlaybackProgress(
+                storage.getInt(progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX), defaults.nextWordIndex()),
+                storage.getString(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_ORDER), defaults.shuffleOrder()),
+                storage.getInt(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_POSITION), defaults.shufflePosition()),
+                storage.getInt(progressKey(vocabularyKey, SettingsKeys.RANDOM_PLAYED_COUNT), defaults.randomPlayedCount())
+        ));
     }
 
     /**
@@ -172,11 +172,12 @@ public final class SettingsMapper {
      * @param vocabularyKey 词库关联键名
      */
     public static void savePlaybackProgress(SettingsStorage storage, AppSettings s, String vocabularyKey) {
-        storage.putInt(progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX), s.getNextWordIndex());
-        storage.putString(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_ORDER), s.getShuffleOrder());
-        storage.putInt(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_POSITION), s.getShufflePosition());
-        storage.putInt(progressKey(vocabularyKey, SettingsKeys.RANDOM_PLAYED_COUNT), s.getRandomPlayedCount());
-        
+        PlaybackProgress progress = s.getPlaybackProgress();
+        storage.putInt(progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX), progress.nextWordIndex());
+        storage.putString(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_ORDER), progress.shuffleOrder());
+        storage.putInt(progressKey(vocabularyKey, SettingsKeys.SHUFFLE_POSITION), progress.shufflePosition());
+        storage.putInt(progressKey(vocabularyKey, SettingsKeys.RANDOM_PLAYED_COUNT), progress.randomPlayedCount());
+
         storage.commit();
     }
 

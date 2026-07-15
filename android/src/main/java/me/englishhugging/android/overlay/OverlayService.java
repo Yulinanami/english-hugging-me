@@ -492,12 +492,9 @@ public final class OverlayService extends Service {
                         });
                     }
                 },
-                (nextWordIndex, shuffleOrder, shufflePosition, randomPlayedCount) -> {
-                    settings.setNextWordIndex(nextWordIndex); 
-                    settings.setShuffleOrder(shuffleOrder);
-                    settings.setShufflePosition(shufflePosition); 
-                    settings.setRandomPlayedCount(randomPlayedCount);
-                    
+                progress -> {
+                    settings.setPlaybackProgress(progress);
+
                     AndroidSettingsStore.save(this, settings);
                     AndroidSettingsStore.savePlaybackProgress(this, settings, settings.getVocabularyFileName());
                 }

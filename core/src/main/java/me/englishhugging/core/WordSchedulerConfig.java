@@ -2,6 +2,7 @@ package me.englishhugging.core;
 
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.core.settings.PlaybackMode;
+import me.englishhugging.core.settings.PlaybackProgress;
 
 /**
  * 单词调度引擎的不可变配置容器。
@@ -21,10 +22,7 @@ import me.englishhugging.core.settings.PlaybackMode;
  *
  * @param intervalSeconds          自动播放下一词的间隔时间
  * @param playbackMode             顺序、随机或乱序播放模式
- * @param nextWordIndex            顺序模式下的下一词下标
- * @param shuffleOrder             乱序模式下的序列化状态串
- * @param shufflePosition          乱序模式下的当前消费位点
- * @param randomPlayedCount        完全随机模式下的历史总播放量
+ * @param progress                 上次会话遗留的播放进度快照
  * @param startingPrefix           单词字母过滤前缀
  * @param loopPlayback             播放到底部后是否自动循环
  * @param fillBlankMode            是否开启填空考核模式
@@ -35,10 +33,7 @@ import me.englishhugging.core.settings.PlaybackMode;
 public record WordSchedulerConfig(
         int intervalSeconds,
         PlaybackMode playbackMode,
-        int nextWordIndex,
-        String shuffleOrder,
-        int shufflePosition,
-        int randomPlayedCount,
+        PlaybackProgress progress,
         String startingPrefix,
         boolean loopPlayback,
         boolean fillBlankMode,
@@ -46,6 +41,12 @@ public record WordSchedulerConfig(
         boolean fillBlankHidePhrases,
         boolean fillBlankShowTranslation
 ) {
+
+    public WordSchedulerConfig {
+        if (progress == null) {
+            progress = PlaybackProgress.EMPTY;
+        }
+    }
 
     /**
      * 工厂方法：从全局内存设置对象中直接提取出与调度相关的状态参数并封箱。
@@ -57,10 +58,7 @@ public record WordSchedulerConfig(
         return new WordSchedulerConfig(
                 settings.getIntervalSeconds(),
                 settings.getPlaybackMode(),
-                settings.getNextWordIndex(),
-                settings.getShuffleOrder(),
-                settings.getShufflePosition(),
-                settings.getRandomPlayedCount(),
+                settings.getPlaybackProgress(),
                 settings.getStartingPrefix(),
                 settings.isLoopPlayback(),
                 settings.isFillBlankMode(),

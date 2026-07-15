@@ -41,10 +41,7 @@ public final class AppSettings {
     private boolean loopPlayback = true;
     
     // --- 播放进度缓存 ---
-    private int nextWordIndex = 0;
-    private String shuffleOrder = "";
-    private int shufflePosition = 0;
-    private int randomPlayedCount = 0;
+    private PlaybackProgress playbackProgress = PlaybackProgress.EMPTY;
     
     // --- 悬浮窗位置与大小 (仅 Desktop 适用) ---
     private double x = 80;
@@ -155,73 +152,28 @@ public final class AppSettings {
     }
 
     /**
-     * 获取顺序模式下，下一个被播放的单词的数组下标。
+     * 获取当前词库的播放进度快照（顺序索引、乱序序列与位置、随机计数）。
      */
-    public int getNextWordIndex() {
-        return this.nextWordIndex;
+    public PlaybackProgress getPlaybackProgress() {
+        return this.playbackProgress;
     }
 
     /**
-     * 设置下一个顺序播放的单词下标，不能小于 0。
+     * 整体替换播放进度。传入 null 视为清零；数值归一化由 {@link PlaybackProgress} 自身负责。
      */
-    public void setNextWordIndex(int nextWordIndex) {
-        this.nextWordIndex = Math.max(0, nextWordIndex);
-    }
-
-    /**
-     * 获取乱序播放模式下的伪随机序列字符串（通常由逗号分隔的数字组成）。
-     */
-    public String getShuffleOrder() {
-        return this.shuffleOrder;
-    }
-
-    /**
-     * 设置乱序播放序列。
-     */
-    public void setShuffleOrder(String shuffleOrder) {
-        if (shuffleOrder == null) {
-            this.shuffleOrder = "";
+    public void setPlaybackProgress(PlaybackProgress playbackProgress) {
+        if (playbackProgress == null) {
+            this.playbackProgress = PlaybackProgress.EMPTY;
         } else {
-            this.shuffleOrder = shuffleOrder.trim();
+            this.playbackProgress = playbackProgress;
         }
-    }
-
-    /**
-     * 获取乱序模式下当前正在消费的索引位置。
-     */
-    public int getShufflePosition() {
-        return this.shufflePosition;
-    }
-
-    /**
-     * 设置乱序模式的位置。
-     */
-    public void setShufflePosition(int shufflePosition) {
-        this.shufflePosition = Math.max(0, shufflePosition);
-    }
-
-    /**
-     * 获取完全随机模式下总共已经播放过的单词数量。
-     */
-    public int getRandomPlayedCount() {
-        return this.randomPlayedCount;
-    }
-
-    /**
-     * 设置完全随机模式下已经播放的数量。
-     */
-    public void setRandomPlayedCount(int randomPlayedCount) {
-        this.randomPlayedCount = Math.max(0, randomPlayedCount);
     }
 
     /**
      * 清空所有类型的播放进度统计，使其从头开始。
      */
     public void resetPlaybackProgress() {
-        this.nextWordIndex = 0;
-        this.shuffleOrder = "";
-        this.shufflePosition = 0;
-        this.randomPlayedCount = 0;
+        this.playbackProgress = PlaybackProgress.EMPTY;
     }
 
     /** 获取悬浮窗的 X 坐标 */

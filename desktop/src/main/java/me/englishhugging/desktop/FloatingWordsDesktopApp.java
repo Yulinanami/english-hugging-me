@@ -176,16 +176,13 @@ public final class FloatingWordsDesktopApp extends Application {
                         });
                     }
                 },
-                (nextWordIndex, shuffleOrder, shufflePosition, randomPlayedCount) -> {
+                progress -> {
                     // 当收到引擎的进度回调时，同步更新内存模型并落地
-                    settings.setNextWordIndex(nextWordIndex);
-                    settings.setShuffleOrder(shuffleOrder);
-                    settings.setShufflePosition(shufflePosition);
-                    settings.setRandomPlayedCount(randomPlayedCount);
-                    
+                    settings.setPlaybackProgress(progress);
+
                     settingsStore.save(settings);
                     settingsStore.savePlaybackProgress(settings, settings.getVocabularyPath());
-                    
+
                     // 通知面板刷新学习记录统计
                     Platform.runLater(() -> settingsPanel.refreshPlaybackRecords());
                 }
