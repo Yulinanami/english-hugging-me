@@ -1,7 +1,6 @@
 package me.englishhugging.android;
 
 import android.Manifest;
-import android.app.Activity;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -11,6 +10,9 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import androidx.activity.ComponentActivity;
+import androidx.activity.OnBackPressedCallback;
 
 import com.google.android.material.button.MaterialButton;
 
@@ -31,7 +33,7 @@ import me.englishhugging.android.ui.tabs.CustomVocabularyTab;
  * <p>这种极简的架构不仅绕过了 Fragment 生命周期黑洞的折磨，
  * 还使得我们可以轻松实现全应用级别的一致性淡入淡出过场动画。
  */
-public final class MainActivity extends Activity {
+public final class MainActivity extends ComponentActivity {
     
     // 全局通用的 UI 工厂引用
     private AndroidUi ui;
@@ -52,6 +54,9 @@ public final class MainActivity extends Activity {
     private RecordsTab recordsTab;
     private CustomVocabularyTab customVocabTab;
 
+    // 非首页页面启用此回调，让系统返回键先回到应用首页
+    private OnBackPressedCallback backToHomeCallback;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -64,6 +69,14 @@ public final class MainActivity extends Activity {
         this.settingsTab = new SettingsTab(this, this.ui, this::showHomePage);
         this.recordsTab = new RecordsTab(this, this.ui, this::showRecordsPage, this::showHomePage);
         this.customVocabTab = new CustomVocabularyTab(this, this.ui);
+
+        this.backToHomeCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                showHomePage();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, this.backToHomeCallback);
 
         // 3. 抹平 Android 的顶部状态栏和底部导航条色差
         styleSystemBars();
@@ -202,18 +215,22 @@ public final class MainActivity extends Activity {
     }
 
     private void showHomePage() {
+        this.backToHomeCallback.setEnabled(false);
         switchPage(this.homeTabBtn, () -> this.homeTab.buildContent(this.pageHeaderContainer, this.pageContent));
     }
 
     private void showSettingsPage() {
+        this.backToHomeCallback.setEnabled(true);
         switchPage(null, () -> this.settingsTab.buildContent(this.pageHeaderContainer, this.pageContent));
     }
 
     private void showRecordsPage() {
+        this.backToHomeCallback.setEnabled(true);
         switchPage(this.recordsTabBtn, () -> this.recordsTab.buildContent(this.pageHeaderContainer, this.pageContent));
     }
 
     private void showCustomVocabPage() {
+        this.backToHomeCallback.setEnabled(true);
         switchPage(this.customVocabTabBtn, () -> {
             // 自定义词库页面的头部带一个返回箭头的二级 Header
             LinearLayout header = this.ui.headerRow("自定义词汇", "");
