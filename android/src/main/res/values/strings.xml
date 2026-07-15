@@ -1,3 +1,84 @@
 <resources>
     <string name="app_name">English Hugging Me</string>
+    <string name="home">首页</string>
+    <string name="settings">设置</string>
+    <string name="playback_records">播放记录</string>
+    <string name="custom_vocabulary">自定义词汇</string>
+    <string name="vocabulary_book">词汇本</string>
+    <string name="interval">间隔</string>
+    <string name="seconds_format">%1$d 秒</string>
+    <string name="start_overlay">点击启动悬浮背词</string>
+    <string name="overlay_running">悬浮背词运行中</string>
+    <string name="fill_blank_mode">挖空模式</string>
+    <string name="fill_blank_mode_summary">播放后挖空复习拼写</string>
+    <string name="records">记录</string>
+    <string name="clear_all_records">清除所有记录</string>
+    <string name="added_vocabulary">已添加的词汇</string>
+    <string name="save_word">保存单词</string>
+    <string name="no_custom_vocabulary">暂无自定义词汇</string>
+    <string name="edit">编辑</string>
+    <string name="delete">删除</string>
+    <string name="basic_settings">基础设置</string>
+    <string name="prefix_playback">按前缀播放</string>
+    <string name="appearance">外观</string>
+    <string name="fill_blank_settings">挖空模式设置</string>
+    <string name="icon_home" translatable="false">home</string>
+    <string name="icon_history" translatable="false">history</string>
+    <string name="icon_edit" translatable="false">edit</string>
+    <string name="icon_settings" translatable="false">settings</string>
+    <string name="icon_back" translatable="false">chevron_left</string>
+    <string name="icon_play" translatable="false">play_arrow</string>
+    <string name="icon_stop" translatable="false">stop</string>
+    <string name="integer_value" translatable="false">%1$d</string>
+    <string name="word_label">单词</string>
+    <string name="required">必填</string>
+    <string name="part_of_speech">词性</string>
+    <string name="part_of_speech_summary">名词、动词等</string>
+    <string name="meaning">意思</string>
+    <string name="meaning_summary">中文释义</string>
+    <string name="phrase">词组</string>
+    <string name="optional">可选</string>
+    <string name="phrase_meaning">词组意思</string>
+    <string name="phrase_meaning_summary">词组释义</string>
+    <string name="example_sentence">例句</string>
+    <string name="vocabulary_setting_summary">选择要播放的词汇本</string>
+    <string name="display_content">显示内容</string>
+    <string name="display_content_summary">悬浮窗展示哪些内容</string>
+    <string name="playback_order">播放顺序</string>
+    <string name="playback_order_summary">顺序、随机或随机不重复</string>
+    <string name="overlay_behavior">悬浮行为</string>
+    <string name="overlay_behavior_summary">拖动、锁定或点击穿透</string>
+    <string name="switch_interval">切换间隔</string>
+    <string name="seconds_unit">单位：秒</string>
+    <string name="opacity">透明度</string>
+    <string name="opacity_summary">调整悬浮窗透明度</string>
+    <string name="starting_prefix">特定字母前缀</string>
+    <string name="starting_prefix_summary">设置要过滤的单词前缀</string>
+    <string name="starting_prefix_hint">留空表示播放全部单词</string>
+    <string name="loop_playback">循环播放</string>
+    <string name="loop_playback_summary">开启：无限循环；关闭：播完一遍即停</string>
+    <string name="word_color">单词颜色</string>
+    <string name="word_color_summary">选择单词颜色</string>
+    <string name="type_color">词性颜色</string>
+    <string name="type_color_summary">选择词性颜色</string>
+    <string name="translation_color">释义颜色</string>
+    <string name="translation_color_summary">选择释义颜色</string>
+    <string name="phrase_color">短语/例句颜色</string>
+    <string name="phrase_color_summary">选择短语/例句颜色</string>
+    <string name="word_font_size">单词字号</string>
+    <string name="word_font_size_summary">悬浮窗单词字体大小</string>
+    <string name="detail_font_size">释义字号</string>
+    <string name="detail_font_size_summary">悬浮窗释义字体大小</string>
+    <string name="auto_size">自动适配内容大小</string>
+    <string name="auto_size_summary">悬浮窗尺寸随文字自动变化（恢复默认）</string>
+    <string name="resize_overlay">调整悬浮窗大小</string>
+    <string name="resize_overlay_summary">开启后右下角出现可拖拽手柄</string>
+    <string name="fill_blank_interval">填充间隔</string>
+    <string name="fill_blank_interval_summary">每次自动填写一个空位的时间（秒）</string>
+    <string name="fill_blank_hide_phrases">挖空时关闭短语</string>
+    <string name="fill_blank_hide_phrases_summary">挖空阶段不显示短语/例句</string>
+    <string name="fill_blank_show_translation">挖空时显示释义</string>
+    <string name="fill_blank_show_translation_summary">挖空阶段显示词性和释义</string>
+    <string name="symbol_minus" translatable="false">−</string>
+    <string name="symbol_plus" translatable="false">+</string>
 </resources>

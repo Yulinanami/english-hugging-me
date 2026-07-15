@@ -1,0 +1,9 @@
+<resources>
+    <dimen name="page_horizontal_padding">24dp</dimen>
+    <dimen name="page_header_top_padding">28dp</dimen>
+    <dimen name="page_content_top_padding">16dp</dimen>
+    <dimen name="page_content_bottom_padding">18dp</dimen>
+    <dimen name="card_padding">18dp</dimen>
+    <dimen name="card_corner_radius">28dp</dimen>
+    <dimen name="control_corner_radius">14dp</dimen>
+</resources>

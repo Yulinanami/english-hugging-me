@@ -1,75 +1,64 @@
 package me.englishhugging.android;
 
 import android.Manifest;
-import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
 
 import com.google.android.material.button.MaterialButton;
 
+import java.util.function.Supplier;
+
+import me.englishhugging.android.databinding.ActivityMainBinding;
 import me.englishhugging.android.ui.AndroidUi;
+import me.englishhugging.android.ui.tabs.CustomVocabularyTab;
 import me.englishhugging.android.ui.tabs.HomeTab;
 import me.englishhugging.android.ui.tabs.RecordsTab;
 import me.englishhugging.android.ui.tabs.SettingsTab;
-import me.englishhugging.android.ui.tabs.CustomVocabularyTab;
 
 /**
- * Android 端的单 Activity 宿主应用入口。
+ * Android 端唯一的 Activity 宿主。
  *
- * <p>这个类摒弃了 Android 传统的基于 XML 和 Fragment 的重型开发模式，
- * 采用了极其轻量级的“纯 Java 代码拼装 UI”加“假 Tab 切换”的架构。
- * 整个 APP 只有一个真实的 Activity，通过在一个预定义的容器里来回添加、移除
- * {@link HomeTab} 等封装类生成的 View 来实现页面的切换。
- *
- * <p>这种极简的架构不仅绕过了 Fragment 生命周期黑洞的折磨，
- * 还使得我们可以轻松实现全应用级别的一致性淡入淡出过场动画。
+ * <p>页面静态结构由 XML 描述，并通过 View Binding 获取控件引用。首页、设置、记录和
+ * 自定义词库仍然共用同一个 Activity；切换页面时只替换 {@code pageContainer} 内的 View，
+ * 从而保留原项目轻量的单 Activity 导航方式。</p>
  */
 public final class MainActivity extends ComponentActivity {
-    
-    // 全局通用的 UI 工厂引用
-    private AndroidUi ui;
-    
-    // 页面结构容器，自顶向下
-    private LinearLayout pageContainer;
-    private LinearLayout pageHeaderContainer;
-    private LinearLayout pageContent;
-    
-    // 底部导航栏上的三个圆角 Material 图标按钮
-    private MaterialButton homeTabBtn;
-    private MaterialButton recordsTabBtn;
-    private MaterialButton customVocabTabBtn;
+    /** Activity 根布局生成的绑定对象。 */
+    private ActivityMainBinding binding;
 
-    // 页面的逻辑控制器
+    /** 少量不能静态写入 XML 的公共 UI 行为，例如图标字体和 dp 换算。 */
+    private AndroidUi ui;
+
+    /** 各页面的视图绑定与业务控制器。 */
     private HomeTab homeTab;
     private SettingsTab settingsTab;
     private RecordsTab recordsTab;
-    private CustomVocabularyTab customVocabTab;
+    private CustomVocabularyTab customVocabularyTab;
 
-    // 非首页页面启用此回调，让系统返回键先回到应用首页
+    /** 二级页面启用此回调，使手机系统返回键先回首页。 */
     private OnBackPressedCallback backToHomeCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // 1. 初始化纯代码 UI 工厂
+
+        // 先加载 Activity 的 XML 外壳，页面内容随后注入 pageContainer。
+        this.binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(this.binding.getRoot());
+
+        // 页面之间通过回调导航，避免页面控制器直接操作 Activity 的私有状态。
         this.ui = new AndroidUi(this);
-        
-        // 2. 实例化各个子页面的逻辑生成器
         this.homeTab = new HomeTab(this, this.ui, this::showSettingsPage);
         this.settingsTab = new SettingsTab(this, this.ui, this::showHomePage);
         this.recordsTab = new RecordsTab(this, this.ui, this::showRecordsPage, this::showHomePage);
-        this.customVocabTab = new CustomVocabularyTab(this, this.ui);
+        this.customVocabularyTab = new CustomVocabularyTab(this, this.ui, this::showHomePage);
 
+        // 首页禁用此回调，让系统返回键按默认行为退出；二级页则返回首页。
         this.backToHomeCallback = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
@@ -78,179 +67,115 @@ public final class MainActivity extends ComponentActivity {
         };
         getOnBackPressedDispatcher().addCallback(this, this.backToHomeCallback);
 
-        // 3. 抹平 Android 的顶部状态栏和底部导航条色差
+        bindBottomNavigation();
         styleSystemBars();
-        
-        // 4. 动态请求 Android 13+ 运行前台服务必须的通知权限
         requestNotificationPermissionIfNeeded();
-        
-        // 5. 组装全局的框架并在根节点渲染首页
-        setContentView(createContentView());
         showHomePage();
     }
 
+    /**
+     * 应用从后台回到前台时刷新悬浮服务状态，避免首页按钮显示过期状态。
+     */
     @Override
     protected void onResume() {
         super.onResume();
-        // 每次应用从后台切换到前台时，主动去同步一次当前悬浮窗是否正在运行的状态
         if (this.homeTab != null) {
             this.homeTab.updateStartCircleState();
         }
     }
 
-    /**
-     * 构建无 XML 的纯 Java 根布局骨架。
-     */
-    private View createContentView() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(AndroidUi.PAGE_BACKGROUND);
+    /** 为底部导航按钮设置 Material Icons 字体并绑定页面跳转事件。 */
+    private void bindBottomNavigation() {
+        this.ui.styleIcon(this.binding.homeTabButton);
+        this.ui.styleIcon(this.binding.recordsTabButton);
+        this.ui.styleIcon(this.binding.customVocabularyTabButton);
 
-        // 主页面容器，包含头部和可滚动的内容区，占据除去底部导航条之外的所有空间
-        this.pageContainer = new LinearLayout(this);
-        this.pageContainer.setOrientation(LinearLayout.VERTICAL);
-        root.addView(this.pageContainer, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1
-        ));
-
-        // 悬浮在上方的动态标题栏容器
-        this.pageHeaderContainer = new LinearLayout(this);
-        this.pageHeaderContainer.setOrientation(LinearLayout.VERTICAL);
-        // 为顶部的沉浸式状态栏预留高度
-        this.pageHeaderContainer.setPadding(this.ui.dp(24), this.ui.getStatusBarHeight() + this.ui.dp(28), this.ui.dp(24), 0);
-        this.pageContainer.addView(this.pageHeaderContainer, this.ui.matchWidthWrapHeight());
-
-        // 可滚动的正文区域容器
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setFillViewport(true);
-        scrollView.setBackgroundColor(AndroidUi.PAGE_BACKGROUND);
-        
-        this.pageContent = new LinearLayout(this);
-        this.pageContent.setOrientation(LinearLayout.VERTICAL);
-        this.pageContent.setPadding(this.ui.dp(24), this.ui.dp(16), this.ui.dp(24), this.ui.dp(18));
-        
-        scrollView.addView(this.pageContent, this.ui.matchWidthWrapHeight());
-        this.pageContainer.addView(scrollView, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1
-        ));
-
-        // 底部悬浮样式的导航栏外层包裹器
-        LinearLayout navWrap = new LinearLayout(this);
-        navWrap.setGravity(Gravity.CENTER);
-        navWrap.setPadding(this.ui.dp(28), this.ui.dp(4), this.ui.dp(28), this.ui.dp(18));
-        navWrap.addView(createBottomNavigation(), this.ui.matchWidthWrapHeight());
-        root.addView(navWrap, this.ui.matchWidthWrapHeight());
-        
-        return root;
+        this.binding.homeTabButton.setOnClickListener(view -> showHomePage());
+        this.binding.recordsTabButton.setOnClickListener(view -> showRecordsPage());
+        this.binding.customVocabularyTabButton.setOnClickListener(view -> showCustomVocabularyPage());
     }
 
     /**
-     * 构建漂浮于界面底部的类似 iOS 样式的胶囊导航栏。
-     */
-    private LinearLayout createBottomNavigation() {
-        LinearLayout nav = new LinearLayout(this);
-        nav.setOrientation(LinearLayout.HORIZONTAL);
-        nav.setPadding(this.ui.dp(4), this.ui.dp(4), this.ui.dp(4), this.ui.dp(4));
-        nav.setBackground(this.ui.rounded(Color.rgb(243, 241, 248), Color.rgb(226, 224, 234), this.ui.dp(24)));
-        
-        // 抹去 Android 原生的 Z 轴阴影
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            nav.setElevation(0);
-            nav.setTranslationZ(0);
-        }
-
-        // 初始化三个 Tab 的触控按钮，直接通过 MaterialIcon 的字母来渲染图案
-        this.homeTabBtn = this.ui.tabButton("home");
-        this.recordsTabBtn = this.ui.tabButton("history");
-        this.customVocabTabBtn = this.ui.tabButton("edit");
-        
-        this.homeTabBtn.setOnClickListener(view -> showHomePage());
-        this.recordsTabBtn.setOnClickListener(view -> showRecordsPage());
-        this.customVocabTabBtn.setOnClickListener(view -> showCustomVocabPage());
-        
-        nav.addView(this.homeTabBtn, this.ui.tabLayoutParams());
-        nav.addView(this.recordsTabBtn, this.ui.tabLayoutParams());
-        nav.addView(this.customVocabTabBtn, this.ui.tabLayoutParams());
-        
-        return nav;
-    }
-
-    /**
-     * 无 Fragment 的“假 Tab 切换”核心引擎，带平滑过度动画。
+     * 用新页面替换内容容器，并统一执行淡出、替换、淡入动画。
      *
-     * @param tabBtn       要高亮的底部导航按钮（可传 null，比如跳转到二级页面时不选中任何 Tab）
-     * @param buildContent 一段闭包逻辑，用于在新容器中填入新的 UI View
+     * @param selectedTab 当前需要高亮的底部按钮；设置页没有对应按钮时传 {@code null}
+     * @param pageFactory 延迟创建目标页面的工厂，确保旧页面退出后才加载新布局
      */
-    private void switchPage(MaterialButton tabBtn, Runnable buildContent) {
-        if (this.pageContent.getChildCount() > 0 || this.pageHeaderContainer.getChildCount() > 0) {
-            // 如果容器内已经有老页面，先做一个 150ms 的向下褪去动画
-            this.pageContainer.animate()
-                    .alpha(0f)
-                    .translationY(this.ui.dp(10))
+    private void switchPage(MaterialButton selectedTab, Supplier<View> pageFactory) {
+        Runnable replacePage = () -> {
+            selectTab(selectedTab);
+
+            // 每次进入页面都重新加载其绑定，保证设置值和记录数据是最新的。
+            this.binding.pageContainer.removeAllViews();
+            View page = pageFactory.get();
+            this.binding.pageContainer.addView(
+                    page,
+                    new ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+            );
+
+            // 新页面从上方轻微位移处淡入，延续原界面的切换手感。
+            this.binding.pageContainer.setTranslationY(-this.ui.dp(10));
+            this.binding.pageContainer.animate()
+                    .alpha(1f)
+                    .translationY(0f)
                     .setDuration(150)
-                    .withEndAction(() -> {
-                        // 老页面离场完毕，彻底清空容器
-                        selectTab(tabBtn);
-                        this.pageHeaderContainer.removeAllViews();
-                        this.pageContent.removeAllViews();
-                        
-                        // 注入新页面的控件
-                        buildContent.run();
-                        
-                        // 从下方 10dp 开始重新入场
-                        this.pageContainer.setTranslationY(this.ui.dp(-10));
-                        this.pageContainer.animate().alpha(1f).translationY(0).setDuration(150).start();
-                    }).start();
-        } else {
-            // 这是冷启动时第一次进入，不需要清空老页面，直接一个 300ms 慢速浮出
-            selectTab(tabBtn);
-            this.pageHeaderContainer.removeAllViews();
-            this.pageContent.removeAllViews();
-            buildContent.run();
-            
-            this.pageContainer.setAlpha(0f);
-            this.pageContainer.setTranslationY(this.ui.dp(10));
-            this.pageContainer.animate().alpha(1f).translationY(0).setDuration(300).start();
+                    .start();
+        };
+
+        // 冷启动没有旧页面，不需要先播放退出动画。
+        if (this.binding.pageContainer.getChildCount() == 0) {
+            this.binding.pageContainer.setAlpha(0f);
+            this.binding.pageContainer.setTranslationY(this.ui.dp(10));
+            replacePage.run();
+            return;
         }
+
+        // 已有页面时先淡出，动画结束后再执行 replacePage。
+        this.binding.pageContainer.animate()
+                .alpha(0f)
+                .translationY(this.ui.dp(10))
+                .setDuration(150)
+                .withEndAction(replacePage)
+                .start();
     }
 
+    /** 显示首页，并恢复系统返回键的默认退出行为。 */
     private void showHomePage() {
         this.backToHomeCallback.setEnabled(false);
-        switchPage(this.homeTabBtn, () -> this.homeTab.buildContent(this.pageHeaderContainer, this.pageContent));
+        switchPage(this.binding.homeTabButton, this.homeTab::getView);
     }
 
+    /** 显示设置页；系统返回键会先返回首页。 */
     private void showSettingsPage() {
         this.backToHomeCallback.setEnabled(true);
-        switchPage(null, () -> this.settingsTab.buildContent(this.pageHeaderContainer, this.pageContent));
+        switchPage(null, this.settingsTab::getView);
     }
 
+    /** 显示播放记录页；系统返回键会先返回首页。 */
     private void showRecordsPage() {
         this.backToHomeCallback.setEnabled(true);
-        switchPage(this.recordsTabBtn, () -> this.recordsTab.buildContent(this.pageHeaderContainer, this.pageContent));
+        switchPage(this.binding.recordsTabButton, this.recordsTab::getView);
     }
 
-    private void showCustomVocabPage() {
+    /** 显示自定义词库页；系统返回键会先返回首页。 */
+    private void showCustomVocabularyPage() {
         this.backToHomeCallback.setEnabled(true);
-        switchPage(this.customVocabTabBtn, () -> {
-            // 自定义词库页面的头部带一个返回箭头的二级 Header
-            LinearLayout header = this.ui.headerRow("自定义词汇", "");
-            
-            TextView backIcon = new TextView(this);
-            backIcon.setText("chevron_left");
-            backIcon.setTextSize(32);
-            backIcon.setTypeface(this.ui.getIconFont());
-            backIcon.setTextColor(AndroidUi.TEXT_PRIMARY);
-            backIcon.setGravity(Gravity.CENTER);
-            backIcon.setPadding(0, 0, this.ui.dp(8), 0);
-            backIcon.setOnClickListener(v -> showHomePage());
-            
-            header.addView(backIcon, 0, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            
-            this.pageHeaderContainer.addView(header, this.ui.matchWidthWithBottomMargin(12));
-            this.pageContent.addView(this.customVocabTab.getView());
-        });
+        switchPage(this.binding.customVocabularyTabButton, this.customVocabularyTab::getView);
     }
 
+    /** 更新底部导航按钮的 selected 状态，颜色由 XML selector 自动处理。 */
+    private void selectTab(MaterialButton selected) {
+        this.binding.homeTabButton.setSelected(selected == this.binding.homeTabButton);
+        this.binding.recordsTabButton.setSelected(selected == this.binding.recordsTabButton);
+        this.binding.customVocabularyTabButton.setSelected(
+                selected == this.binding.customVocabularyTabButton
+        );
+    }
+
+    /** Android 13 及以上需要运行时申请前台服务通知权限。 */
     private void requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1001);
@@ -258,23 +183,20 @@ public final class MainActivity extends ComponentActivity {
     }
 
     @SuppressWarnings("deprecation")
-    private void styleSystemBars() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            getWindow().setStatusBarColor(AndroidUi.PAGE_BACKGROUND);
-            getWindow().setNavigationBarColor(AndroidUi.PAGE_BACKGROUND);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // 要求状态栏图标变成深色（因为我们整个页面背景都是白灰色）
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-        }
-    }
-
     /**
-     * 更新底部三个 Tab 的高亮状态。
+     * 让状态栏、导航栏及其图标跟随系统浅色/深色模式。
+     *
+     * <p>颜色来自普通 {@code values} 或 {@code values-night} 资源，图标明暗则由
+     * {@code light_system_bars} 布尔资源决定。</p>
      */
-    private void selectTab(MaterialButton selected) {
-        this.ui.styleTab(this.homeTabBtn, selected == this.homeTabBtn);
-        this.ui.styleTab(this.recordsTabBtn, selected == this.recordsTabBtn);
-        this.ui.styleTab(this.customVocabTabBtn, selected == this.customVocabTabBtn);
+    private void styleSystemBars() {
+        getWindow().setStatusBarColor(getColor(R.color.page_background));
+        getWindow().setNavigationBarColor(getColor(R.color.page_background));
+        int systemUiVisibility = 0;
+        if (getResources().getBoolean(R.bool.light_system_bars)) {
+            systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        getWindow().getDecorView().setSystemUiVisibility(systemUiVisibility);
     }
 }

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/pageContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="28dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="28dp"
+        android:layout_marginBottom="18dp"
+        android:background="@drawable/bg_nav"
+        android:orientation="horizontal"
+        android:padding="4dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/homeTabButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="2dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/icon_home"
+                android:textAllCaps="false"
+                android:textColor="@color/tab_foreground"
+                android:textSize="24sp"
+                app:backgroundTint="@color/tab_background"
+                app:cornerRadius="20dp"
+                android:insetBottom="0dp"
+                android:insetTop="0dp"
+                app:strokeWidth="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/recordsTabButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="2dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/icon_history"
+                android:textAllCaps="false"
+                android:textColor="@color/tab_foreground"
+                android:textSize="24sp"
+                app:backgroundTint="@color/tab_background"
+                app:cornerRadius="20dp"
+                android:insetBottom="0dp"
+                android:insetTop="0dp"
+                app:strokeWidth="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/customVocabularyTabButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="2dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:stateListAnimator="@null"
+                android:text="@string/icon_edit"
+                android:textAllCaps="false"
+                android:textColor="@color/tab_foreground"
+                android:textSize="24sp"
+                app:backgroundTint="@color/tab_background"
+                app:cornerRadius="20dp"
+                android:insetBottom="0dp"
+                android:insetTop="0dp"
+                app:strokeWidth="0dp" />
+    </LinearLayout>
+</LinearLayout>

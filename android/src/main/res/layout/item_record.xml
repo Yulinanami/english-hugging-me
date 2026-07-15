@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp">
+
+    <TextView
+        android:id="@+id/playIcon"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:background="@drawable/bg_circle_record"
+        android:gravity="center"
+        android:text="@string/icon_play"
+        android:textColor="@color/primary"
+        android:textSize="26sp" />
+
+    <TextView
+        android:id="@+id/recordText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:paddingStart="14dp"
+        android:paddingEnd="0dp"
+        android:textSize="15sp"
+        style="@style/Ehm.BodyText" />
+</LinearLayout>

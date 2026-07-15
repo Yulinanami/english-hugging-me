@@ -6,6 +6,10 @@ android {
     namespace 'me.englishhugging.android'
     compileSdk 36
 
+    buildFeatures {
+        viewBinding true
+    }
+
     defaultConfig {
         applicationId 'me.englishhugging.android'
         minSdk 26

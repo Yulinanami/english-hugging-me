@@ -1,22 +1,16 @@
 package me.englishhugging.android.ui.tabs;
 
 import android.app.AlertDialog;
-import android.graphics.Color;
-import android.view.Gravity;
 import android.view.View;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
 import android.widget.Toast;
-
-import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import me.englishhugging.android.MainActivity;
+import me.englishhugging.android.databinding.ItemCustomWordBinding;
+import me.englishhugging.android.databinding.PageCustomVocabularyBinding;
 import me.englishhugging.android.settings.AndroidSettingsStore;
 import me.englishhugging.android.ui.AndroidUi;
 import me.englishhugging.core.model.Phrase;
@@ -24,249 +18,178 @@ import me.englishhugging.core.model.Translation;
 import me.englishhugging.core.model.WordEntry;
 
 /**
- * 移动端自定义词库编辑面板。
+ * 自定义词库页面的表单、列表和本地数据交互。
  *
- * <p>这个类提供了一个表单用来往自定义生词本中追加、编辑和删除词汇。
- * 它复用了底层的 {@link AndroidSettingsStore} 来与文件系统进行交互。
+ * <p>页面结构和单词条目均由 XML/View Binding 创建；Java 只负责把表单内容转换为
+ * 核心模块的 {@link WordEntry} 数据模型，以及处理编辑、删除等用户操作。</p>
  */
 public final class CustomVocabularyTab {
-    
-    // --- 外部依赖 ---
+    /** 页面所属 Activity。 */
     private final MainActivity activity;
-    private final AndroidUi ui;
-    
-    // --- 动态视图 ---
-    private LinearLayout listContainer;
-    private EditText customWordInput;
-    private EditText customTypeInput;
-    private EditText customMeaningInput;
-    private EditText customPhraseInput;
-    private EditText customPhraseMeaningInput;
-    private EditText customExampleInput;
 
-    /**
-     * 构造编辑面板。
-     */
-    public CustomVocabularyTab(MainActivity activity, AndroidUi ui) {
+    /** 负责图标字体等公共 UI 行为。 */
+    private final AndroidUi ui;
+
+    /** 顶部返回按钮触发的回首页动作。 */
+    private final Runnable goHome;
+
+    /** 当前自定义词库页面的 View Binding。 */
+    private PageCustomVocabularyBinding binding;
+
+    /** 保存自定义词库页所需依赖和导航动作。 */
+    public CustomVocabularyTab(MainActivity activity, AndroidUi ui, Runnable goHome) {
         this.activity = activity;
         this.ui = ui;
+        this.goHome = goHome;
     }
 
-    /**
-     * 生成并返回包裹了表单和列表的完整滚动页面。
-     */
+    /** 创建页面、绑定按钮，并从本地存储加载自定义单词列表。 */
     public View getView() {
-        LinearLayout content = new LinearLayout(this.activity);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(this.ui.dp(16), this.ui.dp(16), this.ui.dp(16), this.ui.dp(16));
-
-        // 1. 顶部的添加/编辑表单
-        content.addView(createAddWordSection());
-
-        // 2. 底部的已添加词汇列表标签
-        content.addView(this.ui.sectionLabel("已添加的词汇"), this.ui.matchWidthWithBottomMargin(12));
-
-        // 3. 动态列表容器
-        this.listContainer = new LinearLayout(this.activity);
-        this.listContainer.setOrientation(LinearLayout.VERTICAL);
-
-        ScrollView scrollView = new ScrollView(this.activity);
-        scrollView.addView(this.listContainer);
-        content.addView(scrollView);
-
-        // 初始化拉取数据并渲染
+        this.binding = PageCustomVocabularyBinding.inflate(this.activity.getLayoutInflater());
+        this.ui.styleIcon(this.binding.backIcon);
+        this.binding.backIcon.setOnClickListener(view -> this.goHome.run());
+        this.binding.saveButton.setOnClickListener(view -> saveWord());
         refreshList();
-
-        return content;
+        return this.binding.getRoot();
     }
 
-    /**
-     * 构建输入表单卡片。
-     */
-    private View createAddWordSection() {
-        LinearLayout layout = this.ui.card();
-
-        this.customWordInput = this.ui.input("");
-        this.customTypeInput = this.ui.input("");
-        this.customMeaningInput = this.ui.input("");
-        this.customPhraseInput = this.ui.input("");
-        this.customPhraseMeaningInput = this.ui.input("");
-        this.customExampleInput = this.ui.input("");
-
-        layout.addView(this.ui.settingItem("单词", "必填", this.customWordInput), this.ui.matchWidthWrapHeight());
-        layout.addView(this.ui.settingItem("词性", "名词、动词等", this.customTypeInput), this.ui.matchWidthWrapHeight());
-        layout.addView(this.ui.settingItem("意思", "中文释义", this.customMeaningInput), this.ui.matchWidthWrapHeight());
-        layout.addView(this.ui.settingItem("词组", "可选", this.customPhraseInput), this.ui.matchWidthWrapHeight());
-        layout.addView(this.ui.settingItem("词组意思", "词组释义", this.customPhraseMeaningInput), this.ui.matchWidthWrapHeight());
-        layout.addView(this.ui.settingItem("例句", "可选", this.customExampleInput), this.ui.matchWidthWrapHeight());
-
-        MaterialButton addBtn = this.ui.secondaryButton("保存单词");
-        addBtn.setOnClickListener(v -> {
-            String word = this.customWordInput.getText().toString().trim();
-            if (word.isEmpty()) {
-                Toast.makeText(this.activity, "请输入单词", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            String type = this.customTypeInput.getText().toString().trim();
-            String meaning = this.customMeaningInput.getText().toString().trim();
-            String phrase = this.customPhraseInput.getText().toString().trim();
-            String phraseMeaning = this.customPhraseMeaningInput.getText().toString().trim();
-            String example = this.customExampleInput.getText().toString().trim();
-
-            // 封装对象模型
-            List<Translation> translations;
-            if (meaning.isEmpty() && type.isEmpty()) {
-                translations = Collections.emptyList();
-            } else {
-                translations = Collections.singletonList(new Translation(meaning, type));
-            }
-            
-            List<Phrase> phrases = new ArrayList<>();
-            if (!phrase.isEmpty()) {
-                phrases.add(new Phrase(phrase, phraseMeaning));
-            }
-            if (!example.isEmpty()) {
-                phrases.add(new Phrase(example, ""));
-            }
-
-            // 保存到磁盘
-            AndroidSettingsStore.appendCustomWord(this.activity, new WordEntry(word, translations, phrases));
-            Toast.makeText(this.activity, "添加成功！", Toast.LENGTH_SHORT).show();
-
-            // 清空表单
-            this.customWordInput.setText(""); 
-            this.customTypeInput.setText(""); 
-            this.customMeaningInput.setText("");
-            this.customPhraseInput.setText(""); 
-            this.customPhraseMeaningInput.setText(""); 
-            this.customExampleInput.setText("");
-            
-            // 刷新列表视图
-            refreshList();
-        });
-        
-        layout.addView(addBtn, this.ui.matchWidthWithTopMargin(14));
-
-        return layout;
-    }
-
-    /**
-     * 重新从磁盘读取 JSON 数据并铺满列表。
-     */
-    private void refreshList() {
-        this.listContainer.removeAllViews();
-        List<WordEntry> words = AndroidSettingsStore.loadCustomWords(this.activity);
-        
-        if (words == null || words.isEmpty()) {
-            TextView empty = this.ui.bodyText("暂无自定义词汇");
-            empty.setPadding(this.ui.dp(8), this.ui.dp(8), this.ui.dp(8), this.ui.dp(8));
-            this.listContainer.addView(empty);
+    /** 校验表单并把输入转换为 WordEntry 后追加到自定义词库。 */
+    private void saveWord() {
+        String word = this.binding.customWordInput.getText().toString().trim();
+        if (word.isEmpty()) {
+            Toast.makeText(this.activity, "请输入单词", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        for (int i = 0; i < words.size(); i++) {
-            WordEntry entry = words.get(i);
-            this.listContainer.addView(createWordItem(entry, i));
+        String type = this.binding.customTypeInput.getText().toString().trim();
+        String meaning = this.binding.customMeaningInput.getText().toString().trim();
+        String phrase = this.binding.customPhraseInput.getText().toString().trim();
+        String phraseMeaning = this.binding.customPhraseMeaningInput.getText().toString().trim();
+        String example = this.binding.customExampleInput.getText().toString().trim();
+
+        // 核心模型允许没有释义；只要词性或释义有一项，就创建一条 Translation。
+        List<Translation> translations;
+        if (meaning.isEmpty() && type.isEmpty()) {
+            translations = Collections.emptyList();
+        } else {
+            translations = Collections.singletonList(new Translation(meaning, type));
+        }
+
+        List<Phrase> phrases = new ArrayList<>();
+        // 词组与例句共用 Phrase 模型：没有翻译的条目在界面中按例句展示。
+        if (!phrase.isEmpty()) {
+            phrases.add(new Phrase(phrase, phraseMeaning));
+        }
+        if (!example.isEmpty()) {
+            phrases.add(new Phrase(example, ""));
+        }
+
+        AndroidSettingsStore.appendCustomWord(
+                this.activity,
+                new WordEntry(word, translations, phrases)
+        );
+        Toast.makeText(this.activity, "添加成功！", Toast.LENGTH_SHORT).show();
+        clearForm();
+        refreshList();
+    }
+
+    /** 保存成功后清空输入区，方便继续录入下一个单词。 */
+    private void clearForm() {
+        this.binding.customWordInput.setText("");
+        this.binding.customTypeInput.setText("");
+        this.binding.customMeaningInput.setText("");
+        this.binding.customPhraseInput.setText("");
+        this.binding.customPhraseMeaningInput.setText("");
+        this.binding.customExampleInput.setText("");
+    }
+
+    /** 重新读取自定义词库，并用 XML 条目完整刷新列表区域。 */
+    private void refreshList() {
+        this.binding.listContainer.removeAllViews();
+        List<WordEntry> words = AndroidSettingsStore.loadCustomWords(this.activity);
+        boolean isEmpty = words == null || words.isEmpty();
+        this.binding.emptyText.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        if (isEmpty) {
+            return;
+        }
+
+        for (WordEntry entry : words) {
+            this.binding.listContainer.addView(createWordItem(entry));
         }
     }
 
-    /**
-     * 为单个生词渲染它的预览卡片，附带“编辑”和“删除”操作按钮。
-     */
-    private View createWordItem(WordEntry entry, int index) {
-        LinearLayout layout = this.ui.card();
-        layout.setOrientation(LinearLayout.HORIZONTAL);
-        layout.setGravity(Gravity.CENTER_VERTICAL);
-        
-        LinearLayout.LayoutParams params = this.ui.matchWidthWithBottomMargin(8);
-        layout.setLayoutParams(params);
+    /** 为一个单词创建列表项，并绑定编辑和删除操作。 */
+    private View createWordItem(WordEntry entry) {
+        ItemCustomWordBinding item = ItemCustomWordBinding.inflate(
+                this.activity.getLayoutInflater(),
+                this.binding.listContainer,
+                false
+        );
+        item.wordText.setText(entry.word());
 
-        // 左侧单词文本信息
-        LinearLayout textLayout = new LinearLayout(this.activity);
-        textLayout.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        textLayout.setLayoutParams(textParams);
-
-        textLayout.addView(this.ui.titleText(entry.word()));
-
+        // 将结构化释义、词组和例句整理为适合列表快速浏览的多行文字。
+        List<String> details = new ArrayList<>();
         if (!entry.translations().isEmpty()) {
-            Translation t = entry.translations().get(0);
-            textLayout.addView(this.ui.bodyText(t.type() + " " + t.translation()));
+            Translation translation = entry.translations().get(0);
+            details.add(translation.type() + " " + translation.translation());
         }
-        
-        for (Phrase p : entry.phrases()) {
-            if (p.translation().isEmpty()) {
-                textLayout.addView(this.ui.bodyText("例句: " + p.phrase()));
+        for (Phrase phrase : entry.phrases()) {
+            if (phrase.translation().isEmpty()) {
+                details.add("例句: " + phrase.phrase());
             } else {
-                textLayout.addView(this.ui.bodyText("词组: " + p.phrase() + " (" + p.translation() + ")"));
+                details.add("词组: " + phrase.phrase() + " (" + phrase.translation() + ")");
             }
         }
+        item.detailsText.setText(String.join("\n", details));
+        item.detailsText.setVisibility(details.isEmpty() ? View.GONE : View.VISIBLE);
 
-        layout.addView(textLayout);
-
-        // 右侧操作按钮组
-        LinearLayout btnLayout = new LinearLayout(this.activity);
-        btnLayout.setOrientation(LinearLayout.VERTICAL);
-        btnLayout.setGravity(Gravity.CENTER);
-
-        MaterialButton editBtn = this.ui.secondaryButton("编辑");
-        editBtn.setOnClickListener(v -> {
-            // 点击编辑时，自动滚动到顶部表单并将旧数据反填
-            ScrollView sv = (ScrollView) this.listContainer.getParent();
-            sv.smoothScrollTo(0, 0);
-            
-            this.customWordInput.setText(entry.word());
-            if (!entry.translations().isEmpty()) {
-                this.customTypeInput.setText(entry.translations().get(0).type());
-                this.customMeaningInput.setText(entry.translations().get(0).translation());
-            } else { 
-                this.customTypeInput.setText(""); 
-                this.customMeaningInput.setText(""); 
-            }
-            
-            this.customPhraseInput.setText(""); 
-            this.customPhraseMeaningInput.setText(""); 
-            this.customExampleInput.setText("");
-            
-            for (Phrase p : entry.phrases()) {
-                if (p.translation().isEmpty()) { 
-                    this.customExampleInput.setText(p.phrase()); 
-                } else { 
-                    this.customPhraseInput.setText(p.phrase()); 
-                    this.customPhraseMeaningInput.setText(p.translation()); 
-                }
-            }
-            Toast.makeText(this.activity, "可在上方修改该单词", Toast.LENGTH_SHORT).show();
-        });
-        btnLayout.addView(editBtn, this.ui.matchWidthWithBottomMargin(4));
-
-        MaterialButton deleteBtn = this.ui.secondaryButton("删除");
-        deleteBtn.setTextColor(Color.RED);
-        deleteBtn.setOnClickListener(v -> new AlertDialog.Builder(this.activity)
-                .setTitle("确认删除")
-                .setMessage("要删除单词 " + entry.word() + " 吗？")
-                .setPositiveButton("删除", (dialog, which) -> {
-                    deleteWord(entry.word());
-                })
-                .setNegativeButton("取消", null)
-                .show());
-        btnLayout.addView(deleteBtn);
-
-        layout.addView(btnLayout);
-
-        return layout;
+        item.editButton.setOnClickListener(view -> editWord(entry));
+        item.deleteButton.setOnClickListener(view -> showDeleteConfirmation(entry.word()));
+        return item.getRoot();
     }
 
-    /**
-     * 将删除命令落地并刷新视图。
-     */
+    /** 把已有单词内容回填到顶部表单，供用户修改后再次保存。 */
+    private void editWord(WordEntry entry) {
+        this.binding.scrollView.smoothScrollTo(0, 0);
+        this.binding.customWordInput.setText(entry.word());
+        if (!entry.translations().isEmpty()) {
+            this.binding.customTypeInput.setText(entry.translations().get(0).type());
+            this.binding.customMeaningInput.setText(entry.translations().get(0).translation());
+        } else {
+            this.binding.customTypeInput.setText("");
+            this.binding.customMeaningInput.setText("");
+        }
+
+        this.binding.customPhraseInput.setText("");
+        this.binding.customPhraseMeaningInput.setText("");
+        this.binding.customExampleInput.setText("");
+        // 当前表单各保留一个词组和一个例句，后出现的同类型内容会覆盖前一项。
+        for (Phrase phrase : entry.phrases()) {
+            if (phrase.translation().isEmpty()) {
+                this.binding.customExampleInput.setText(phrase.phrase());
+            } else {
+                this.binding.customPhraseInput.setText(phrase.phrase());
+                this.binding.customPhraseMeaningInput.setText(phrase.translation());
+            }
+        }
+        Toast.makeText(this.activity, "可在上方修改该单词", Toast.LENGTH_SHORT).show();
+    }
+
+    /** 删除前显示确认对话框，避免误触直接丢失单词。 */
+    private void showDeleteConfirmation(String word) {
+        new AlertDialog.Builder(this.activity)
+                .setTitle("确认删除")
+                .setMessage("要删除单词 " + word + " 吗？")
+                .setPositiveButton("删除", (dialog, which) -> deleteWord(word))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /** 从本地词库删除所有同名条目，并刷新页面列表。 */
     private void deleteWord(String word) {
         List<WordEntry> words = AndroidSettingsStore.loadCustomWords(this.activity);
         if (words != null) {
-            // 通过拼写来定位并剔除
-            words.removeIf(w -> w.word().equals(word));
-            
+            words.removeIf(entry -> entry.word().equals(word));
             AndroidSettingsStore.saveCustomWords(this.activity, words);
             refreshList();
             Toast.makeText(this.activity, "已删除", Toast.LENGTH_SHORT).show();
