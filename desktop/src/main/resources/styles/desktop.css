@@ -1,36 +1,67 @@
 /*
- * 设置面板的静态样式表（由 DesktopUi.applyStylesheet 挂载到 Scene）。
- * 悬浮窗的文字颜色与字号由用户设置在运行时驱动，保留在代码中，勿移入此表。
- * 与 AtlantaFX 主题共存：此处为 author stylesheet，优先级高于主题的 user-agent stylesheet。
+ * 设置面板只保留布局层样式，控件颜色和交互状态由 AtlantaFX 统一提供。
+ * 这里使用 AtlantaFX 的功能色变量，因此切换亮色或深色主题时无需重写页面 CSS。
  */
 
-.compact-button {
-    -fx-background-color: #EEF2FF;
-    -fx-text-fill: #52699A;
-    -fx-background-radius: 10;
-    -fx-border-radius: 10;
-    -fx-border-color: #D8E0F3;
-    -fx-padding: 5 14 5 14;
+.settings-root {
+    -fx-background-color: -color-bg-inset;
+    -fx-font-family: "Microsoft YaHei UI", "Microsoft YaHei", "SimSun";
+    -fx-font-size: 13px;
 }
 
-.modern-control {
-    -fx-background-color: white;
-    -fx-background-radius: 10;
-    -fx-border-radius: 10;
-    -fx-border-color: #D8E0F3;
-    -fx-padding: 3 8 3 8;
+.settings-tabs {
+    -fx-background-color: transparent;
+    -fx-tab-min-height: 34px;
+    -fx-tab-max-height: 34px;
 }
 
-.group-box {
-    -fx-background-color: white;
-    -fx-background-radius: 14;
-    -fx-border-color: #E4E8F2;
-    -fx-border-radius: 14;
-    -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0, 0, 3);
+.settings-tabs > .tab-content-area {
+    -fx-background-color: transparent;
 }
 
-.group-box-title {
-    -fx-text-fill: #52699A;
+.settings-scroll {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.settings-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.settings-page {
+    -fx-padding: 16;
+}
+
+/* Card 的结构和交互来自 AtlantaFX，这里只调整设置页需要的圆角与留白。 */
+.settings-card > .container {
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 10px;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 10px;
+    -fx-padding: 1.1em 0 1.1em 0;
+    -fx-spacing: 0.85em;
+}
+
+.settings-card > .container > .header {
+    -fx-padding: 0 1.1em 0 1.1em;
+}
+
+.settings-card > .container > .body {
+    -fx-padding: 0 1.1em 0 1.1em;
+}
+
+.settings-card-title {
+    -fx-font-size: 15px;
     -fx-font-weight: bold;
-    -fx-padding: 0 0 2 0;
+    -fx-text-fill: -color-fg-default;
+}
+
+.settings-hint {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 11px;
+}
+
+.settings-footer {
+    -fx-padding: 4 8 2 8;
 }

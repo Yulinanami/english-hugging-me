@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import atlantafx.base.controls.Card?>
+<?import atlantafx.base.controls.ToggleSwitch?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.Spinner?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<ScrollPane xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fitToWidth="true"
+            styleClass="settings-scroll">
+    <content>
+        <VBox spacing="14.0" styleClass="settings-page">
+            <children>
+                <Card maxWidth="Infinity" styleClass="settings-card">
+                    <header>
+                        <Label text="基础设置" styleClass="settings-card-title" />
+                    </header>
+                    <body>
+                        <GridPane hgap="8.0" vgap="8.0">
+                            <children>
+                                <Label text="显示内容：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                                <ComboBox fx:id="displayMode" prefWidth="180.0" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+
+                                <Label text="播放顺序：" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                                <ComboBox fx:id="playbackMode" prefWidth="180.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+                                <Label text="悬浮行为：" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                                <ComboBox fx:id="overlayMode" prefWidth="180.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+
+                                <Label text="切换间隔：" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+                                <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                    <children>
+                                        <Spinner fx:id="interval" editable="true" prefWidth="92.0" />
+                                        <Label text="秒" />
+                                    </children>
+                                </HBox>
+
+                                <Label text="透明度：" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+                                <Slider fx:id="opacity"
+                                        min="0.2"
+                                        max="1.0"
+                                        prefWidth="240.0"
+                                        showTickLabels="true"
+                                        showTickMarks="true"
+                                        GridPane.columnIndex="1"
+                                        GridPane.rowIndex="4" />
+                            </children>
+                        </GridPane>
+                    </body>
+                </Card>
+
+                <Card maxWidth="Infinity" styleClass="settings-card">
+                    <header>
+                        <Label text="按前缀播放" styleClass="settings-card-title" />
+                    </header>
+                    <body>
+                        <GridPane hgap="8.0" vgap="8.0">
+                            <children>
+                                <Label text="特定前缀：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                                <TextField fx:id="startingPrefix"
+                                           prefWidth="140.0"
+                                           promptText="留空表示播放全部"
+                                           GridPane.columnIndex="1"
+                                           GridPane.rowIndex="0" />
+
+                                <Label text="循环模式：" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                                <VBox spacing="4.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                    <children>
+                                        <ToggleSwitch fx:id="loopPlayback" text="循环" />
+                                        <Label text="开启：无限循环；关闭：播完一遍即停" styleClass="settings-hint" />
+                                    </children>
+                                </VBox>
+                            </children>
+                        </GridPane>
+                    </body>
+                </Card>
+
+                <Card maxWidth="Infinity" styleClass="settings-card">
+                    <header>
+                        <Label text="挖空模式设置" styleClass="settings-card-title" />
+                    </header>
+                    <body>
+                        <GridPane hgap="8.0" vgap="8.0">
+                            <children>
+                                <Label text="挖空模式：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                                <ToggleSwitch fx:id="fillBlankMode" text="开启挖空模式" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+
+                                <Label text="填充间隔：" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                                <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                    <children>
+                                        <Spinner fx:id="fillBlankInterval" editable="true" prefWidth="92.0" />
+                                        <Label text="秒" />
+                                    </children>
+                                </HBox>
+
+                                <Label text="显示设置：" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                                <VBox spacing="6.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                    <children>
+                                        <ToggleSwitch fx:id="fillBlankHidePhrases" text="挖空时关闭短语" />
+                                        <ToggleSwitch fx:id="fillBlankShowTranslation" text="挖空时显示释义" />
+                                    </children>
+                                </VBox>
+                            </children>
+                        </GridPane>
+                    </body>
+                </Card>
+            </children>
+        </VBox>
+    </content>
+</ScrollPane>

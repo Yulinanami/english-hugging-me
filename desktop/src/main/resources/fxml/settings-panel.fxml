@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      spacing="8.0"
+      styleClass="settings-root">
+    <padding>
+        <Insets top="10.0" right="10.0" bottom="10.0" left="10.0" />
+    </padding>
+    <children>
+        <TabPane tabClosingPolicy="UNAVAILABLE"
+                 styleClass="settings-tabs"
+                 VBox.vgrow="ALWAYS">
+            <tabs>
+                <Tab fx:id="generalTab" text="常规" closable="false" />
+                <Tab fx:id="vocabularyTab" text="词库" closable="false" />
+                <Tab fx:id="customVocabularyTab" text="自定义" closable="false" />
+                <Tab fx:id="appearanceTab" text="外观" closable="false" />
+                <Tab fx:id="recordsTabContainer" text="记录" closable="false" />
+            </tabs>
+        </TabPane>
+
+        <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="settings-footer">
+            <children>
+                <Region HBox.hgrow="ALWAYS" />
+                <Button text="退出程序"
+                        styleClass="danger"
+                        onAction="#exitApplication" />
+            </children>
+        </HBox>
+    </children>
+</VBox>

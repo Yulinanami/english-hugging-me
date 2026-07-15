@@ -1,84 +1,102 @@
 package me.englishhugging.desktop.settings;
 
-import javafx.geometry.Insets;
+import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.ColorPicker;
-import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.paint.Color;
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.desktop.overlay.DesktopOverlayController;
 import me.englishhugging.desktop.ui.DesktopUi;
 
+/** 外观设置 FXML 页面的数据初始化和即时预览控制器。 */
 final class AppearanceSettingsTab {
     private final AppSettings settings;
     private final DesktopSettingsStore settingsStore;
     private final DesktopOverlayController overlayController;
 
-    AppearanceSettingsTab(AppSettings settings, DesktopSettingsStore settingsStore, DesktopOverlayController overlayController) {
+    @FXML
+    private ColorPicker wordColor;
+    @FXML
+    private ColorPicker typeColor;
+    @FXML
+    private ColorPicker translationColor;
+    @FXML
+    private ColorPicker phraseColor;
+    @FXML
+    private Spinner<Integer> wordFontSize;
+    @FXML
+    private Spinner<Integer> detailFontSize;
+
+    AppearanceSettingsTab(
+            AppSettings settings,
+            DesktopSettingsStore settingsStore,
+            DesktopOverlayController overlayController
+    ) {
         this.settings = settings;
         this.settingsStore = settingsStore;
         this.overlayController = overlayController;
     }
 
+    /** 加载由 FXML 声明的外观设置页面。 */
     Node createContent() {
-        ColorPicker wordColor = colorPicker(settings.getWordColor());
-        ColorPicker typeColor = colorPicker(settings.getTypeColor());
-        ColorPicker translationColor = colorPicker(settings.getTranslationColor());
-        ColorPicker phraseColor = colorPicker(settings.getPhraseColor());
+        return DesktopUi.loadFxml("/fxml/appearance-settings.fxml", this);
+    }
 
-        wordColor.setOnAction(e -> { settings.setWordColor(toHex(wordColor.getValue())); save(); });
-        typeColor.setOnAction(e -> { settings.setTypeColor(toHex(typeColor.getValue())); save(); });
-        translationColor.setOnAction(e -> { settings.setTranslationColor(toHex(translationColor.getValue())); save(); });
-        phraseColor.setOnAction(e -> { settings.setPhraseColor(toHex(phraseColor.getValue())); save(); });
+    /** FXML 字段注入完成后设置当前值并绑定即时预览事件。 */
+    @FXML
+    private void initialize() {
+        this.wordColor.setValue(Color.web(this.settings.getWordColor()));
+        this.typeColor.setValue(Color.web(this.settings.getTypeColor()));
+        this.translationColor.setValue(Color.web(this.settings.getTranslationColor()));
+        this.phraseColor.setValue(Color.web(this.settings.getPhraseColor()));
+        configureSpinner(this.wordFontSize, 16, 72, this.settings.getWordFontSize());
+        configureSpinner(this.detailFontSize, 12, 60, this.settings.getDetailFontSize());
 
-        Spinner<Integer> wordFontSize = fontSpinner(16, 72, settings.getWordFontSize());
-        wordFontSize.valueProperty().addListener((o, ov, nv) -> { settings.setWordFontSize(nv); save(); });
+        this.wordColor.setOnAction(event -> {
+            this.settings.setWordColor(toHex(this.wordColor.getValue()));
+            save();
+        });
+        this.typeColor.setOnAction(event -> {
+            this.settings.setTypeColor(toHex(this.typeColor.getValue()));
+            save();
+        });
+        this.translationColor.setOnAction(event -> {
+            this.settings.setTranslationColor(toHex(this.translationColor.getValue()));
+            save();
+        });
+        this.phraseColor.setOnAction(event -> {
+            this.settings.setPhraseColor(toHex(this.phraseColor.getValue()));
+            save();
+        });
+        this.wordFontSize.valueProperty().addListener((observable, oldValue, newValue) -> {
+            this.settings.setWordFontSize(newValue);
+            save();
+        });
+        this.detailFontSize.valueProperty().addListener((observable, oldValue, newValue) -> {
+            this.settings.setDetailFontSize(newValue);
+            save();
+        });
+    }
 
-        Spinner<Integer> detailFontSize = fontSpinner(12, 60, settings.getDetailFontSize());
-        detailFontSize.valueProperty().addListener((o, ov, nv) -> { settings.setDetailFontSize(nv); save(); });
-
-        GridPane grid = DesktopUi.settingsGrid();
-        grid.add(new Label("单词颜色："), 0, 0); grid.add(wordColor, 1, 0);
-        grid.add(new Label("词性颜色："), 0, 1); grid.add(typeColor, 1, 1);
-        grid.add(new Label("释义颜色："), 0, 2); grid.add(translationColor, 1, 2);
-        grid.add(new Label("短语颜色："), 0, 3); grid.add(phraseColor, 1, 3);
-        grid.add(new Label("单词字号："), 0, 4); grid.add(wordFontSize, 1, 4);
-        grid.add(new Label("释义字号："), 0, 5); grid.add(detailFontSize, 1, 5);
-
-        VBox page = new VBox(10, DesktopUi.groupBox("外观", grid));
-        page.setPadding(new Insets(10));
-        javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(page);
-        scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
-        return scroll;
+    private void configureSpinner(Spinner<Integer> spinner, int min, int max, int value) {
+        spinner.setValueFactory(
+                new SpinnerValueFactory.IntegerSpinnerValueFactory(min, max, value)
+        );
     }
 
     private void save() {
-        settingsStore.save(settings);
-        overlayController.refreshDisplay();
-    }
-
-    private ColorPicker colorPicker(String hex) {
-        ColorPicker picker = new ColorPicker(Color.web(hex));
-        DesktopUi.styleModernControl(picker);
-        return picker;
-    }
-
-    private Spinner<Integer> fontSpinner(int min, int max, int value) {
-        Spinner<Integer> spinner = new Spinner<>(min, max, value);
-        spinner.setEditable(true);
-        spinner.setPrefWidth(92);
-        DesktopUi.styleModernControl(spinner);
-        return spinner;
+        this.settingsStore.save(this.settings);
+        this.overlayController.refreshDisplay();
     }
 
     private static String toHex(Color color) {
-        return String.format("#%02X%02X%02X",
+        return String.format(
+                "#%02X%02X%02X",
                 Math.round(color.getRed() * 255),
                 Math.round(color.getGreen() * 255),
-                Math.round(color.getBlue() * 255));
+                Math.round(color.getBlue() * 255)
+        );
     }
 }
