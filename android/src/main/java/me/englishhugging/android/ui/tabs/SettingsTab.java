@@ -51,6 +51,9 @@ public final class SettingsTab {
     /** 程序主动联动两个互斥开关时，阻止监听器重复保存。 */
     private boolean isUpdatingSwitches;
 
+    /** 开关动画结束后发送的悬浮窗刷新任务；重复切换时只保留最后一次。 */
+    private final Runnable delayedServiceReload = this::notifyServiceReload;
+
     /** 保存设置页所需依赖和导航动作。 */
     public SettingsTab(MainActivity activity, AndroidUi ui, Runnable goHome) {
         this.activity = activity;
@@ -183,6 +186,28 @@ public final class SettingsTab {
      * <p>该方法会被多个输入监听器调用，因此每次都先读取最新设置，只修改页面负责的字段。</p>
      */
     private void saveAndReload() {
+        if (this.binding != null) {
+            this.binding.getRoot().removeCallbacks(this.delayedServiceReload);
+        }
+        saveSettings(true);
+    }
+
+    /** 立即保存开关状态，并在系统短动画结束后刷新悬浮窗，避免重载阻塞过渡帧。 */
+    private void saveSwitchAndReload() {
+        saveSettings(false);
+        if (this.binding == null) {
+            return;
+        }
+
+        this.binding.getRoot().removeCallbacks(this.delayedServiceReload);
+        int animationDuration = this.activity.getResources().getInteger(
+                android.R.integer.config_shortAnimTime
+        );
+        this.binding.getRoot().postDelayed(this.delayedServiceReload, animationDuration);
+    }
+
+    /** 把页面中的当前设置写入本地，并按需立即刷新悬浮窗。 */
+    private void saveSettings(boolean reloadServiceImmediately) {
         if (this.binding == null) {
             return;
         }
@@ -297,7 +322,9 @@ public final class SettingsTab {
                 settings,
                 settings.getVocabularyFileName()
         );
-        notifyServiceReload();
+        if (reloadServiceImmediately) {
+            notifyServiceReload();
+        }
     }
 
     /** 使用本地化整数资源更新输入框，避免各处重复字符串转换。 */
@@ -354,7 +381,7 @@ public final class SettingsTab {
                 this.binding.resizeModeSwitch.setChecked(false);
                 this.isUpdatingSwitches = false;
             }
-            saveAndReload();
+            saveSwitchAndReload();
         });
         this.binding.resizeModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (this.isUpdatingSwitches) {
@@ -365,16 +392,16 @@ public final class SettingsTab {
                 this.binding.autoSizeSwitch.setChecked(false);
                 this.isUpdatingSwitches = false;
             }
-            saveAndReload();
+            saveSwitchAndReload();
         });
         this.binding.loopPlaybackSwitch.setOnCheckedChangeListener(
-                (buttonView, isChecked) -> saveAndReload()
+                (buttonView, isChecked) -> saveSwitchAndReload()
         );
         this.binding.fillBlankHidePhrasesSwitch.setOnCheckedChangeListener(
-                (buttonView, isChecked) -> saveAndReload()
+                (buttonView, isChecked) -> saveSwitchAndReload()
         );
         this.binding.fillBlankShowTranslationSwitch.setOnCheckedChangeListener(
-                (buttonView, isChecked) -> saveAndReload()
+                (buttonView, isChecked) -> saveSwitchAndReload()
         );
         // 拖动过程中只响应用户产生的进度变化，忽略初始化赋值。
         this.binding.opacitySeekBar.setOnSeekBarChangeListener(

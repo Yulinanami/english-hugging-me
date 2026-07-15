@@ -33,6 +33,9 @@ public final class HomeTab {
     /** 当前首页视图的 View Binding，用于同步悬浮窗运行状态。 */
     private PageHomeBinding binding;
 
+    /** 挖空模式开关动画结束后发送的悬浮窗刷新任务。 */
+    private final Runnable delayedServiceReload = this::notifyServiceReload;
+
     /** 保存首页所需依赖，不在这里持有或创建新的 Activity。 */
     public HomeTab(MainActivity activity, AndroidUi ui, Runnable onNavigateToSettings) {
         this.activity = activity;
@@ -61,7 +64,7 @@ public final class HomeTab {
             AppSettings current = AndroidSettingsStore.load(this.activity);
             current.setFillBlankMode(isChecked);
             AndroidSettingsStore.save(this.activity, current);
-            notifyServiceReload();
+            reloadServiceAfterSwitchAnimation();
         });
 
         updateStartCircleState();
@@ -120,6 +123,16 @@ public final class HomeTab {
         Intent intent = new Intent(this.activity, OverlayService.class);
         intent.setAction(OverlayService.ACTION_START);
         this.activity.startForegroundService(intent);
+    }
+
+    /** 避开开关过渡帧后再重载服务，防止调度器重建造成滑块卡顿。 */
+    private void reloadServiceAfterSwitchAnimation() {
+        View hostView = this.activity.getWindow().getDecorView();
+        hostView.removeCallbacks(this.delayedServiceReload);
+        int animationDuration = this.activity.getResources().getInteger(
+                android.R.integer.config_shortAnimTime
+        );
+        hostView.postDelayed(this.delayedServiceReload, animationDuration);
     }
 
     /** 设置变化时通知正在运行的悬浮窗重新读取配置。 */
