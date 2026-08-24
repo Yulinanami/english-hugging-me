@@ -7,6 +7,7 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.Spinner?>
+<?import javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
@@ -38,7 +39,11 @@
                                 <Label text="切换间隔：" GridPane.columnIndex="0" GridPane.rowIndex="3" />
                                 <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
                                     <children>
-                                        <Spinner fx:id="interval" editable="true" prefWidth="92.0" />
+                                        <Spinner fx:id="interval" editable="true" prefWidth="92.0">
+                                            <valueFactory>
+                                                <SpinnerValueFactory.IntegerSpinnerValueFactory min="2" max="300" />
+                                            </valueFactory>
+                                        </Spinner>
                                         <Label text="秒" />
                                     </children>
                                 </HBox>
@@ -96,7 +101,11 @@
                                 <Label text="填充间隔：" GridPane.columnIndex="0" GridPane.rowIndex="1" />
                                 <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                     <children>
-                                        <Spinner fx:id="fillBlankInterval" editable="true" prefWidth="92.0" />
+                                        <Spinner fx:id="fillBlankInterval" editable="true" prefWidth="92.0">
+                                            <valueFactory>
+                                                <SpinnerValueFactory.IntegerSpinnerValueFactory min="1" max="30" />
+                                            </valueFactory>
+                                        </Spinner>
                                         <Label text="秒" />
                                     </children>
                                 </HBox>

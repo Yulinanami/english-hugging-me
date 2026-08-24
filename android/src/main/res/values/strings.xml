@@ -29,6 +29,7 @@
     <string name="icon_back" translatable="false">chevron_left</string>
     <string name="icon_play" translatable="false">play_arrow</string>
     <string name="icon_stop" translatable="false">stop</string>
+    <string name="icon_zoom_out_map" translatable="false">zoom_out_map</string>
     <string name="integer_value" translatable="false">%1$d</string>
     <string name="word_label">单词</string>
     <string name="required">必填</string>

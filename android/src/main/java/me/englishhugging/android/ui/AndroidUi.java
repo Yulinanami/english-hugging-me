@@ -2,9 +2,6 @@ package me.englishhugging.android.ui;
 
 import android.content.Context;
 import android.graphics.Typeface;
-import android.text.InputType;
-import android.view.View;
-import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Filter;
 import android.widget.TextView;
@@ -13,7 +10,6 @@ import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import me.englishhugging.android.R;
 
@@ -57,29 +53,42 @@ public final class AndroidUi {
         icon.setTypeface(getIconFont());
     }
 
-    /**
-     * 给 XML 中的下拉控件绑定完整选项，并保证点击或获得焦点时展示全部内容。
-     *
-     * @param dropdown 需要初始化的下拉输入框
-     * @param values   下拉框允许选择的完整值集合
-     */
     public void bindDropdown(MaterialAutoCompleteTextView dropdown, String[] values) {
-        ArrayAdapter<String> adapter = dropdownAdapter(values);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+                this.context,
+                R.layout.item_dropdown,
+                new ArrayList<>(Arrays.asList(values))
+        ) {
+            @Override
+            public Filter getFilter() {
+                return new Filter() {
+                    @Override
+                    protected FilterResults performFiltering(CharSequence constraint) {
+                        FilterResults results = new FilterResults();
+                        results.values = values;
+                        results.count = values.length;
+                        return results;
+                    }
+
+                    @Override
+                    protected void publishResults(CharSequence constraint, FilterResults results) {
+                        clear();
+                        addAll(values);
+                        notifyDataSetChanged();
+                    }
+                };
+            }
+        };
         dropdown.setAdapter(adapter);
         dropdown.setThreshold(0);
-        dropdown.setInputType(InputType.TYPE_NULL);
-        dropdown.setDropDownHeight(Math.min(dp(260), Math.max(dp(48), values.length * dp(54))));
-
-        // 每次展开前清空过滤条件，防止当前文字把其它选项过滤掉。
+        long[] lastDismissTime = new long[1];
+        dropdown.setOnDismissListener(() -> lastDismissTime[0] = android.os.SystemClock.elapsedRealtime());
         dropdown.setOnClickListener(view -> {
+            if (android.os.SystemClock.elapsedRealtime() - lastDismissTime[0] < 250) {
+                return;
+            }
             adapter.getFilter().filter(null);
             dropdown.showDropDown();
-        });
-        dropdown.setOnFocusChangeListener((view, hasFocus) -> {
-            if (hasFocus) {
-                adapter.getFilter().filter(null);
-                dropdown.showDropDown();
-            }
         });
     }
 
@@ -114,57 +123,5 @@ public final class AndroidUi {
     /** 将布局使用的 dp 转换为当前屏幕密度对应的物理像素。 */
     public int dp(int value) {
         return (int) (value * this.context.getResources().getDisplayMetrics().density + 0.5f);
-    }
-
-    /**
-     * 创建不会因输入文字而缩减结果集的适配器。
-     *
-     * <p>设置页下拉框用于选择固定配置，不承担搜索功能，因此过滤时始终发布完整列表。</p>
-     */
-    private ArrayAdapter<String> dropdownAdapter(String[] values) {
-        List<String> items = new ArrayList<>(Arrays.asList(values));
-        return new ArrayAdapter<String>(this.context, android.R.layout.simple_list_item_1, items) {
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                return styleDropdown(super.getView(position, convertView, parent));
-            }
-
-            @Override
-            public View getDropDownView(int position, View convertView, ViewGroup parent) {
-                return styleDropdown(super.getDropDownView(position, convertView, parent));
-            }
-
-            @Override
-            public Filter getFilter() {
-                return new Filter() {
-                    @Override
-                    protected FilterResults performFiltering(CharSequence constraint) {
-                        // 无论约束文字是什么，都返回原始固定选项。
-                        FilterResults results = new FilterResults();
-                        results.values = values;
-                        results.count = values.length;
-                        return results;
-                    }
-
-                    @Override
-                    protected void publishResults(CharSequence constraint, FilterResults results) {
-                        clear();
-                        addAll(values);
-                        notifyDataSetChanged();
-                    }
-                };
-            }
-        };
-    }
-
-    /** 统一设置下拉框当前项和弹出列表项的字体颜色、字号与内边距。 */
-    private View styleDropdown(View view) {
-        if (view instanceof TextView) {
-            TextView textView = (TextView) view;
-            textView.setTextColor(this.context.getColor(R.color.text_primary));
-            textView.setTextSize(15);
-            textView.setPadding(dp(16), dp(12), dp(16), dp(12));
-        }
-        return view;
     }
 }

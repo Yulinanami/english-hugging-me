@@ -76,6 +76,7 @@
 
     <style name="Ehm.Dropdown" parent="Ehm.Input">
         <item name="android:cursorVisible">false</item>
+        <item name="android:focusable">false</item>
         <item name="android:inputType">none</item>
         <item name="android:popupBackground">@drawable/bg_dropdown_popup</item>
         <item name="dropDownBackgroundTint">@color/input_background</item>

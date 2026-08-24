@@ -49,6 +49,11 @@ public enum OverlayMode {
         return this.label;
     }
 
+    @Override
+    public String toString() {
+        return this.label;
+    }
+
     /**
      * 获取所有的可用交互模式中文标签，常用于填充 UI 下拉列表。
      *

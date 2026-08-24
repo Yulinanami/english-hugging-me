@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.text.TextFlow?>
+
+<StackPane xmlns="http://javafx.com/javafx/21"
+           xmlns:fx="http://javafx.com/fxml/1"
+           stylesheets="@../styles/overlay.css"
+           styleClass="overlay-card">
+    <children>
+        <TextFlow fx:id="wordFlow"
+                  maxHeight="Infinity"
+                  maxWidth="Infinity"
+                  styleClass="overlay-text-flow" />
+    </children>
+</StackPane>

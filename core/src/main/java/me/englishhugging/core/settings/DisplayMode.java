@@ -55,6 +55,11 @@ public enum DisplayMode {
         return this.label;
     }
 
+    @Override
+    public String toString() {
+        return this.label;
+    }
+
     /**
      * 获取所有的可用显示模式中文标签，常用于填充 UI 下拉列表。
      *

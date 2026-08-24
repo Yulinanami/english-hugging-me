@@ -12,7 +12,6 @@ import android.content.IntentFilter;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -35,6 +34,8 @@ import java.util.Objects;
 
 import me.englishhugging.android.MainActivity;
 import me.englishhugging.android.R;
+import me.englishhugging.android.databinding.OverlayResizeHandleBinding;
+import me.englishhugging.android.databinding.OverlayWindowBinding;
 import me.englishhugging.android.settings.AndroidSettingsStore;
 import me.englishhugging.core.display.WordDisplayFormatter;
 import me.englishhugging.core.model.WordDisplaySegment;
@@ -269,29 +270,16 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 利用原生的 View 系统去拼接出一个深色圆角的背单词悬浮窗视图。
+     * 利用 XML 布局声明加载深色圆角的背单词悬浮窗视图。
      */
     private FrameLayout createOverlayView() {
-        FrameLayout root = new FrameLayout(this);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.argb(166, 0, 0, 0));
-        bg.setCornerRadius(28);
-        root.setBackground(bg);
+        OverlayWindowBinding binding = OverlayWindowBinding.inflate(android.view.LayoutInflater.from(this));
+        FrameLayout root = binding.getRoot();
         root.setAlpha((float) this.settings.getOpacity());
 
-        this.overlayText = new TextView(this);
-        this.overlayText.setTextColor(Color.WHITE);
-        this.overlayText.setGravity(Gravity.CENTER);
-        this.overlayText.setPadding(28, 18, 28, 18);
-        
+        this.overlayText = binding.overlayText;
         DisplayMetrics metrics = getResources().getDisplayMetrics();
         this.overlayText.setMaxWidth((int) (metrics.widthPixels * 0.9f));
-        
-        FrameLayout.LayoutParams textParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        textParams.gravity = Gravity.CENTER;
-        
-        root.addView(this.overlayText, textParams);
         this.overlayText.setOnTouchListener(this::onOverlayTouch);
 
         return root;
@@ -303,18 +291,15 @@ public final class OverlayService extends Service {
     private void manageResizeHandleWindow() {
         if (this.settings.isResizeMode()) {
             if (this.resizeHandleView == null) {
-                this.resizeHandleView = new TextView(this);
+                OverlayResizeHandleBinding resizeBinding = OverlayResizeHandleBinding.inflate(android.view.LayoutInflater.from(this));
+                this.resizeHandleView = resizeBinding.getRoot();
                 
                 try {
                     this.resizeHandleView.setTypeface(android.graphics.Typeface.createFromAsset(getAssets(), "fonts/MaterialIcons-Regular.ttf"));
-                    this.resizeHandleView.setText("zoom_out_map");
                 } catch (Exception e) {
                     this.resizeHandleView.setText("↘");
                 }
                 
-                this.resizeHandleView.setTextColor(android.graphics.Color.WHITE);
-                this.resizeHandleView.setTextSize(24);
-                this.resizeHandleView.setPadding(10, 10, 30, 30);
                 this.resizeHandleView.setOnTouchListener(this::onResizeTouch);
 
                 this.resizeHandleParams = new WindowManager.LayoutParams(

@@ -6,9 +6,7 @@ import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
-import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
-import javafx.util.StringConverter;
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.core.settings.DisplayMode;
 import me.englishhugging.core.settings.OverlayMode;
@@ -70,26 +68,19 @@ final class GeneralSettingsTab {
     /** FXML 字段注入完成后加载当前设置并绑定即时保存事件。 */
     @FXML
     private void initialize() {
-        configureEnumCombo(this.displayMode, DisplayMode.values(), this.settings.getDisplayMode());
-        configureEnumCombo(this.playbackMode, PlaybackMode.values(), this.settings.getPlaybackMode());
-        configureEnumCombo(this.overlayMode, OverlayMode.values(), this.settings.getOverlayMode());
+        this.displayMode.getItems().setAll(DisplayMode.values());
+        this.displayMode.setValue(this.settings.getDisplayMode());
+        this.playbackMode.getItems().setAll(PlaybackMode.values());
+        this.playbackMode.setValue(this.settings.getPlaybackMode());
+        this.overlayMode.getItems().setAll(OverlayMode.values());
+        this.overlayMode.setValue(this.settings.getOverlayMode());
 
-        this.interval.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
-                2,
-                300,
-                this.settings.getIntervalSeconds()
-        ));
+        this.interval.getValueFactory().setValue(this.settings.getIntervalSeconds());
         this.opacity.setValue(this.settings.getOpacity());
         this.startingPrefix.setText(this.settings.getStartingPrefix());
         this.loopPlayback.setSelected(this.settings.isLoopPlayback());
         this.fillBlankMode.setSelected(this.settings.isFillBlankMode());
-        this.fillBlankInterval.setValueFactory(
-                new SpinnerValueFactory.IntegerSpinnerValueFactory(
-                        1,
-                        30,
-                        this.settings.getFillBlankIntervalSeconds()
-                )
-        );
+        this.fillBlankInterval.getValueFactory().setValue(this.settings.getFillBlankIntervalSeconds());
         this.fillBlankHidePhrases.setSelected(this.settings.isFillBlankHidePhrases());
         this.fillBlankShowTranslation.setSelected(this.settings.isFillBlankShowTranslation());
 
@@ -154,39 +145,5 @@ final class GeneralSettingsTab {
             this.settingsStore.save(this.settings);
             this.onSettingsChanged.run();
         });
-    }
-
-    /** 初始化固定枚举选项、当前值和中文显示转换器。 */
-    private <T extends Enum<T>> void configureEnumCombo(
-            ComboBox<T> combo,
-            T[] values,
-            T selected
-    ) {
-        combo.getItems().setAll(values);
-        combo.setValue(selected);
-        combo.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(T value) {
-                return value == null ? "" : labelOf(value);
-            }
-
-            @Override
-            public T fromString(String value) {
-                return null;
-            }
-        });
-    }
-
-    private static String labelOf(Enum<?> value) {
-        if (value instanceof DisplayMode) {
-            return ((DisplayMode) value).getLabel();
-        }
-        if (value instanceof PlaybackMode) {
-            return ((PlaybackMode) value).getLabel();
-        }
-        if (value instanceof OverlayMode) {
-            return ((OverlayMode) value).getLabel();
-        }
-        return value.name();
     }
 }

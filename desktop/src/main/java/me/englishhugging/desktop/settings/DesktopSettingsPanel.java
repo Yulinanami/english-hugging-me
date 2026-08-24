@@ -131,7 +131,6 @@ public final class DesktopSettingsPanel {
 
         // 为卡片式设置页面提供舒适的默认阅读空间，窗口仍可由用户自由缩放。
         Scene scene = new Scene(root, 720, 600);
-        DesktopUi.applyStylesheet(scene);
         stage.setScene(scene);
         return stage;
     }

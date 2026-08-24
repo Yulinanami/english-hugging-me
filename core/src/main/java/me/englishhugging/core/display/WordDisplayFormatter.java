@@ -65,10 +65,7 @@ public final class WordDisplayFormatter {
             return Collections.emptyList();
         }
 
-        DisplayMode safeMode = DisplayMode.WORD_WITH_TRANSLATION;
-        if (displayMode != null) {
-            safeMode = displayMode;
-        }
+        DisplayMode safeMode = displayMode != null ? displayMode : DisplayMode.WORD_WITH_TRANSLATION;
 
         List<WordDisplaySegment> segments = new ArrayList<>();
         

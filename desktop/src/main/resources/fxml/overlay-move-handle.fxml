@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.shape.Circle?>
+
+<StackPane xmlns="http://javafx.com/javafx/21"
+           xmlns:fx="http://javafx.com/fxml/1"
+           stylesheets="@../styles/overlay.css"
+           pickOnBounds="true"
+           styleClass="move-handle">
+    <children>
+        <GridPane alignment="CENTER" hgap="4.0" vgap="4.0">
+            <children>
+                <Circle radius="2.0" styleClass="move-handle-dot" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                <Circle radius="2.0" styleClass="move-handle-dot" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                <Circle radius="2.0" styleClass="move-handle-dot" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                <Circle radius="2.0" styleClass="move-handle-dot" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                <Circle radius="2.0" styleClass="move-handle-dot" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                <Circle radius="2.0" styleClass="move-handle-dot" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            </children>
+        </GridPane>
+    </children>
+</StackPane>

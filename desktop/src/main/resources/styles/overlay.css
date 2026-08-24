@@ -1,0 +1,87 @@
+/*
+ * 悬浮窗、控制手柄与系统托盘菜单专用样式表。
+ * 将视图样式与排版完全从 Java 业务代码中剥离。
+ */
+
+/* 悬浮窗主体黑底半透明圆角卡片 */
+.overlay-card {
+    -fx-background-color: rgba(0, 0, 0, 0.58);
+    -fx-background-radius: 18;
+    -fx-padding: 14 22 14 22;
+}
+
+/* 悬浮窗富文本排版流 */
+.overlay-text-flow {
+    -fx-font-family: "Microsoft YaHei UI", "Microsoft YaHei", "SimSun";
+}
+
+/* 移动控制柄容器 */
+.move-handle {
+    -fx-background-color: rgba(255, 255, 255, 0.01);
+    -fx-cursor: move;
+    -fx-min-width: 42px;
+    -fx-min-height: 42px;
+    -fx-pref-width: 42px;
+    -fx-pref-height: 42px;
+    -fx-max-width: 42px;
+    -fx-max-height: 42px;
+}
+
+/* 移动把手的点阵圆点 */
+.move-handle-dot {
+    -fx-fill: rgba(255, 255, 255, 0.72);
+}
+
+/* 缩放控制柄容器 */
+.resize-handle {
+    -fx-background-color: rgba(255, 255, 255, 0.01);
+    -fx-cursor: se-resize;
+    -fx-min-width: 42px;
+    -fx-min-height: 42px;
+    -fx-pref-width: 42px;
+    -fx-pref-height: 42px;
+    -fx-max-width: 42px;
+    -fx-max-height: 42px;
+}
+
+/* 缩放把手斜条纹 */
+.resize-handle-line {
+    -fx-stroke: rgba(255, 255, 255, 0.68);
+    -fx-stroke-width: 1.4;
+}
+
+/* 系统托盘弹出菜单容器 */
+.tray-menu {
+    -fx-background-color: rgba(255, 255, 255, 0.98);
+    -fx-background-radius: 9;
+    -fx-border-color: #DADDE3;
+    -fx-border-width: 1;
+    -fx-border-radius: 9;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.18), 18, 0, 0, 6);
+    -fx-font-family: "Microsoft YaHei UI", "Microsoft YaHei", "SimSun";
+    -fx-font-size: 13px;
+    -fx-padding: 6 0 6 0;
+}
+
+/* 托盘菜单项 */
+.tray-menu-item {
+    -fx-text-fill: #1F2328;
+    -fx-background-radius: 6;
+    -fx-min-width: 132px;
+    -fx-min-height: 30px;
+    -fx-padding: 7 18 7 18;
+    -fx-cursor: hand;
+}
+
+.tray-menu-item:hover {
+    -fx-background-color: #F3F6FA;
+    -fx-text-fill: #1F2328;
+}
+
+/* 托盘菜单分割线 */
+.tray-menu-separator {
+    -fx-background-color: #E5E7EB;
+    -fx-pref-height: 1px;
+    -fx-min-height: 1px;
+    -fx-max-height: 1px;
+}

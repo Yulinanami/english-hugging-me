@@ -5,6 +5,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Spinner?>
+<?import javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.VBox?>
 
@@ -35,10 +36,18 @@
                                 <ColorPicker fx:id="phraseColor" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
                                 <Label text="单词字号：" GridPane.columnIndex="0" GridPane.rowIndex="4" />
-                                <Spinner fx:id="wordFontSize" editable="true" prefWidth="92.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                                <Spinner fx:id="wordFontSize" editable="true" prefWidth="92.0" GridPane.columnIndex="1" GridPane.rowIndex="4">
+                                    <valueFactory>
+                                        <SpinnerValueFactory.IntegerSpinnerValueFactory min="16" max="72" />
+                                    </valueFactory>
+                                </Spinner>
 
                                 <Label text="释义字号：" GridPane.columnIndex="0" GridPane.rowIndex="5" />
-                                <Spinner fx:id="detailFontSize" editable="true" prefWidth="92.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                                <Spinner fx:id="detailFontSize" editable="true" prefWidth="92.0" GridPane.columnIndex="1" GridPane.rowIndex="5">
+                                    <valueFactory>
+                                        <SpinnerValueFactory.IntegerSpinnerValueFactory min="12" max="60" />
+                                    </valueFactory>
+                                </Spinner>
                             </children>
                         </GridPane>
                     </body>

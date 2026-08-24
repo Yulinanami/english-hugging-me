@@ -55,6 +55,11 @@ public enum PlaybackMode {
         return this.label;
     }
 
+    @Override
+    public String toString() {
+        return this.label;
+    }
+
     /**
      * 获取所有的可用播放模式中文标签，便于绑定到 UI 下拉菜单。
      *

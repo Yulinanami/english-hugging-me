@@ -8,6 +8,7 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.cell.PropertyValueFactory?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
@@ -65,11 +66,31 @@
                                            prefHeight="200.0"
                                            VBox.vgrow="ALWAYS">
                                     <columns>
-                                        <TableColumn fx:id="wordColumn" text="单词" prefWidth="120.0" />
-                                        <TableColumn fx:id="meaningColumn" text="释义" prefWidth="120.0" />
-                                        <TableColumn fx:id="phraseColumn" text="词组" prefWidth="100.0" />
-                                        <TableColumn fx:id="phraseMeaningColumn" text="词组意思" prefWidth="100.0" />
-                                        <TableColumn fx:id="exampleColumn" text="例句" prefWidth="120.0" />
+                                        <TableColumn text="单词" prefWidth="120.0">
+                                            <cellValueFactory>
+                                                <PropertyValueFactory property="word" />
+                                            </cellValueFactory>
+                                        </TableColumn>
+                                        <TableColumn text="释义" prefWidth="120.0">
+                                            <cellValueFactory>
+                                                <PropertyValueFactory property="meaning" />
+                                            </cellValueFactory>
+                                        </TableColumn>
+                                        <TableColumn text="词组" prefWidth="100.0">
+                                            <cellValueFactory>
+                                                <PropertyValueFactory property="phrase" />
+                                            </cellValueFactory>
+                                        </TableColumn>
+                                        <TableColumn text="词组意思" prefWidth="100.0">
+                                            <cellValueFactory>
+                                                <PropertyValueFactory property="phraseMeaning" />
+                                            </cellValueFactory>
+                                        </TableColumn>
+                                        <TableColumn text="例句" prefWidth="120.0">
+                                            <cellValueFactory>
+                                                <PropertyValueFactory property="example" />
+                                            </cellValueFactory>
+                                        </TableColumn>
                                     </columns>
                                 </TableView>
                                 <HBox spacing="8.0">

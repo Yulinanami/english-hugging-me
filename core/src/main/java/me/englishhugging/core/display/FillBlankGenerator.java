@@ -57,11 +57,7 @@ public final class FillBlankGenerator {
      */
     public BlankResult generateBlanked(String word) {
         if (word == null || word.isEmpty()) {
-            String safeWord = "";
-            if (word != null) {
-                safeWord = word;
-            }
-            return new BlankResult(safeWord, Collections.emptyList());
+            return new BlankResult("", Collections.emptyList());
         }
 
         // 1. 扫描出所有合法的、能够被挖空的字母位置下标

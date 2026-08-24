@@ -65,9 +65,6 @@ final class PlaybackRecordsTab {
             return;
         }
         this.recordsBox.getChildren().clear();
-        this.recordsBox.getChildren().add(
-                new Label("记录各词汇本当前顺序位置和随机播放数量。")
-        );
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
             String key = VocabularyCatalog.BASE_DIRECTORY + "/" + item.fileName();
             this.recordsBox.getChildren().add(new Label(

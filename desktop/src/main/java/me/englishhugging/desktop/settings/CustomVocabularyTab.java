@@ -6,10 +6,8 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
-import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.control.cell.PropertyValueFactory;
 import me.englishhugging.core.model.Phrase;
 import me.englishhugging.core.model.Translation;
 import me.englishhugging.core.model.WordEntry;
@@ -43,16 +41,6 @@ final class CustomVocabularyTab {
     private TextField customExample;
     @FXML
     private TableView<WordItem> tableView;
-    @FXML
-    private TableColumn<WordItem, String> wordColumn;
-    @FXML
-    private TableColumn<WordItem, String> meaningColumn;
-    @FXML
-    private TableColumn<WordItem, String> phraseColumn;
-    @FXML
-    private TableColumn<WordItem, String> phraseMeaningColumn;
-    @FXML
-    private TableColumn<WordItem, String> exampleColumn;
 
     CustomVocabularyTab(Runnable onVocabularyChanged) {
         this.onVocabularyChanged = onVocabularyChanged;
@@ -63,16 +51,9 @@ final class CustomVocabularyTab {
         return DesktopUi.loadFxml("/fxml/custom-vocabulary.fxml", this);
     }
 
-    /** FXML 字段注入完成后配置表格列并读取现有自定义词汇。 */
+    /** FXML 字段注入完成后绑定数据源并读取现有自定义词汇。 */
     @FXML
     private void initialize() {
-        this.wordColumn.setCellValueFactory(new PropertyValueFactory<>("word"));
-        this.meaningColumn.setCellValueFactory(new PropertyValueFactory<>("meaning"));
-        this.phraseColumn.setCellValueFactory(new PropertyValueFactory<>("phrase"));
-        this.phraseMeaningColumn.setCellValueFactory(
-                new PropertyValueFactory<>("phraseMeaning")
-        );
-        this.exampleColumn.setCellValueFactory(new PropertyValueFactory<>("example"));
         this.tableView.setItems(this.wordItems);
         loadCustomWords();
     }

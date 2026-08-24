@@ -1,15 +1,11 @@
 package me.englishhugging.desktop.overlay;
 
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
+import javafx.fxml.FXML;
 import javafx.scene.Scene;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -22,6 +18,7 @@ import me.englishhugging.core.model.WordEntry;
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.core.settings.OverlayMode;
 import me.englishhugging.desktop.settings.DesktopSettingsStore;
+import me.englishhugging.desktop.ui.DesktopUi;
 
 import java.util.UUID;
 
@@ -73,6 +70,7 @@ public final class DesktopOverlayController {
     
     // 主悬浮窗根布局与富文本流
     private StackPane overlayRoot;
+    @FXML
     private TextFlow wordFlow;
     
     // 当前正在屏幕上驻留的词条数据模型
@@ -89,10 +87,10 @@ public final class DesktopOverlayController {
     private double resizeStartHeight;
 
     /**
-     * 构造控制器实例。
+     * 构建桌面悬浮窗控制器。
      *
-     * @param settings      包含所有 UI 尺寸、颜色偏好的运行时配置
-     * @param settingsStore 用于落地修改（如缩放、拖拽后的状态）的持久化存储
+     * @param settings      全局设置快照引用
+     * @param settingsStore 设置存储服务
      */
     public DesktopOverlayController(AppSettings settings, DesktopSettingsStore settingsStore) {
         this.settings = settings;
@@ -207,13 +205,8 @@ public final class DesktopOverlayController {
         stage.setY(this.settings.getY());
         stage.setOpacity(this.settings.getOpacity());
 
-        this.wordFlow = new TextFlow();
-        this.wordFlow.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        this.overlayRoot = DesktopUi.loadFxml("/fxml/overlay-window.fxml", this);
         renderMessage("正在加载...");
-
-        this.overlayRoot = new StackPane(this.wordFlow);
-        this.overlayRoot.setPadding(new Insets(14, 22, 14, 22));
-        this.overlayRoot.setStyle("-fx-background-color: rgba(0,0,0,0.58); -fx-background-radius: 18;");
         
         // 防止文本把窗口无限制地撑大，动态绑定其内部最大尺寸到外层窗口
         this.wordFlow.maxWidthProperty().bind(this.overlayRoot.widthProperty().subtract(60));
@@ -267,7 +260,7 @@ public final class DesktopOverlayController {
         stage.setTitle(this.moveHandleTitle);
         stage.setAlwaysOnTop(true);
 
-        StackPane moveHandle = createMoveHandleNode();
+        StackPane moveHandle = DesktopUi.loadFxml("/fxml/overlay-move-handle.fxml");
         
         moveHandle.setOnMousePressed(event -> {
             this.moveHandleDragOffsetX = this.overlayStage.getX() - event.getScreenX();
@@ -309,32 +302,6 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 用 JavaFX 画布绘制移动把手的内部图形（3行2列的半透明白点）。
-     */
-    private StackPane createMoveHandleNode() {
-        GridPane dots = new GridPane();
-        dots.setHgap(4);
-        dots.setVgap(4);
-        dots.setAlignment(Pos.CENTER);
-        
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 2; col++) {
-                dots.add(new Circle(2, Color.rgb(255, 255, 255, 0.72)), col, row);
-            }
-        }
-        
-        StackPane handle = new StackPane(dots);
-        handle.setPickOnBounds(true);
-        handle.setMinSize(MOVE_HANDLE_SIZE, MOVE_HANDLE_SIZE);
-        handle.setPrefSize(MOVE_HANDLE_SIZE, MOVE_HANDLE_SIZE);
-        handle.setMaxSize(MOVE_HANDLE_SIZE, MOVE_HANDLE_SIZE);
-        // 背景设置为万分之一不透明度，骗过底层鼠标点击检测
-        handle.setStyle("-fx-background-color: rgba(255,255,255,0.01); -fx-cursor: move;");
-        
-        return handle;
-    }
-
-    /**
      * 内部构建逻辑：创建右下角的独立微型缩放舞台。
      */
     private Stage createResizeHandleStage() {
@@ -343,7 +310,7 @@ public final class DesktopOverlayController {
         stage.setTitle(this.resizeHandleTitle);
         stage.setAlwaysOnTop(true);
 
-        Pane resizeHandle = createResizeHandleNode();
+        Pane resizeHandle = DesktopUi.loadFxml("/fxml/overlay-resize-handle.fxml");
         
         resizeHandle.setOnMousePressed(event -> {
             this.resizeStartScreenX = event.getScreenX();
@@ -377,27 +344,6 @@ public final class DesktopOverlayController {
         stage.setScene(scene);
         
         return stage;
-    }
-
-    /**
-     * 绘制右下角缩放把手的小三角形条纹纹理。
-     */
-    private Pane createResizeHandleNode() {
-        Pane handle = new Pane();
-        handle.setPickOnBounds(true);
-        handle.setMinSize(RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
-        handle.setPrefSize(RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
-        handle.setMaxSize(RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
-        handle.setStyle("-fx-background-color: rgba(255,255,255,0.01); -fx-cursor: se-resize;");
-        
-        for (int i = 0; i < 3; i++) {
-            Line line = new Line(23 + i * 4, 36, 36, 23 + i * 4);
-            line.setStroke(Color.rgb(255, 255, 255, 0.68));
-            line.setStrokeWidth(1.4);
-            handle.getChildren().add(line);
-        }
-        
-        return handle;
     }
 
     /**

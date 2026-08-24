@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.shape.Line?>
+
+<Pane xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      stylesheets="@../styles/overlay.css"
+      pickOnBounds="true"
+      styleClass="resize-handle">
+    <children>
+        <Line startX="23.0" startY="36.0" endX="36.0" endY="23.0" styleClass="resize-handle-line" />
+        <Line startX="27.0" startY="36.0" endX="36.0" endY="27.0" styleClass="resize-handle-line" />
+        <Line startX="31.0" startY="36.0" endX="36.0" endY="31.0" styleClass="resize-handle-line" />
+    </children>
+</Pane>

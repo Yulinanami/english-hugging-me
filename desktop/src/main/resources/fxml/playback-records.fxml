@@ -18,7 +18,12 @@
                         <Label text="播放记录" styleClass="settings-card-title" />
                     </header>
                     <body>
-                        <VBox fx:id="recordsBox" spacing="6.0" />
+                        <VBox spacing="6.0">
+                            <children>
+                                <Label text="记录各词汇本当前顺序位置和随机播放数量。" />
+                                <VBox fx:id="recordsBox" spacing="6.0" />
+                            </children>
+                        </VBox>
                     </body>
                 </Card>
                 <Button text="清除所有记录"

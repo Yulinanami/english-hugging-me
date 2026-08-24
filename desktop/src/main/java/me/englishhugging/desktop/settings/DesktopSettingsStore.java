@@ -96,11 +96,7 @@ public final class DesktopSettingsStore {
         @Override
         public boolean getBoolean(String key, boolean defaultValue) {
             String value = this.p.getProperty(key);
-            if (value != null) {
-                return Boolean.parseBoolean(value);
-            } else {
-                return defaultValue;
-            }
+            return value != null ? Boolean.parseBoolean(value) : defaultValue;
         }
 
         @Override

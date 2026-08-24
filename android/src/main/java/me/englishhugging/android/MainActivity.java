@@ -8,6 +8,8 @@ import android.view.ViewGroup;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.google.android.material.button.MaterialButton;
 
@@ -182,21 +184,14 @@ public final class MainActivity extends ComponentActivity {
         }
     }
 
-    @SuppressWarnings("deprecation")
     /**
      * 让状态栏、导航栏及其图标跟随系统浅色/深色模式。
-     *
-     * <p>颜色来自普通 {@code values} 或 {@code values-night} 资源，图标明暗则由
-     * {@code light_system_bars} 布尔资源决定。</p>
      */
     private void styleSystemBars() {
-        getWindow().setStatusBarColor(getColor(R.color.page_background));
-        getWindow().setNavigationBarColor(getColor(R.color.page_background));
-        int systemUiVisibility = 0;
-        if (getResources().getBoolean(R.bool.light_system_bars)) {
-            systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                    | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-        }
-        getWindow().getDecorView().setSystemUiVisibility(systemUiVisibility);
+        boolean isLight = getResources().getBoolean(R.bool.light_system_bars);
+        WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        controller.setAppearanceLightStatusBars(isLight);
+        controller.setAppearanceLightNavigationBars(isLight);
     }
 }
