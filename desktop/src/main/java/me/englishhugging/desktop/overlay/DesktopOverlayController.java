@@ -23,74 +23,82 @@ import me.englishhugging.desktop.ui.DesktopUi;
 import java.util.UUID;
 
 /**
- * 桌面端透明悬浮窗的核心控制器。
+ * 桌面端透明悬浮窗，负责在屏幕上渲染单词卡片。
  *
- * <p>这个类封装了所有 JavaFX 相关的 UI 构建逻辑，负责在屏幕上渲染透明背景的生词小卡片。
- * 它巧妙地利用了三个独立的无边框透明 {@link Stage}：一个用作主显示区，另外两个分别作为
- * “移动把手”和“缩放把手”，以此突破传统操作系统对于鼠标穿透（Click-Through）状态下无法拖拽的限制。
- * 
- * <p>所有的布局计算和刷新操作都确保安全地运行在 JavaFX 的 UI 线程（Platform.runLater）中。
+ * <p>这个类在屏幕上展示无边框的透明悬浮窗，并在右上角和右下角提供移动与调整尺寸的把手。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
- * // 初始化与展示
+ * // 初始化并显示悬浮窗
  * DesktopOverlayController overlay = new DesktopOverlayController(settings, store);
  * overlay.init();
  * 
- * // 从调度引擎接收到新单词并渲染
- * overlay.updateCurrentWord(newWordEntry);
+ * // 更新显示的单词
+ * overlay.updateCurrentWord(wordEntry);
  * </code></pre>
  */
 public final class DesktopOverlayController {
     
-    /** 独立悬浮移动把手（右上方控制柄）的固定宽高 */
+    /** 移动把手尺寸（像素） */
     private static final int MOVE_HANDLE_SIZE = 42;
     
-    /** 独立悬浮缩放把手（右下方控制柄）的固定宽高 */
+    /** 缩放把手尺寸（像素） */
     private static final int RESIZE_HANDLE_SIZE = 42;
 
-    /** 持有全局配置用于实时读取样式参数 */
+    /** 应用配置 */
     private final AppSettings settings;
     
-    /** 持有存储引擎以便在拖拽完成后即时保存最新的坐标尺寸 */
+    /** 配置存储，用于保存最新窗口坐标与尺寸 */
     private final DesktopSettingsStore settingsStore;
     
-    /** Core 模块提供的标准词条分片格式化器 */
+    /** 单词文本拆分工具 */
     private final WordDisplayFormatter wordDisplayFormatter = new WordDisplayFormatter();
     
-    // 生成随机的窗口标题以防止被恶意软件通过标题穷举捕捉
+    /** 随机生成的窗口标题，防止被外部窗口探测工具干扰 */
     private final String overlayTitle = "English Hugging Me Overlay " + UUID.randomUUID();
+    /** 移动把手窗口的专属标题 */
     private final String moveHandleTitle = "English Hugging Me Move Handle " + UUID.randomUUID();
+    /** 缩放把手窗口的专属标题 */
     private final String resizeHandleTitle = "English Hugging Me Resize Handle " + UUID.randomUUID();
 
-    // 核心 UI 窗口组件
+    /** 主悬浮窗窗口对象 */
     private Stage overlayStage;
+    /** 右上角移动把手窗口对象 */
     private Stage moveHandleStage;
+    /** 右下角缩放把手窗口对象 */
     private Stage resizeHandleStage;
     
-    // 主悬浮窗根布局与富文本流
+    /** 主悬浮窗根布局节点 */
     private StackPane overlayRoot;
+    /** 承载富文本高亮单词内容的 TextFlow 控件 */
     @FXML
     private TextFlow wordFlow;
     
-    // 当前正在屏幕上驻留的词条数据模型
+    /** 当前正在悬浮窗上显示的单词条目 */
     private WordEntry currentWord;
     
-    // 拖拽过程中的坐标偏移记录暂存器
+    /** 拖拽移动主窗口时的 X 轴鼠标偏移量（像素） */
     private double dragOffsetX;
+    /** 拖拽移动主窗口时的 Y 轴鼠标偏移量（像素） */
     private double dragOffsetY;
+    /** 拖拽移动把手时的 X 轴鼠标偏移量（像素） */
     private double moveHandleDragOffsetX;
+    /** 拖拽移动把手时的 Y 轴鼠标偏移量（像素） */
     private double moveHandleDragOffsetY;
+    /** 开始拖拽缩放时鼠标在屏幕上的起始 X 坐标（像素） */
     private double resizeStartScreenX;
+    /** 开始拖拽缩放时鼠标在屏幕上的起始 Y 坐标（像素） */
     private double resizeStartScreenY;
+    /** 开始缩放时窗口的初始宽度（像素） */
     private double resizeStartWidth;
+    /** 开始缩放时窗口的初始高度（像素） */
     private double resizeStartHeight;
 
     /**
-     * 构建桌面悬浮窗控制器。
+     * 创建桌面悬浮窗。
      *
-     * @param settings      全局设置快照引用
-     * @param settingsStore 设置存储服务
+     * @param settings      应用配置
+     * @param settingsStore 配置存储
      */
     public DesktopOverlayController(AppSettings settings, DesktopSettingsStore settingsStore) {
         this.settings = settings;
@@ -98,7 +106,7 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 初始化三个透明窗口，并建立它们之间的绑定与同步联动关系。
+     * 初始化悬浮窗及控制把手。
      */
     public void init() {
         this.overlayStage = createOverlayStage();
@@ -109,16 +117,16 @@ public final class DesktopOverlayController {
         this.moveHandleStage.show();
         this.resizeHandleStage.show();
         
-        // 调用底层的 JNI/JNA 代码让这些窗口彻底从 Windows 的 Alt-Tab 任务栏和应用列表中消失
+        // 隐藏在任务栏和 Alt-Tab 中的图标
         WindowsClickThrough.hideFromTaskbar(this.overlayStage);
         
-        // 初次同步把手位置并应用交互穿透模式
+        // 同步把手位置并应用交互模式
         syncControlHandlePositions();
         applyOverlayMode();
     }
 
     /**
-     * 安全地销毁并释放所有相关的底层窗口资源。
+     * 关闭并释放所有窗口资源。
      */
     public void close() {
         if (this.moveHandleStage != null) {
@@ -133,16 +141,18 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 获取主显示窗口的引用，用于更高级别的生命周期控制。
+     * 获取悬浮窗窗口对象。
+     *
+     * @return 悬浮窗窗口对象
      */
     public Stage getOverlayStage() {
         return this.overlayStage;
     }
 
     /**
-     * 更新当前悬浮窗展示的内容为一枚全新的标准单词。
+     * 更新悬浮窗中显示的单词。
      *
-     * @param wordEntry 将被显示的单词实体模型
+     * @param wordEntry 要显示的单词条目
      */
     public void updateCurrentWord(WordEntry wordEntry) {
         this.currentWord = wordEntry;
@@ -163,7 +173,7 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 将当前配置的“鼠标穿透”还是“可拖拽”交互模式应用到底层 Windows 系统 API。
+     * 将当前配置的“鼠标穿透”还是“可拖拽”交互模式应用到 Windows 窗口。
      */
     public void applyOverlayMode() {
         boolean isClickThrough = this.settings.getOverlayMode() == OverlayMode.CLICK_THROUGH;
@@ -171,10 +181,10 @@ public final class DesktopOverlayController {
         // 在 JavaFX 层面禁止接收事件
         this.overlayRoot.setMouseTransparent(isClickThrough);
         
-        // 在 Windows 操作系统底层注入 WS_EX_TRANSPARENT 以实现绝对的鼠标穿透
+        // 设置 Windows 窗口样式 WS_EX_TRANSPARENT 实现鼠标穿透
         WindowsClickThrough.apply(this.overlayStage, isClickThrough);
         
-        // 模式切换时重新对齐悬浮把手
+        // 模式切换时同步调整缩放把手位置
         syncControlHandlePositions();
     }
 
@@ -193,9 +203,9 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 内部构建逻辑：创建占据大面积的主透明黑底显示窗口。
+     * 创建主透明悬浮窗窗口。
      *
-     * @return 初始化的主 Stage
+     * @return 主窗口对象
      */
     private Stage createOverlayStage() {
         Stage stage = new Stage(StageStyle.TRANSPARENT);
@@ -208,7 +218,7 @@ public final class DesktopOverlayController {
         this.overlayRoot = DesktopUi.loadFxml("/fxml/overlay-window.fxml", this);
         renderMessage("正在加载...");
         
-        // 防止文本把窗口无限制地撑大，动态绑定其内部最大尺寸到外层窗口
+        // 限制文本最大尺寸随窗口大小自适应
         this.wordFlow.maxWidthProperty().bind(this.overlayRoot.widthProperty().subtract(60));
         this.wordFlow.maxHeightProperty().bind(this.overlayRoot.heightProperty().subtract(40));
 
@@ -249,10 +259,9 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 内部构建逻辑：创建一个完全独立于主窗口的微型透明舞台，里面画着几个小圆点表示“把手”。
-     * 这个把手永远不受主窗口鼠标穿透的影响，所以任何时候都能拖拽。
+     * 创建右上角的移动把手窗口。该把手独立于主窗口，不受鼠标穿透影响，任何时候都可以拖拽移动。
      *
-     * @return 独立移动控制 Stage
+     * @return 移动把手窗口对象
      */
     private Stage createMoveHandleStage() {
         Stage stage = new Stage(StageStyle.TRANSPARENT);
@@ -268,7 +277,7 @@ public final class DesktopOverlayController {
             event.consume();
         });
         
-        // 拖拽控制把手时，同步修改和驱动主窗口的位移
+        // 拖拽把手时，同步移动主悬浮窗并更新配置中的坐标
         moveHandle.setOnMouseDragged(event -> {
             double nextX = event.getScreenX() + this.moveHandleDragOffsetX;
             double nextY = event.getScreenY() + this.moveHandleDragOffsetY;
@@ -282,7 +291,7 @@ public final class DesktopOverlayController {
             event.consume();
         });
         
-        // 松手时将坐标持久化到本地文件
+        // 松手时将坐标保存到本地文件
         moveHandle.setOnMouseReleased(event -> {
             this.settingsStore.save(this.settings);
             event.consume();
@@ -292,7 +301,7 @@ public final class DesktopOverlayController {
         scene.setFill(Color.TRANSPARENT);
         stage.setScene(scene);
 
-        // 如果主窗口由于代码原因发生了尺寸变化，通过监听器让把手紧随其后移动
+        // 悬浮窗尺寸发生变化时，同步移动缩放把手位置
         this.overlayStage.xProperty().addListener((o, ov, nv) -> syncControlHandlePositions());
         this.overlayStage.yProperty().addListener((o, ov, nv) -> syncControlHandlePositions());
         this.overlayStage.widthProperty().addListener((o, ov, nv) -> syncControlHandlePositions());
@@ -302,7 +311,7 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 内部构建逻辑：创建右下角的独立微型缩放舞台。
+     * 创建右下角的缩放把手窗口。
      */
     private Stage createResizeHandleStage() {
         Stage stage = new Stage(StageStyle.TRANSPARENT);
@@ -320,7 +329,7 @@ public final class DesktopOverlayController {
             event.consume();
         });
         
-        // 拖拽右下角的控制柄时，根据鼠标移动的距离差增减主舞台的宽和高
+        // 拖拽右下角把手时，根据鼠标移动的距离调整悬浮窗的宽和高
         resizeHandle.setOnMouseDragged(event -> {
             double nextWidth = Math.max(260, this.resizeStartWidth + event.getScreenX() - this.resizeStartScreenX);
             double nextHeight = Math.max(80, this.resizeStartHeight + event.getScreenY() - this.resizeStartScreenY);
@@ -347,7 +356,7 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 核心对齐算法：不论主窗口被拖拉到哪里，两个独立的把手都会如同吸铁石一般紧紧黏附在它的右上和右下角。
+     * 同步移动把手和缩放把手的位置，使其始终贴合主悬浮窗的右上角和右下角。
      */
     private void syncControlHandlePositions() {
         if (this.overlayStage == null) {
@@ -366,7 +375,9 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 将从 Core 模型下发的单词，通过配置设定的颜色、字号将其映射为一组五彩斑斓的 JavaFX 文本块。
+     * 根据设置的颜色和字号，将单词各部分渲染到界面上。
+     *
+     * @param wordEntry 要渲染的单词条目
      */
     private void renderWord(WordEntry wordEntry) {
         this.wordFlow.getChildren().clear();
@@ -385,15 +396,14 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 在填空考核阶段专用的渲染通道，支持隐去提示信息和展示带有下划线的半成单词。
+     * 渲染正在进行填空测试的单词。
      *
-     * @param displayWord     包含底线的需要展示的词
-     * @param originalEntry   关联的原始参考模型
-     * @param hidePhrases     当前状态机的参数是否要求抹除例句
-     * @param hideTranslation 当前状态机参数是否要求抹除翻译
+     * @param displayWord     当前填空状态下的单词字符串（包含挖空下划线）
+     * @param originalEntry   原始单词条目
+     * @param hidePhrases     是否隐藏例句短语
+     * @param hideTranslation 是否隐藏中文释义
      */
     public void updateFillBlankWord(String displayWord, WordEntry originalEntry, boolean hidePhrases, boolean hideTranslation) {
-        // 利用原始属性组合成一个虚假的填空模型去欺骗 Formatter 渲染颜色分片
         WordEntry tempEntry = new WordEntry(displayWord, originalEntry.translations(), originalEntry.phrases());
         this.wordFlow.getChildren().clear();
         
@@ -413,7 +423,7 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 单纯地展示一行普通的提示信息（例如错误、或者正在加载）。
+     * 在悬浮窗中展示一行提示文本（如错误提示或加载中）。
      */
     private void renderMessage(String message) {
         this.wordFlow.getChildren().clear();
@@ -421,12 +431,12 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * JavaFX 文本拼接小工具。
+     * 向 TextFlow 中追加一段带样式的文本。
      *
-     * @param value      需要被绘制的文字字符串
-     * @param color      十六进制的颜色码（如 "#FFFFFF"）
-     * @param fontSize   绝对字号
-     * @param fontWeight 字重枚举
+     * @param value      显示的文字内容
+     * @param color      十六进制颜色值（如 "#FFFFFF"）
+     * @param fontSize   字号大小（像素）
+     * @param fontWeight 字体加粗样式
      */
     private void appendText(String value, String color, int fontSize, FontWeight fontWeight) {
         Text text = new Text(value);
@@ -436,8 +446,7 @@ public final class DesktopOverlayController {
     }
 
     /**
-     * 根据当前 TextFlow 渲染的内容块高度，自动伸缩外壳 Stage，防止底部截断。
-     * 所有的运算和 Stage 高度修改必须强制推入主线程的渲染队列中执行。
+     * 根据文本实际高度自动调整悬浮窗高度，防止文本被底部截断。
      */
     private void ensureOverlayFitsText() {
         Platform.runLater(() -> {

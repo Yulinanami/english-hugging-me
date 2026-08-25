@@ -13,15 +13,30 @@ import me.englishhugging.desktop.ui.DesktopUi;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** 播放记录 FXML 页面的内容刷新和清除操作控制器。 */
+/**
+ * 桌面端“学习记录”页面，展示各词库的背诵进度与清除记录功能。
+ *
+ * <p>用户可以在此查看每个词库已播放的单词数，并支持一键重置所有进度。
+ */
 final class PlaybackRecordsTab {
+    /** 应用配置 */
     private final AppSettings settings;
+    /** 配置存储 */
     private final DesktopSettingsStore settingsStore;
+    /** 词库设置页面，用于查询当前选中的词库 */
     private final VocabularySettingsTab vocabularySettingsTab;
 
+    /** 记录列表垂直布局 */
     @FXML
     private VBox recordsBox;
 
+    /**
+     * 创建学习记录页面。
+     *
+     * @param settings              应用配置
+     * @param settingsStore         配置存储
+     * @param vocabularySettingsTab 词库设置页面
+     */
     PlaybackRecordsTab(
             AppSettings settings,
             DesktopSettingsStore settingsStore,
@@ -32,18 +47,26 @@ final class PlaybackRecordsTab {
         this.vocabularySettingsTab = vocabularySettingsTab;
     }
 
-    /** 加载由 FXML 声明的播放记录页面。 */
+    /**
+     * 加载学习记录界面。
+     *
+     * @return 学习记录界面的根节点
+     */
     Node createContent() {
         return DesktopUi.loadFxml("/fxml/playback-records.fxml", this);
     }
 
-    /** FXML 字段注入完成后展示当前播放记录。 */
+    /**
+     * 初始化界面，加载并显示播放记录。
+     */
     @FXML
     private void initialize() {
         refresh();
     }
 
-    /** 二次确认后清除所有词库的播放记录。 */
+    /**
+     * 弹窗确认后清除所有词库的播放记录。
+     */
     @FXML
     private void clearRecords() {
         Alert alert = new Alert(
@@ -60,6 +83,9 @@ final class PlaybackRecordsTab {
         });
     }
 
+    /**
+     * 重新读取各词库进度并更新列表显示。
+     */
     void refresh() {
         if (this.recordsBox == null) {
             return;

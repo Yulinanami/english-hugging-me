@@ -14,16 +14,15 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * 桌面端的本地配置存储引擎。
+ * 桌面端本地配置与自定义生词存储工具。
  *
- * <p>这个类是桌面端持久化的核心。它内部实现了一个基于 Java {@link Properties} 文件的 {@link SettingsStorage}，
- * 用于在用户的主目录下以文本文件的形式读写全局的配置参数以及自定义的生词本。
+ * <p>负责将应用设置与自定义生词保存到用户家目录下的配置文件中。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
  * DesktopSettingsStore store = new DesktopSettingsStore();
  * 
- * // 启动时加载最新的持久化数据到内存
+ * // 启动时加载本地保存的配置数据
  * AppSettings settings = store.load();
  * 
  * // 追加一个用户手敲的自定义单词
@@ -45,19 +44,22 @@ public final class DesktopSettingsStore {
      * 默认构造函数。
      */
     public DesktopSettingsStore() {
-        // 留空，通过内部类桥接读写逻辑
+        // 无需额外初始化
     }
 
     /**
-     * 私有的本地持久化实现，它扮演了 Core 模块中抽象的 {@link SettingsStorage} 角色。
+     * 基于 Java Properties 属性文件的键值对存储实现。
+     * 把通用设置接口的操作保存到本地的 .properties 文件中。
      */
     private static class PropertiesStorage implements SettingsStorage {
         
+        /** Properties 属性集合对象 */
         private final Properties p;
+        /** 标记是否有尚未保存到硬盘的修改 */
         private boolean modified = false;
 
         /**
-         * 初始化物理存储。如果本地文件存在则预先加载它。
+         * 初始化本地属性存储。如果文件存在则预先读取内容。
          */
         PropertiesStorage() {
             this.p = new Properties();
@@ -65,7 +67,7 @@ public final class DesktopSettingsStore {
                 try (InputStreamReader reader = new InputStreamReader(new FileInputStream(SETTINGS_FILE), StandardCharsets.UTF_8)) {
                     this.p.load(reader);
                 } catch (IOException ignored) {
-                    // 读取失败时忽略，将其视为一张白纸
+                    // 读取失败时忽略，视为空白配置
                 }
             }
         }
@@ -147,82 +149,81 @@ public final class DesktopSettingsStore {
             try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(SETTINGS_FILE), StandardCharsets.UTF_8)) {
                 this.p.store(writer, "English Hugging Me Settings");
             } catch (IOException ignored) {
-                // 如果写入磁盘被拒绝或发生 IO 异常，暂且丢弃本次落盘
+                // 保存失败时静默忽略
             }
             this.modified = false;
         }
     }
 
     /**
-     * 将整个应用配置反序列化到内存。
+     * 从本地配置文件中加载全部应用设置。
      *
-     * @return 最新的配置实例
+     * @return 包含当前所有配置项的 AppSettings 实例
      */
     public AppSettings load() {
         return SettingsMapper.load(new PropertiesStorage());
     }
 
     /**
-     * 将整个应用配置序列化落盘。
+     * 将应用设置写入本地配置文件保存。
      *
-     * @param settings 更新后的配置实例
+     * @param settings 待保存的应用设置对象
      */
     public void save(AppSettings settings) {
         SettingsMapper.save(new PropertiesStorage(), settings);
     }
 
     /**
-     * 从持久化文件中提取某一个专属词库的当前进度。
+     * 从本地存储中读取指定词库的历史背诵进度。
      *
-     * @param settings      需要被注入进度的目标配置对象
-     * @param vocabularyKey 词库的唯一标识（通常是文件名）
+     * @param settings      接收进度的配置对象
+     * @param vocabularyKey 词库文件名或标识
      */
     public void loadPlaybackProgress(AppSettings settings, String vocabularyKey) {
         SettingsMapper.loadPlaybackProgress(new PropertiesStorage(), settings, vocabularyKey);
     }
 
     /**
-     * 仅将某个词库对应的进度保存至磁盘。
+     * 将指定词库当前的背诵进度保存到本地。
      *
-     * @param settings      作为数据源的配置对象
-     * @param vocabularyKey 词库唯一标识
+     * @param settings      包含最新进度的配置对象
+     * @param vocabularyKey 词库文件名或标识
      */
     public void savePlaybackProgress(AppSettings settings, String vocabularyKey) {
         SettingsMapper.savePlaybackProgress(new PropertiesStorage(), settings, vocabularyKey);
     }
 
     /**
-     * 销毁所有词库产生的播放记录快照。
+     * 清除本地记录的所有词库的背诵进度。
      */
     public void clearAllPlaybackProgress() {
         SettingsMapper.clearAllPlaybackProgress(new PropertiesStorage());
     }
 
     /**
-     * 生成包含所有可用词库历史进度摘要的文本行数组，用于在 UI 的记录面板展示。
+     * 获取所有词库的背诵进度总结文本，供设置界面的“播放记录”面板展示。
      *
-     * @return 多行进度字符串
+     * @return 包含每本词库学习进度的一组文本行
      */
     public String[] playbackRecordLines() {
         return SettingsMapper.playbackRecordLines(new PropertiesStorage(), hasCustomVocabulary());
     }
 
     /**
-     * 获取单一词库的一句进度描述。
+     * 获取单个词库的一行背诵进度描述。
      *
-     * @param vocabularyKey 词库文件键名
-     * @param label         展示的中文别名标签
-     * @return 一行进度总结
+     * @param vocabularyKey 词库文件名
+     * @param label         词库显示名称
+     * @return 一行进度描述文字
      */
     public String playbackRecordLine(String vocabularyKey, String label) {
         return SettingsMapper.playbackRecordLine(new PropertiesStorage(), vocabularyKey, label);
     }
 
     /**
-     * 加载当前桌面系统的自定义生词本文件。
-     * 如果文件破损或不存在，将优雅地返回一个空集合。
+     * 从本地 JSON 文件加载用户自定义的生词列表。
      *
-     * @return 完整的用户自定义词汇列表
+     * @return 自定义生词列表；如果文件不存在或损坏则返回空列表
      */
     public List<WordEntry> loadCustomWords() {
         if (!CUSTOM_WORDS_FILE.exists()) {
@@ -238,10 +239,9 @@ public final class DesktopSettingsStore {
     }
 
     /**
-     * 向自定义生词本中追加一个全新的词汇并直接落地。
-     * 如果新词汇已经存在（按照拼写判断），则它会覆写掉旧的条目。
+     * 往自定义生词本中添加一个新单词。如果单词已存在（拼写相同），则覆盖旧条目。
      *
-     * @param wordEntry 要加入的新词条对象
+     * @param wordEntry 要添加的单词对象
      */
     public void appendCustomWord(WordEntry wordEntry) {
         List<WordEntry> words = loadCustomWords();
@@ -254,32 +254,32 @@ public final class DesktopSettingsStore {
     }
 
     /**
-     * 将整个自定义词汇列表写回 JSON 文件，使用美化的格式以方便用户在外部编辑器中查看。
+     * 保存完整的自定义单词列表到本地 JSON 文件中。
      *
-     * @param words 词汇列表
+     * @param words 待保存的单词列表
      */
     public void saveCustomWords(List<WordEntry> words) {
         try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(CUSTOM_WORDS_FILE), StandardCharsets.UTF_8)) {
             new GsonBuilder().setPrettyPrinting().create().toJson(words, writer);
         } catch (Exception ignored) {
-            // 如果无法打开文件流进行写入，忽略异常
+            // 保存异常时忽略
         }
     }
 
     /**
-     * 辅助判断方法：当前的文件名是否命中了约定的自定义生词本特征。
+     * 判断指定的文件名是否为“自定义词汇”。
      *
      * @param fileName 候选文件名
-     * @return 是否为自定义生词本
+     * @return 如果是自定义词库则返回 true
      */
     public boolean isCustomVocabulary(String fileName) {
         return CUSTOM_VOCABULARY_FILE_NAME.equals(fileName);
     }
 
     /**
-     * 内部辅助方法：判断用户的设备上是否真的存在非空的自定义词库文件。
+     * 检查本地是否存在非空的自定义生词本文件。
      *
-     * @return 包含内容则返回 true
+     * @return 如果存在有效生词本文件返回 true
      */
     private boolean hasCustomVocabulary() {
         return CUSTOM_WORDS_FILE.exists() && CUSTOM_WORDS_FILE.length() > 0;

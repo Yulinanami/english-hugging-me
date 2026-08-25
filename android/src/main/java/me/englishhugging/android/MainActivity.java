@@ -23,37 +23,59 @@ import me.englishhugging.android.ui.tabs.RecordsTab;
 import me.englishhugging.android.ui.tabs.SettingsTab;
 
 /**
- * Android 端唯一的 Activity 宿主。
+ * Android 手机端主界面。
  *
- * <p>页面静态结构由 XML 描述，并通过 View Binding 获取控件引用。首页、设置、记录和
- * 自定义词库仍然共用同一个 Activity；切换页面时只替换 {@code pageContainer} 内的 View，
- * 从而保留原项目轻量的单 Activity 导航方式。</p>
+ * <p>这个类作为整个手机 App 的主窗口和导航中心，负责：
+ * <ul>
+ *   <li><b>界面切换</b>：在主窗口中切换首页、设置、学习记录和自定义词库页面；</li>
+ *   <li><b>返回键处理</b>：在二级页面（如设置、词库）按返回键先回到首页，在首页再退出应用；</li>
+ *   <li><b>系统状态栏适配</b>：让手机顶部状态栏和底部导航栏颜色自适应浅色/深色主题；</li>
+ *   <li><b>权限申请</b>：在 Android 13+ 系统上动态申请通知权限，确保悬浮窗服务正常运行。</li>
+ * </ul>
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * // 在 AndroidManifest.xml 中注册为启动入口 Activity
+ * &lt;activity
+ *     android:name=".MainActivity"
+ *     android:exported="true"
+ *     android:windowSoftInputMode="adjustPan"&gt;
+ *     &lt;intent-filter&gt;
+ *         &lt;action android:name="android.intent.action.MAIN" /&gt;
+ *         &lt;category android:name="android.intent.category.LAUNCHER" /&gt;
+ *     &lt;/intent-filter&gt;
+ * &lt;/activity&gt;
+ * </code></pre>
  */
 public final class MainActivity extends ComponentActivity {
-    /** Activity 根布局生成的绑定对象。 */
+    /** Activity 布局绑定对象 */
     private ActivityMainBinding binding;
 
-    /** 少量不能静态写入 XML 的公共 UI 行为，例如图标字体和 dp 换算。 */
+    /** 界面辅助工具（图标字体、尺寸转换等） */
     private AndroidUi ui;
 
-    /** 各页面的视图绑定与业务控制器。 */
+    /** 首页页面对象 */
     private HomeTab homeTab;
+
+    /** 设置页面对象 */
     private SettingsTab settingsTab;
+
+    /** 学习记录页面对象 */
     private RecordsTab recordsTab;
+
+    /** 自定义生词页面对象 */
     private CustomVocabularyTab customVocabularyTab;
 
-    /** 二级页面启用此回调，使手机系统返回键先回首页。 */
+    /** 系统返回键回调，在子页面按返回键时返回首页 */
     private OnBackPressedCallback backToHomeCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 先加载 Activity 的 XML 外壳，页面内容随后注入 pageContainer。
         this.binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(this.binding.getRoot());
 
-        // 页面之间通过回调导航，避免页面控制器直接操作 Activity 的私有状态。
         this.ui = new AndroidUi(this);
         this.homeTab = new HomeTab(this, this.ui, this::showSettingsPage);
         this.settingsTab = new SettingsTab(this, this.ui, this::showHomePage);
@@ -98,10 +120,10 @@ public final class MainActivity extends ComponentActivity {
     }
 
     /**
-     * 用新页面替换内容容器，并统一执行淡出、替换、淡入动画。
+     * 切换主页面，并统一执行淡出、替换、淡入动画。
      *
      * @param selectedTab 当前需要高亮的底部按钮；设置页没有对应按钮时传 {@code null}
-     * @param pageFactory 延迟创建目标页面的工厂，确保旧页面退出后才加载新布局
+     * @param pageFactory 创建目标页面的回调函数，确保旧页面退出后才加载新布局
      */
     private void switchPage(MaterialButton selectedTab, Supplier<View> pageFactory) {
         Runnable replacePage = () -> {
@@ -118,7 +140,7 @@ public final class MainActivity extends ComponentActivity {
                     )
             );
 
-            // 新页面从上方轻微位移处淡入，延续原界面的切换手感。
+            // 新页面执行淡入动画并回到原位。
             this.binding.pageContainer.setTranslationY(-this.ui.dp(10));
             this.binding.pageContainer.animate()
                     .alpha(1f)
@@ -127,7 +149,7 @@ public final class MainActivity extends ComponentActivity {
                     .start();
         };
 
-        // 冷启动没有旧页面，不需要先播放退出动画。
+        // 首次进入时没有旧页面，直接显示新页面。
         if (this.binding.pageContainer.getChildCount() == 0) {
             this.binding.pageContainer.setAlpha(0f);
             this.binding.pageContainer.setTranslationY(this.ui.dp(10));
@@ -168,7 +190,7 @@ public final class MainActivity extends ComponentActivity {
         switchPage(this.binding.customVocabularyTabButton, this.customVocabularyTab::getView);
     }
 
-    /** 更新底部导航按钮的 selected 状态，颜色由 XML selector 自动处理。 */
+    /** 更新底部导航按钮的选中高亮状态。 */
     private void selectTab(MaterialButton selected) {
         this.binding.homeTabButton.setSelected(selected == this.binding.homeTabButton);
         this.binding.recordsTabButton.setSelected(selected == this.binding.recordsTabButton);
@@ -185,7 +207,9 @@ public final class MainActivity extends ComponentActivity {
     }
 
     /**
-     * 让状态栏、导航栏及其图标跟随系统浅色/深色模式。
+     * 配置系统状态栏与导航栏图标明暗。
+     *
+     * <p>根据浅色/深色主题动态切换状态栏与导航栏图标的前景色。</p>
      */
     private void styleSystemBars() {
         boolean isLight = getResources().getBoolean(R.bool.light_system_bars);

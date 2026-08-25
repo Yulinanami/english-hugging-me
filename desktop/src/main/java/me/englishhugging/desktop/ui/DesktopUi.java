@@ -5,24 +5,36 @@ import javafx.fxml.FXMLLoader;
 import java.io.IOException;
 
 /**
- * 桌面端 FXML 资源加载器。
+ * 桌面端界面文件加载工具。
  *
- * <p>视图结构与样式完全由 FXML 与 CSS 声明；Java 端仅提供标准 FXML 加载封装。</p>
+ * <p>用于加载桌面端界面布局文件，支持直接加载或绑定界面对象。
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * // 1. 直接加载界面
+ * Parent root = DesktopUi.loadFxml("/fxml/settings-panel.fxml");
+ *
+ * // 2. 加载界面并绑定对应的页面对象
+ * GeneralSettingsTab tab = new GeneralSettingsTab(settings, store, overlay, () -> {}, () -> {});
+ * Node content = DesktopUi.loadFxml("/fxml/general-settings.fxml", tab);
+ * </code></pre>
  */
 public final class DesktopUi {
 
     /**
-     * 阻止工具类被实例化。
+     * 私有构造函数，无需实例化。
      */
     private DesktopUi() {
         // 无需实例化
     }
 
     /**
-     * 加载无独立控制器的 FXML 视图（直接调用 JavaFX 官方静态加载器）。
+     * 加载无需外部依赖的界面文件。
      *
-     * @param resourcePath classpath 中的 FXML 资源路径
-     * @return FXML 根节点
+     * @param <T>          返回的根节点类型（如 Parent、Node 等）
+     * @param resourcePath 界面资源文件路径（如 "/fxml/settings-panel.fxml"）
+     * @return 加载完成的界面根节点
+     * @throws IllegalStateException 当资源文件不存在或加载失败时抛出异常
      */
     public static <T> T loadFxml(String resourcePath) {
         try {
@@ -33,11 +45,13 @@ public final class DesktopUi {
     }
 
     /**
-     * 使用已有控制器实例加载 FXML。
+     * 使用指定的页面对象来加载界面文件。
      *
-     * @param resourcePath classpath 中的 FXML 资源路径
-     * @param controller   控制器实例
-     * @return FXML 根节点
+     * @param <T>          返回的根节点类型
+     * @param resourcePath 界面资源文件路径
+     * @param controller   要绑定的页面对象
+     * @return 加载并绑定完成的界面根节点
+     * @throws IllegalStateException 当资源文件不存在或加载失败时抛出异常
      */
     public static <T> T loadFxml(String resourcePath, Object controller) {
         FXMLLoader loader = new FXMLLoader(DesktopUi.class.getResource(resourcePath));

@@ -11,49 +11,41 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 单词视图排版与着色数据格式化器。
+ * 单词文本拆分与排版工具。
  *
- * <p>该类负责将纯粹的数据模型 {@link WordEntry} 转换为一组富文本排版所需的片段 {@link WordDisplaySegment}。
- * 它的转换逻辑受全局设置（如 {@link DisplayMode} 和填空模式隐藏开关）的严格约束。
+ * <p>将单词条目（{@link WordEntry}）拆分为带样式的富文本片段列表（{@link WordDisplaySegment}），
+ * 方便界面根据不同部分（单词、词性、释义、短语）分别渲染对应的颜色和字号。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
  * WordDisplayFormatter formatter = new WordDisplayFormatter();
- * 
- * // 将单词按“仅显示单词和翻译”模式进行拆包分片
  * List&lt;WordDisplaySegment&gt; segments = formatter.format(entry, DisplayMode.WORD_WITH_TRANSLATION);
- * 
- * for (WordDisplaySegment segment : segments) {
- *     // UI 引擎根据 segment.type() 渲染不同颜色
- *     renderToScreen(segment.text(), getColor(segment.type()));
- * }
  * </code></pre>
  */
 public final class WordDisplayFormatter {
     
-    /** 为了避免占用过多桌面空间，硬编码限制最多只展示 2 个例句 */
+    /** 悬浮窗最多展示的例句数量 */
     private static final int PHRASE_DISPLAY_LIMIT = 2;
 
     /**
-     * 按照指定的模式对单词词条进行格式化分片（默认不隐藏任何附加内容）。
+     * 根据显示模式将单词拆分为富文本片段（默认不隐藏任何部分）。
      *
-     * @param wordEntry   目标单词实体
-     * @param displayMode 用户配置的显示模式
-     * @return 用于渲染的格式化文本片段列表
+     * @param wordEntry   目标单词条目
+     * @param displayMode 显示模式
+     * @return 富文本片段列表
      */
     public List<WordDisplaySegment> format(WordEntry wordEntry, DisplayMode displayMode) {
         return format(wordEntry, displayMode, false, false);
     }
 
     /**
-     * 对单词词条进行精细的格式化分片。
-     * 此重载方法提供了两个额外的布尔开关，专门用于在填空考核模式下临时遮蔽提示信息。
+     * 根据显示模式及填空隐藏开关，将单词拆分为富文本片段。
      *
-     * @param wordEntry       目标单词实体
-     * @param displayMode     用户配置的显示模式
-     * @param hidePhrases     强行隐藏例句短语（覆盖 displayMode 的设置）
-     * @param hideTranslation 强行隐藏中文释义
-     * @return 用于渲染的格式化文本片段列表
+     * @param wordEntry       目标单词条目
+     * @param displayMode     显示模式
+     * @param hidePhrases     是否隐藏例句短语
+     * @param hideTranslation 是否隐藏中文释义
+     * @return 富文本片段列表
      */
     public List<WordDisplaySegment> format(
             WordEntry wordEntry, 
@@ -69,11 +61,11 @@ public final class WordDisplayFormatter {
 
         List<WordDisplaySegment> segments = new ArrayList<>();
         
-        // 1. 恒定插入：单词的主体字母
+        // 1. 插入英文单词文本
         String safeWord = safe(wordEntry.word());
         segments.add(new WordDisplaySegment(WordDisplaySegment.Type.WORD, safeWord));
 
-        // 如果用户选择了极简模式，或者当前处于严格的填空模式下，则提前返回 (Early Return)
+        // 仅显示单词模式或处于填空隐藏释义状态时，直接返回
         if (safeMode == DisplayMode.WORD_ONLY || hideTranslation) {
             return segments;
         }
@@ -91,7 +83,7 @@ public final class WordDisplayFormatter {
     }
 
     /**
-     * 辅助方法：处理并追加翻译片段到集合中。
+     * 将单词的所有词性与释义（如 "n. 苹果"）拆分成富文本片段并追加到显示列表中。
      */
     private void appendTranslations(WordEntry wordEntry, List<WordDisplaySegment> segments) {
         for (Translation translation : wordEntry.translations()) {
@@ -113,7 +105,7 @@ public final class WordDisplayFormatter {
     }
 
     /**
-     * 辅助方法：处理并追加例句短语片段到集合中，受 {@link #PHRASE_DISPLAY_LIMIT} 约束。
+     * 将单词的短语与例句拆分成富文本片段并追加到显示列表中（最多显示 2 条）。
      */
     private void appendPhrases(WordEntry wordEntry, List<WordDisplaySegment> segments) {
         int displayed = 0;
@@ -141,7 +133,7 @@ public final class WordDisplayFormatter {
     }
 
     /**
-     * 防御性文本获取工具，避免空指针并在头尾去空白。
+     * 安全处理字符串，null 转为空字符串并去除首尾空白字符。
      */
     private static String safe(String value) {
         if (value == null) {

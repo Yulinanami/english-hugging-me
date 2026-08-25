@@ -22,38 +22,41 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * 桌面系统右下角托盘图标及自定义菜单控制器。
+ * 桌面系统托盘图标及自定义右键菜单。
  *
- * <p>这个类通过 AWT 的 {@link SystemTray} API 将程序挂载到 Windows/Mac 的系统托盘中，
- * 并在用户点击图标时，弹出由纯 JavaFX 绘制的精美无边框弹出菜单（取代了丑陋的原生菜单）。
+ * <p>这个类负责在系统任务栏通知区域创建托盘图标，并在用户点击时弹出菜单（支持打开设置、退出程序等操作）。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
  * DesktopTrayController tray = new DesktopTrayController(stage, () -> openSettings(), () -> exit());
  * if (tray.install()) {
- *     // 安装成功，应用可完全后台运行
- * } else {
- *     // 安装失败（如无桌面环境），必须让主界面保持显示
+ *     // 托盘安装成功，应用可在后台运行
  * }
  * </code></pre>
  */
 public final class DesktopTrayController {
     
-    /** 托盘图标资源的路径 */
+    /** 托盘图标资源路径 */
     private static final String APP_ICON_RESOURCE = "/icons/app.png";
 
+    /** 弹出菜单所属的主窗口 */
     private final Stage owner;
+    /** 点击“打开设置”时的回调 */
     private final Runnable openSettings;
+    /** 点击“退出程序”时的回调 */
     private final Runnable exitApplication;
     
+    /** 系统托盘图标对象 */
     private TrayIcon trayIcon;
+    /** 托盘弹出菜单 */
     private Popup trayMenu;
+    /** 鼠标离开托盘菜单时自动关闭的定时任务 */
     private Timeline trayMenuWatcher;
 
     /**
-     * 构建托盘控制器。
+     * 创建系统托盘。
      *
-     * @param owner           弹出菜单的归属父舞台
+     * @param owner           弹出菜单所属的主窗口
      * @param openSettings    点击“打开设置”时的回调
      * @param exitApplication 点击“退出”时的回调
      */
@@ -105,7 +108,7 @@ public final class DesktopTrayController {
     }
 
     /**
-     * 将托盘图标从系统中移除并销毁弹出菜单。
+     * 将托盘图标从系统中移除并关闭弹出菜单。
      */
     public void remove() {
         stopTrayMenuWatcher();
@@ -150,9 +153,8 @@ public final class DesktopTrayController {
     }
 
     /**
-     * 启动折叠菜单监视器：
-     * 由于 JavaFX Popup 无法感知到 Windows 托盘折叠菜单（Overflow Window）收起的状态，
-     * 我们通过定时轮询底层系统 API，如果发现外壳折叠菜单被收起了，就立刻强制隐藏我们的 Popup。
+     * 监听 Windows 任务栏折叠菜单状态。
+     * 当任务栏折叠区域关闭时，同步隐藏右键托盘菜单。
      */
     private void startTrayMenuWatcher(boolean openedFromOverflow) {
         if (!openedFromOverflow) {
@@ -174,7 +176,7 @@ public final class DesktopTrayController {
     }
 
     /**
-     * 关闭监视器定时器。
+     * 停止托盘菜单状态监听定时任务。
      */
     private void stopTrayMenuWatcher() {
         if (this.trayMenuWatcher != null) {
@@ -184,7 +186,7 @@ public final class DesktopTrayController {
     }
 
     /**
-     * 解析或者生成托盘显示的像素图标。
+     * 加载应用图标，加载失败则动态生成备用图标。
      */
     private BufferedImage createTrayImage() {
         try (InputStream in = DesktopTrayController.class.getResourceAsStream(APP_ICON_RESOURCE)) {
@@ -195,7 +197,7 @@ public final class DesktopTrayController {
                 }
             }
         } catch (IOException e) {
-            // 解析失败时优雅降级，由代码在内存中画一个简单的兜底图标
+            // 图标读取失败时，动态绘制一个备用图标
         }
         
         BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);

@@ -18,38 +18,57 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 移动端专用的设置与本地存储桥接器。
+ * Android 手机端配置与自定义生词存储工具。
  *
- * <p>这个类实现了 {@link SettingsStorage} 接口，将 Android 平台的
- * {@link SharedPreferences} 机制注入到核心模块的配置引擎中。
- * 此外，它还负责将用户在移动端编辑的“自定义词库”序列化为 JSON 字符串，
- * 并塞入 SharedPreferences 中进行持久化保存。
+ * <p>负责将应用设置和自定义生词保存到 Android 的 SharedPreferences 中。
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * // 加载全局配置
+ * AppSettings settings = AndroidSettingsStore.load(context);
+ *
+ * // 修改并保存
+ * settings.setWordFontSize(26);
+ * AndroidSettingsStore.save(context, settings);
+ * </code></pre>
  */
 public final class AndroidSettingsStore {
     
-    // --- 常量定义 ---
+    /** 自定义词库专用虚拟文件名 */
     public static final String CUSTOM_VOCABULARY_FILE_NAME = SettingsMapper.CUSTOM_VOCABULARY_FILE_NAME;
+
+    /** 所有内置词库文件名列表 */
     public static final String[] VOCABULARY_FILES = vocabularyFiles();
 
+    /** 存储应用设置的 SharedPreferences 文件名称 */
     private static final String PREFS = "english_hugging_settings";
+
+    /** 存储自定义生词 JSON 字符串的键名 */
     private static final String KEY_CUSTOM_VOCABULARY_JSON = "customVocabularyJson";
 
     /**
-     * 阻止工具类被实例化。
+     * 私有构造函数，无需实例化。
      */
     private AndroidSettingsStore() {
         // 无需实例化
     }
 
     /**
-     * SharedPreferences 的适配器实现。
-     * 它拦截了核心层对 KV 存储的所有增删改查请求，并路由给 Android 系统。
+     * 基于 SharedPreferences 的设置存储实现。
      */
     private static class SharedPrefsStorage implements SettingsStorage {
+        /** SharedPreferences 实例 */
         private final SharedPreferences prefs;
+        /** 本地存储修改对象 */
         private final SharedPreferences.Editor editor;
+        /** 标记本次是否有尚未提交的修改 */
         private boolean editing = false;
 
+        /**
+         * 创建存储对象。
+         *
+         * @param context Android 上下文
+         */
         SharedPrefsStorage(Context context) {
             this.prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
             this.editor = this.prefs.edit();
@@ -120,7 +139,12 @@ public final class AndroidSettingsStore {
     }
 
     /**
-     * 从本地存储中完整反序列化出 AppSettings 模型。
+     * 从本地读取并加载全部应用设置。
+     *
+     * <p>如果是首次打开应用（尚未设置悬浮窗宽高），会默认将宽高设为 0，让悬浮窗自动适应内容大小。
+     *
+     * @param context Android 上下文对象
+     * @return 包含当前所有配置的 AppSettings 对象
      */
     public static AppSettings load(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -138,43 +162,63 @@ public final class AndroidSettingsStore {
     }
 
     /**
-     * 将业务测在内存中修改好的 AppSettings 同步到 Android 文件系统。
+     * 将应用设置保存到本地。
+     *
+     * @param context Android 上下文对象
+     * @param s       待保存的 AppSettings 设置对象
      */
     public static void save(Context context, AppSettings s) {
         SettingsMapper.save(new SharedPrefsStorage(context), s);
     }
 
     /**
-     * 加载指定词库的历史播放进度（游标位置、洗牌状态等）。
+     * 加载指定词库的历史背诵进度（如背到第几个词、乱序列表等）。
+     *
+     * @param context       Android 上下文对象
+     * @param s             接收进度的设置对象
+     * @param vocabularyKey 词库文件名或标识
      */
     public static void loadPlaybackProgress(Context context, AppSettings s, String vocabularyKey) {
         SettingsMapper.loadPlaybackProgress(new SharedPrefsStorage(context), s, vocabularyKey);
     }
 
     /**
-     * 保存指定词库的当前播放进度，以便下次继续。
+     * 保存指定词库当前的背诵进度。
+     *
+     * @param context       Android 上下文对象
+     * @param s             当前设置对象
+     * @param vocabularyKey 词库文件名或标识
      */
     public static void savePlaybackProgress(Context context, AppSettings s, String vocabularyKey) {
         SettingsMapper.savePlaybackProgress(new SharedPrefsStorage(context), s, vocabularyKey);
     }
 
     /**
-     * 强行抹除 Android 系统中保存的所有词库的播放历史。
+     * 清除本地记录的所有词库的背诵进度。
+     *
+     * @param context Android 上下文对象
      */
     public static void clearAllPlaybackProgress(Context context) {
         SettingsMapper.clearAllPlaybackProgress(new SharedPrefsStorage(context));
     }
 
     /**
-     * 读取所有带有播放记录的词库并生成带格式的进度报表行，供 UI 直接展示。
+     * 获取所有词库的背诵进度描述文本，用于在“学习记录”界面展示。
+     *
+     * @param context Android 上下文对象
+     * @return 每一行代表一个词库进度的字符串数组
      */
     public static String[] playbackRecordLines(Context context) {
         return SettingsMapper.playbackRecordLines(new SharedPrefsStorage(context), hasCustomVocabulary(context));
     }
 
     /**
-     * 读取用户自己录入的“自定义生词本”。
-     * 由于 Android 没有像桌面端那样方便的裸文件访问权限，我们将自定义生词转为 JSON 字符串硬塞在 SharedPreferences 里。
+     * 读取用户自己添加的自定义生词列表。
+     *
+     * <p>Android 端将自定义单词以 JSON 字符串保存在 SharedPreferences 中。
+     *
+     * @param context Android 上下文对象
+     * @return 自定义生词列表；如果没有任何词或解析出错则返回空列表
      */
     public static List<WordEntry> loadCustomWords(Context context) {
         String json = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CUSTOM_VOCABULARY_JSON, "[]");
@@ -186,12 +230,15 @@ public final class AndroidSettingsStore {
     }
 
     /**
-     * 往自定义词库中追加一个生词，如果存在同拼写的单词则直接覆盖。
+     * 往自定义词库中添加一个新单词。如果单词已经存在，则替换旧单词。
+     *
+     * @param context   Android 上下文对象
+     * @param wordEntry 要添加的单词对象
      */
     public static void appendCustomWord(Context context, WordEntry wordEntry) {
         List<WordEntry> words = loadCustomWords(context);
         
-        // 移除同名老单词
+        // 移除同名旧单词
         words.removeIf(w -> w.word().equals(wordEntry.word()));
         
         words.add(wordEntry);
@@ -199,7 +246,10 @@ public final class AndroidSettingsStore {
     }
 
     /**
-     * 全量覆盖并保存自定义词库。
+     * 保存完整的自定义生词列表。
+     *
+     * @param context Android 上下文对象
+     * @param words   自定义单词列表
      */
     public static void saveCustomWords(Context context, List<WordEntry> words) {
         String jsonString = new GsonBuilder().setPrettyPrinting().create().toJson(words);
@@ -210,21 +260,29 @@ public final class AndroidSettingsStore {
     }
 
     /**
-     * 判断一个文件路径配置是不是指向那个虚拟的“自定义词库”。
+     * 判断指定的文件名是否表示“自定义词汇”。
+     *
+     * @param fileName 词库文件名
+     * @return 如果是自定义词库则返回 true
      */
     public static boolean isCustomVocabulary(String fileName) {
         return CUSTOM_VOCABULARY_FILE_NAME.equals(fileName);
     }
 
     /**
-     * 检查当前用户有没有录入过自定义词汇。
+     * 检查用户是否添加过自定义词汇。
+     *
+     * @param context Android 上下文对象
+     * @return 如果有自定义词汇返回 true
      */
     private static boolean hasCustomVocabulary(Context context) {
         return !loadCustomWords(context).isEmpty();
     }
 
     /**
-     * 缝合系统预置的词库列表与特殊的“自定义词库”选项，提供给下拉菜单使用。
+     * 组合内置词库与自定义词库选项，用于在界面下拉框中展示。
+     *
+     * @return 包含所有可用词库选项的字符串数组
      */
     private static String[] vocabularyFiles() {
         String[] builtIn = VocabularyCatalog.fileNames();

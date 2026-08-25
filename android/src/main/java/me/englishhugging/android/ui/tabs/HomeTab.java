@@ -15,35 +15,51 @@ import me.englishhugging.android.ui.AndroidUi;
 import me.englishhugging.core.settings.AppSettings;
 
 /**
- * 首页的数据展示、悬浮窗开关和填空模式交互。
+ * Android 手机端“首页”界面，展示当前背诵状态并提供悬浮窗开关。
  *
- * <p>页面由 {@link PageHomeBinding} 对应的 XML 创建；每次进入首页都会重新读取设置，
- * 保证从设置页返回后显示的是最新配置。</p>
+ * <p>这个类负责展示当前背词状态摘要，并提供一键开启/停止悬浮窗的大圆按钮。
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * HomeTab homeTab = new HomeTab(activity, ui, () -> showSettingsPage());
+ * View view = homeTab.getView();
+ * pageContainer.addView(view);
+ * </code></pre>
  */
 public final class HomeTab {
-    /** 首页依赖的 Activity，用于加载资源、申请权限和启停服务。 */
+    /** 所属的主界面对象 */
     private final MainActivity activity;
 
-    /** XML 无法直接声明的公共 UI 行为。 */
+    /** 界面辅助工具 */
     private final AndroidUi ui;
 
-    /** 点击齿轮图标时由 Activity 提供的页面跳转动作。 */
+    /** 跳转到设置页的回调 */
     private final Runnable onNavigateToSettings;
 
-    /** 当前首页视图的 View Binding，用于同步悬浮窗运行状态。 */
+    /** 首页视图绑定对象 */
     private PageHomeBinding binding;
 
-    /** 挖空模式开关动画结束后发送的悬浮窗刷新任务。 */
+    /** 刷新悬浮窗服务的延迟任务 */
     private final Runnable delayedServiceReload = this::notifyServiceReload;
 
-    /** 保存首页所需依赖，不在这里持有或创建新的 Activity。 */
+    /**
+     * 创建首页页面对象。
+     *
+     * @param activity             所属的主界面对象
+     * @param ui                   界面辅助工具
+     * @param onNavigateToSettings 跳转到设置页的回调
+     */
     public HomeTab(MainActivity activity, AndroidUi ui, Runnable onNavigateToSettings) {
         this.activity = activity;
         this.ui = ui;
         this.onNavigateToSettings = onNavigateToSettings;
     }
 
-    /** 创建首页视图，加载当前设置并绑定用户交互。 */
+    /**
+     * 加载并返回首页视图。
+     *
+     * @return 首页根视图
+     */
     public View getView() {
         this.binding = PageHomeBinding.inflate(this.activity.getLayoutInflater());
         AppSettings settings = AndroidSettingsStore.load(this.activity);
@@ -60,7 +76,7 @@ public final class HomeTab {
         this.binding.settingsIcon.setOnClickListener(view -> this.onNavigateToSettings.run());
         this.binding.startCircle.setOnClickListener(this::toggleOverlay);
         this.binding.fillBlankSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            // 开关变化立即持久化；服务正在运行时同步刷新悬浮窗内容。
+            // 开关变化后立即保存；服务正在运行时同步刷新悬浮窗
             AppSettings current = AndroidSettingsStore.load(this.activity);
             current.setFillBlankMode(isChecked);
             AndroidSettingsStore.save(this.activity, current);
@@ -125,7 +141,7 @@ public final class HomeTab {
         this.activity.startForegroundService(intent);
     }
 
-    /** 避开开关过渡帧后再重载服务，防止调度器重建造成滑块卡顿。 */
+    /** 开关动画结束后再刷新悬浮窗服务，避免界面卡顿。 */
     private void reloadServiceAfterSwitchAnimation() {
         View hostView = this.activity.getWindow().getDecorView();
         hostView.removeCallbacks(this.delayedServiceReload);

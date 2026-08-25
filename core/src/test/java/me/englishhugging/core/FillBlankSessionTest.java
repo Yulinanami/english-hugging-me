@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * FillBlankSession 的纯逻辑单元测试：不涉及线程与定时器，毫秒级完成。
+ * FillBlankSession 的单元测试。
  */
 class FillBlankSessionTest {
 
@@ -21,7 +21,7 @@ class FillBlankSessionTest {
         String frame = session.nextFrame();
 
         assertEquals("banana".length(), frame.length(), "挖空不应当改变单词长度");
-        assertTrue(frame.indexOf('_') >= 0, "首帧应当带着未揭开的下划线");
+        assertTrue(frame.indexOf('_') >= 0, "初始帧应当包含未揭开的下划线");
         assertEquals(entry, session.entry());
     }
 
@@ -42,7 +42,7 @@ class FillBlankSessionTest {
         }
 
         assertEquals("elephant", lastFrame, "最后一帧应当是完整的原词");
-        assertNull(session.nextFrame(), "揭完所有空位后应当宣告会话结束");
+        assertNull(session.nextFrame(), "揭完所有空位后应当结束填空");
     }
 
     private static int countBlanks(String frame) {

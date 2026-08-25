@@ -19,15 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * WordScheduler 的黑盒回归测试。
+ * WordScheduler 的单元测试。
  *
- * <p>调度器的最小主间隔为 2 秒，因此依赖定时推进的用例通过“把起始进度设到只差一步”
- * 来压缩等待时间；依赖“立即发射”语义（start / resume / 关闭填空）的用例都在毫秒级完成。
+ * <p>单词切换的最小间隔为 2 秒，因此依赖定时推进的测试用例通过将起始进度设为最后一项来减少等待时间；
+ * 依赖立即响应逻辑（启动、恢复、关闭填空）的测试用例均可快速完成。
  */
 class WordSchedulerTest {
 
     /**
-     * 回调收集器：把各类事件转成可等待、可断言的数据。
+     * 回调数据收集辅助类。
      */
     private static final class RecordingListener implements WordScheduler.Listener {
         final Queue<String> words = new ConcurrentLinkedQueue<>();
@@ -74,7 +74,7 @@ class WordSchedulerTest {
     }
 
     /**
-     * 统一的配置工厂：主间隔取允许的最小值 2 秒；填空开启时隐藏短语、不显示释义。
+     * 生成测试用配置对象：播放间隔设为 2 秒，填空开启时隐藏短语、不显示释义。
      */
     private static WordSchedulerConfig config(
             PlaybackMode mode, PlaybackProgress progress, String prefix, boolean loop, boolean fillBlank) {
@@ -90,7 +90,7 @@ class WordSchedulerTest {
                 listener, progress -> { })) {
             scheduler.start();
 
-            assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS), "第一个词应当立即发射");
+            assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS), "第一个单词应当立即展示");
             assertEquals("apple", listener.words.peek());
         }
     }
@@ -110,7 +110,7 @@ class WordSchedulerTest {
                 })) {
             scheduler.start();
 
-            assertTrue(progressLatch.await(2, TimeUnit.SECONDS), "发词后应当回调进度");
+            assertTrue(progressLatch.await(2, TimeUnit.SECONDS), "切换单词后应当回调保存进度");
             assertEquals(1, captured.get().nextWordIndex());
         }
     }
@@ -128,7 +128,7 @@ class WordSchedulerTest {
             scheduler.pause();
             assertTrue(scheduler.isPaused());
 
-            // resume 应当立即补发下一个词（主间隔 2 秒，1 秒内到达即证明没有等满间隔）
+            // resume 应当立即播放下一个单词（播放间隔 2 秒，1 秒内收到即证明无需等待完整间隔）
             int seenBeforeResume = listener.words.size();
             scheduler.resume();
             long deadline = System.currentTimeMillis() + 1000;
@@ -136,14 +136,14 @@ class WordSchedulerTest {
                 Thread.sleep(20);
             }
 
-            assertTrue(listener.words.size() > seenBeforeResume, "resume 应当立即补发下一个词");
+            assertTrue(listener.words.size() > seenBeforeResume, "恢复播放后应当立即显示下一个单词");
             assertFalse(scheduler.isPaused());
         }
     }
 
     @Test
     void sequentialWithPrefixFinishesWithoutLoop() throws InterruptedException {
-        // 只有设置了前缀时 loopPlayback=false 才生效（无前缀会被强制循环），此语义由本用例钉住
+        // 只有设置了前缀时 loopPlayback=false 才生效（无前缀时默认循环播放），此逻辑由本测试用例验证
         RecordingListener listener = new RecordingListener(1, 0);
         try (WordScheduler scheduler = new WordScheduler(
                 words("alpha", "apricot"),
@@ -153,7 +153,7 @@ class WordSchedulerTest {
 
             assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS));
             assertEquals("apricot", listener.words.peek(), "应当从保存的进度处继续播放");
-            assertTrue(listener.finishedLatch.await(5, TimeUnit.SECONDS), "不循环时播完最后一个词应当宣告结束");
+            assertTrue(listener.finishedLatch.await(5, TimeUnit.SECONDS), "不循环时播完最后一个单词应当触发结束回调");
         }
     }
 
@@ -167,7 +167,7 @@ class WordSchedulerTest {
             scheduler.start();
 
             assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS));
-            assertTrue(listener.finishedLatch.await(5, TimeUnit.SECONDS), "随机模式播满全集后应当宣告结束");
+            assertTrue(listener.finishedLatch.await(5, TimeUnit.SECONDS), "随机模式播满单词总数后应当触发结束回调");
         }
     }
 
@@ -181,7 +181,7 @@ class WordSchedulerTest {
             scheduler.start();
 
             assertTrue(listener.wordLatch.await(6, TimeUnit.SECONDS), "两个词都应当被播放");
-            assertTrue(listener.finishedLatch.await(5, TimeUnit.SECONDS), "乱序不重复播完一轮后应当宣告结束");
+            assertTrue(listener.finishedLatch.await(5, TimeUnit.SECONDS), "乱序不重复模式播完一轮后应当触发结束回调");
             assertEquals(2, listener.words.size());
             assertNotEquals(listener.words.poll(), listener.words.poll(), "乱序不重复模式不应重复播放同一个词");
         }
@@ -196,7 +196,7 @@ class WordSchedulerTest {
                 listener, progress -> { })) {
             scheduler.start();
 
-            assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS), "填空模式下也应当先发完整词");
+            assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS), "填空模式下也应当先展示完整单词");
             assertTrue(listener.blankLatch.await(5, TimeUnit.SECONDS), "主间隔之后应当出现首帧挖空");
 
             String frame = listener.blankFrames.peek();
@@ -218,14 +218,14 @@ class WordSchedulerTest {
             scheduler.start();
             assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS));
 
-            // 此刻已进入 banana 的填空阶段；关闭填空应当立即斩断流程并跳到下一个完整词
+            // 此刻已进入 banana 的填空阶段；关闭填空应当立即结束当前填空并切换到下一个完整单词
             scheduler.updateFillBlankSettings(false, 1, true, false);
             long deadline = System.currentTimeMillis() + 1500;
             while (listener.words.size() < 2 && System.currentTimeMillis() < deadline) {
                 Thread.sleep(20);
             }
 
-            assertEquals(2, listener.words.size(), "关闭填空后应当立即发下一个词");
+            assertEquals(2, listener.words.size(), "关闭填空后应当立即展示下一个单词");
             assertEquals("cherry", listener.words.toArray()[1]);
         }
     }

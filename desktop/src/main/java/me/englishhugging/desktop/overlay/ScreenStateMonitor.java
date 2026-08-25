@@ -6,11 +6,9 @@ import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinUser;
 
 /**
- * Windows 平台息屏/锁屏状态监控器。
+ * Windows 平台息屏与锁屏状态监控工具。
  *
- * <p>这个类通过 JNA 深度集成了 Windows 底层的电源和会话事件广播（WM_POWERBROADCAST）。
- * 它的核心目的是在用户锁屏、电脑休眠或关闭显示器时，自动挂起后台的背单词轮播调度器；
- * 并在用户重新亮屏解锁时，无缝恢复播放。这样可以极大地节省系统资源并避免浪费学习进度。
+ * <p>监控 Windows 系统的电源和锁屏事件，在用户锁屏、休眠或息屏时自动暂停播放，亮屏解锁后自动恢复。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
@@ -19,17 +17,20 @@ import com.sun.jna.platform.win32.WinUser;
  *     () -> scheduler.resume()
  * );
  * monitor.start();
- * 
- * // 退出应用前销毁
- * monitor.stop();
  * </code></pre>
  */
 public final class ScreenStateMonitor {
 
-    // --- Windows API 常量 ---
+    /** Windows 电源广播消息标识 */
     private static final int WM_POWERBROADCAST = 0x021B;
+
+    /** 系统进入睡眠或待机状态事件 */
     private static final int PBT_APMSUSPEND = 0x0004;
+
+    /** 系统被唤醒事件（由用户操作触发） */
     private static final int PBT_APMRESUMESUSPEND = 0x0007;
+
+    /** 系统自动恢复运行事件 */
     private static final int PBT_APMRESUMEAUTOMATIC = 0x0012;
 
     /** 锁屏或休眠时触发的回调 */
@@ -38,17 +39,17 @@ public final class ScreenStateMonitor {
     /** 解锁或恢复时触发的回调 */
     private final Runnable onUnlock;
     
-    /** 专门用于挂起 Windows 消息循环的守护线程 */
+    /** 专门用于运行 Windows 消息循环的后台线程 */
     private volatile Thread listenerThread;
     
-    /** 我们注册在系统中的隐藏消息接收窗口句柄 */
+    /** 隐藏消息窗口对象 */
     private volatile WinDef.HWND hwnd;
 
     /**
-     * 构造屏幕状态监控器。
+     * 初始化屏幕电源状态监听。
      *
-     * @param onLock   当系统挂起、息屏或锁定时执行的操作
-     * @param onUnlock 当系统恢复、亮屏或解锁时执行的操作
+     * @param onLock   系统息屏或锁定时的回调
+     * @param onUnlock 系统亮屏或解锁时的回调
      */
     public ScreenStateMonitor(Runnable onLock, Runnable onUnlock) {
         this.onLock = onLock;
@@ -56,8 +57,7 @@ public final class ScreenStateMonitor {
     }
 
     /**
-     * 启动底层的 Windows 消息循环监听。
-     * 保证只会启动一次，避免线程泄漏。
+     * 启动 Windows 消息监听。
      */
     public void start() {
         if (this.listenerThread != null) {
@@ -70,7 +70,7 @@ public final class ScreenStateMonitor {
     }
 
     /**
-     * 停止监听并向底层的消息循环发送退出信号。
+     * 停止监听并释放资源。
      */
     public void stop() {
         if (this.hwnd != null) {
@@ -80,8 +80,7 @@ public final class ScreenStateMonitor {
     }
 
     /**
-     * 独立线程的运行实体，它在系统深处构建了一个不可见的幽灵窗口，
-     * 专门用于拦截并消化操作系统广播出来的电源事件。
+     * 创建隐藏窗口并运行 Windows 消息循环，用于监听系统电源事件。
      */
     private void run() {
         String className = "EHMScreenStateMonitor_" + System.nanoTime();
@@ -91,7 +90,7 @@ public final class ScreenStateMonitor {
         wndClass.hInstance = hModule;
         wndClass.lpszClassName = className;
         
-        // 核心回调：拦截 Windows 系统消息
+        // 监听 Windows 系统消息
         wndClass.lpfnWndProc = (WinUser.WindowProc) (hwndProc, uMsg, wParam, lParam) -> {
             if (uMsg == WM_POWERBROADCAST) {
                 int powerEvent = wParam.intValue();
@@ -112,7 +111,7 @@ public final class ScreenStateMonitor {
                 // 返回 1 表示我们已经处理了该广播消息
                 return new WinDef.LRESULT(1);
             }
-            // 其它非电源消息，原样丢回给系统默认处理器
+            // 其它非电源消息，由系统默认处理
             return User32.INSTANCE.DefWindowProc(hwndProc, uMsg, wParam, lParam);
         };
         
@@ -129,7 +128,7 @@ public final class ScreenStateMonitor {
             return;
         }
 
-        // 死循环阻塞：不断抽取 Windows 消息直到收到 WM_QUIT
+        // 持续处理 Windows 系统消息，直到收到退出信号
         WinUser.MSG msg = new WinUser.MSG();
         while (User32.INSTANCE.GetMessage(msg, null, 0, 0) > 0) {
             User32.INSTANCE.TranslateMessage(msg);

@@ -5,18 +5,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 设置数据映射器（Settings Mapper）。
+ * 应用设置转换与读写工具。
  *
- * <p>该类负责在具体的物理存储引擎（{@link SettingsStorage}）与
- * 内存领域模型（{@link AppSettings}）之间进行数据的双向序列化转换。
- * 集中在此处定义读写的逻辑可以彻底消除大量样板代码。
+ * <p>这个类负责在本地键值对存储（{@link SettingsStorage}）与应用设置对象（{@link AppSettings}）
+ * 之间进行数据的互相转换与读写，集中管理所有配置项的读取与保存。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
- * // 加载全局配置
+ * // 从存储中加载应用配置
  * AppSettings config = SettingsMapper.load(storage);
  * 
- * // 读取并注入某个特定词库（如 CET-4）的专属播放进度
+ * // 读取并设置某个特定词库（如 CET-4）的背诵进度
  * SettingsMapper.loadPlaybackProgress(storage, config, "CET-4");
  * </code></pre>
  */
@@ -26,18 +25,17 @@ public final class SettingsMapper {
     public static final String CUSTOM_VOCABULARY_FILE_NAME = "自定义词汇";
 
     /**
-     * 隐藏公共构造函数，确保工具类仅通过静态方法调用。
+     * 私有构造函数，无需实例化。
      */
     private SettingsMapper() {
-        // 工具类不可实例化
+        // 无需实例化
     }
 
     /**
-     * 将持久化的键值对反序列化成内存中的 {@link AppSettings} 对象。
-     * 为提升代码易读性，将复杂的加载过程按逻辑分类处理。
+     * 把存储中读取到的键值对数据转换为 {@link AppSettings} 配置对象。
      *
-     * @param storage 实现了接口的具体物理存储引擎
-     * @return 装载完成的应用程序设置对象
+     * @param storage 键值对存储对象
+     * @return 转换后的应用设置对象
      */
     public static AppSettings load(SettingsStorage storage) {
         AppSettings s = new AppSettings();
@@ -57,7 +55,7 @@ public final class SettingsMapper {
         String pModeStr = storage.getString(SettingsKeys.PLAYBACK_MODE, s.getPlaybackMode().name());
         s.setPlaybackMode(parseEnum(PlaybackMode.class, pModeStr, s.getPlaybackMode()));
         
-        // 3. 播放器行为进度
+        // 3. 播放行为与背诵进度
         s.setIntervalSeconds(storage.getInt(SettingsKeys.INTERVAL_SECONDS, s.getIntervalSeconds()));
         PlaybackProgress defaults = s.getPlaybackProgress();
         s.setPlaybackProgress(new PlaybackProgress(
@@ -85,7 +83,7 @@ public final class SettingsMapper {
         s.setWordFontSize(storage.getInt(SettingsKeys.WORD_FONT_SIZE, s.getWordFontSize()));
         s.setDetailFontSize(storage.getInt(SettingsKeys.DETAIL_FONT_SIZE, s.getDetailFontSize()));
         
-        // 6. 填空考核模式专项配置
+        // 6. 填空模式设置
         s.setFillBlankMode(storage.getBoolean(SettingsKeys.FILL_BLANK_MODE, s.isFillBlankMode()));
         s.setFillBlankIntervalSeconds(storage.getInt(SettingsKeys.FILL_BLANK_INTERVAL_SECONDS, s.getFillBlankIntervalSeconds()));
         s.setFillBlankHidePhrases(storage.getBoolean(SettingsKeys.FILL_BLANK_HIDE_PHRASES, s.isFillBlankHidePhrases()));
@@ -95,10 +93,10 @@ public final class SettingsMapper {
     }
 
     /**
-     * 将内存对象中的变更持久化到存储引擎中。
+     * 将配置对象中的变更保存到本地存储中。
      *
-     * @param storage 物理存储引擎
-     * @param s       被修改过配置的设置对象
+     * @param storage 键值对存储对象
+     * @param s       被修改过的应用设置对象
      */
     public static void save(SettingsStorage storage, AppSettings s) {
         // 基础配置
@@ -147,11 +145,10 @@ public final class SettingsMapper {
     }
 
     /**
-     * 单独从存储中提取属于某个具体词库文件的进度状态。
-     * 因为每个词库都保留了各自独立的一套进度快照。
+     * 从本地存储中读取指定词库的背诵进度。
      *
-     * @param storage       存储引擎
-     * @param s             目标写入的配置对象
+     * @param storage       存储对象
+     * @param s             接收进度的设置对象
      * @param vocabularyKey 用于区分词库的唯一键名（如文件名）
      */
     public static void loadPlaybackProgress(SettingsStorage storage, AppSettings s, String vocabularyKey) {
@@ -165,10 +162,10 @@ public final class SettingsMapper {
     }
 
     /**
-     * 将当前配置对象中的进度状态单独持久化绑定到某个特定词库下。
+     * 将当前配置对象中的进度保存到指定词库下。
      *
-     * @param storage       存储引擎
-     * @param s             进度来源的配置对象
+     * @param storage       存储对象
+     * @param s             进度来源的设置对象
      * @param vocabularyKey 词库关联键名
      */
     public static void savePlaybackProgress(SettingsStorage storage, AppSettings s, String vocabularyKey) {
@@ -182,9 +179,9 @@ public final class SettingsMapper {
     }
 
     /**
-     * 一键清除用户存储中记录的所有词汇表播放历史与进度。
+     * 清除存储中记录的所有词库的背诵进度。
      *
-     * @param storage 存储引擎
+     * @param storage 存储对象
      */
     public static void clearAllPlaybackProgress(SettingsStorage storage) {
         for (String key : storage.getAllKeys()) {
@@ -196,9 +193,9 @@ public final class SettingsMapper {
     }
 
     /**
-     * 为所有的内置及自定义词库生成一条表示它们各自学习进度详情的记录摘要。
+     * 为所有的内置及自定义词库生成学习进度文本摘要。
      *
-     * @param storage             存储引擎
+     * @param storage             存储对象
      * @param hasCustomVocabulary 是否存在自定义词汇表文件
      * @return 中文进度描述行的数组
      */
@@ -219,12 +216,12 @@ public final class SettingsMapper {
     }
 
     /**
-     * 针对单个特定的词汇表生成一条学习进度字符串摘要。
+     * 为单个词库生成一行学习进度描述。
      *
-     * @param storage       存储引擎
-     * @param vocabularyKey 关联的独立键名
+     * @param storage       存储对象
+     * @param vocabularyKey 词库关联键名
      * @param label         展示的前缀标签名
-     * @return 格式化后的信息字符串
+     * @return 格式化后的进度字符串
      */
     public static String playbackRecordLine(SettingsStorage storage, String vocabularyKey, String label) {
         int nextWordIndex = storage.getInt(progressKey(vocabularyKey, SettingsKeys.NEXT_WORD_INDEX), 0);
@@ -235,7 +232,7 @@ public final class SettingsMapper {
     }
 
     /**
-     * 辅助方法：生成一个带命名空间的复合键，用于存储该特定词库的进度。
+     * 生成保存特定词库进度的键名字符串（如 "progress.1-初中-顺序.json.nextWordIndex"）。
      */
     private static String progressKey(String vocabularyKey, String key) {
         String safeNamespace = "";
@@ -246,7 +243,7 @@ public final class SettingsMapper {
     }
 
     /**
-     * 辅助方法：容错型地将字符串反向解析为强类型枚举，失败时自动返回后备值。
+     * 解析枚举字符串，解析失败或不存在时返回默认值。
      */
     private static <T extends Enum<T>> T parseEnum(Class<T> type, String value, T fallback) {
         try {
@@ -257,13 +254,12 @@ public final class SettingsMapper {
     }
 
     /**
-     * 辅助方法：提供向下兼容，迁移旧版本中路径名称带有冗余文件夹的脏数据。
+     * 兼容旧版本词库路径，自动将旧路径格式转换为当前标准路径。
      */
     private static String migrateVocabularyPath(String value) {
         if (value == null) {
             return null;
         }
-        // 清理老旧配置的冗余前缀
         String migrated = value.replace("english-vocabulary/json/", "vocabulary/");
         migrated = migrated.replace("english-vocabulary\\json\\", "vocabulary\\");
         return migrated;

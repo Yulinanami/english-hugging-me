@@ -18,32 +18,48 @@ import me.englishhugging.core.model.Translation;
 import me.englishhugging.core.model.WordEntry;
 
 /**
- * 自定义词库页面的表单、列表和本地数据交互。
+ * Android 手机端“自定义词库”界面，支持添加、修改和删除生词。
  *
- * <p>页面结构和单词条目均由 XML/View Binding 创建；Java 只负责把表单内容转换为
- * 核心模块的 {@link WordEntry} 数据模型，以及处理编辑、删除等用户操作。</p>
+ * <p>这个类负责管理用户录入的生词本，提供添加单词、编辑释义、删除词条以及列表浏览功能。
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * CustomVocabularyTab customTab = new CustomVocabularyTab(activity, ui, () -> goHome());
+ * View view = customTab.getView();
+ * pageContainer.addView(view);
+ * </code></pre>
  */
 public final class CustomVocabularyTab {
-    /** 页面所属 Activity。 */
+    /** 所属的主界面对象 */
     private final MainActivity activity;
 
-    /** 负责图标字体等公共 UI 行为。 */
+    /** 界面辅助工具 */
     private final AndroidUi ui;
 
-    /** 顶部返回按钮触发的回首页动作。 */
+    /** 返回首页的回调 */
     private final Runnable goHome;
 
-    /** 当前自定义词库页面的 View Binding。 */
+    /** 自定义词库页面视图绑定对象 */
     private PageCustomVocabularyBinding binding;
 
-    /** 保存自定义词库页所需依赖和导航动作。 */
+    /**
+     * 创建自定义生词页面对象。
+     *
+     * @param activity 所属的主界面对象
+     * @param ui       界面辅助工具
+     * @param goHome   返回首页的回调
+     */
     public CustomVocabularyTab(MainActivity activity, AndroidUi ui, Runnable goHome) {
         this.activity = activity;
         this.ui = ui;
         this.goHome = goHome;
     }
 
-    /** 创建页面、绑定按钮，并从本地存储加载自定义单词列表。 */
+    /**
+     * 加载并返回自定义词库页面视图。
+     *
+     * @return 自定义词库页面根视图
+     */
     public View getView() {
         this.binding = PageCustomVocabularyBinding.inflate(this.activity.getLayoutInflater());
         this.ui.styleIcon(this.binding.backIcon);
@@ -53,7 +69,9 @@ public final class CustomVocabularyTab {
         return this.binding.getRoot();
     }
 
-    /** 校验表单并把输入转换为 WordEntry 后追加到自定义词库。 */
+    /**
+     * 从输入框读取内容并保存为自定义生词。
+     */
     private void saveWord() {
         String word = this.binding.customWordInput.getText().toString().trim();
         if (word.isEmpty()) {
@@ -67,7 +85,7 @@ public final class CustomVocabularyTab {
         String phraseMeaning = this.binding.customPhraseMeaningInput.getText().toString().trim();
         String example = this.binding.customExampleInput.getText().toString().trim();
 
-        // 核心模型允许没有释义；只要词性或释义有一项，就创建一条 Translation。
+        // 只要词性或释义非空，就创建一条释义信息
         List<Translation> translations;
         if (meaning.isEmpty() && type.isEmpty()) {
             translations = Collections.emptyList();
@@ -76,7 +94,7 @@ public final class CustomVocabularyTab {
         }
 
         List<Phrase> phrases = new ArrayList<>();
-        // 词组与例句共用 Phrase 模型：没有翻译的条目在界面中按例句展示。
+        // 短语与例句共用数据结构：没有翻译的条目按例句展示
         if (!phrase.isEmpty()) {
             phrases.add(new Phrase(phrase, phraseMeaning));
         }
@@ -103,7 +121,7 @@ public final class CustomVocabularyTab {
         this.binding.customExampleInput.setText("");
     }
 
-    /** 重新读取自定义词库，并用 XML 条目完整刷新列表区域。 */
+    /** 重新读取自定义词库并刷新列表区域。 */
     private void refreshList() {
         this.binding.listContainer.removeAllViews();
         List<WordEntry> words = AndroidSettingsStore.loadCustomWords(this.activity);
@@ -127,7 +145,7 @@ public final class CustomVocabularyTab {
         );
         item.wordText.setText(entry.word());
 
-        // 将结构化释义、词组和例句整理为适合列表快速浏览的多行文字。
+        // 将释义、短语和例句整理为适合列表快速浏览的多行文字。
         List<String> details = new ArrayList<>();
         if (!entry.translations().isEmpty()) {
             Translation translation = entry.translations().get(0);

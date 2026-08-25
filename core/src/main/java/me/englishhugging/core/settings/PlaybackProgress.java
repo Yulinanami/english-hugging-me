@@ -1,22 +1,18 @@
 package me.englishhugging.core.settings;
 
 /**
- * 单个词库的播放进度快照。
+ * 词库播放进度记录。
  *
- * <p>把顺序索引、乱序序列与消费位置、随机播放计数四项状态收敛为一个不可变值对象，
- * 供 {@code WordScheduler} 回调、{@link AppSettings} 缓存与 {@link SettingsMapper} 持久化共用，
- * 避免同一组字段在回调签名和读写代码中反复展开。
+ * <p>记录当前词库在顺序、乱序及随机模式下的播放进度。
  *
- * <p>紧凑构造器负责归一化：负数计数归零、null 序列串归空并去首尾空白。
- *
- * @param nextWordIndex     顺序模式下，下一个被播放的单词下标
- * @param shuffleOrder      乱序模式下的伪随机序列（逗号分隔的下标串）
- * @param shufflePosition   乱序模式下当前消费到的位置
- * @param randomPlayedCount 完全随机模式下累计播放的单词数量
+ * @param nextWordIndex     顺序模式下下一个要播放的单词序号
+ * @param shuffleOrder      乱序模式下打乱的单词序号列表（逗号分隔）
+ * @param shufflePosition   乱序模式下当前播放到的列表位置
+ * @param randomPlayedCount 完全随机模式下已累计播放的单词数量
  */
 public record PlaybackProgress(int nextWordIndex, String shuffleOrder, int shufflePosition, int randomPlayedCount) {
 
-    /** 全新词库的零进度。 */
+    /** 初始空进度常量。 */
     public static final PlaybackProgress EMPTY = new PlaybackProgress(0, "", 0, 0);
 
     public PlaybackProgress {

@@ -24,50 +24,66 @@ import me.englishhugging.core.settings.OverlayMode;
 import me.englishhugging.core.settings.PlaybackMode;
 
 /**
- * 设置页面的模型绑定、输入监听和即时保存逻辑。
+ * Android 手机端“应用设置”界面，负责管理词库、播放规则与外观颜色等所有配置项。
  *
- * <p>布局、主题和控件样式由 XML 资源负责；本类只负责把 {@link AppSettings} 映射到控件，
- * 再将用户修改写回本地设置。悬浮窗正在运行时，保存完成后会通知服务立即重新加载。</p>
+ * <p>用户在界面上修改任意配置项后，会自动保存到本地，并实时通知悬浮窗刷新。
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * SettingsTab settingsTab = new SettingsTab(activity, ui, () -> showHomePage());
+ * View settingsView = settingsTab.getView();
+ * pageContainer.addView(settingsView);
+ * </code></pre>
  */
 public final class SettingsTab {
-    /** 颜色下拉框的固定候选值；括号中的中文仅用于界面展示。 */
+    /** 预设颜色列表（包含代码与中文说明） */
     private static final String[] PRESET_COLORS = {
         "#FFFFFF (纯白)", "#FDE68A (淡黄)", "#7DD3FC (浅蓝)", "#86EFAC (浅绿)",
         "#FCA5A5 (浅红)", "#D8B4FE (浅紫)", "#CBD5E1 (灰蓝)", "#000000 (纯黑)"
     };
 
-    /** 页面所属 Activity，用于读取资源、设置存储和发送服务指令。 */
+    /** 所属的主界面对象 */
     private final MainActivity activity;
 
-    /** 负责下拉框和图标字体等公共 UI 行为。 */
+    /** 界面辅助工具 */
     private final AndroidUi ui;
 
-    /** 顶部返回按钮触发的回首页动作。 */
+    /** 返回首页的回调 */
     private final Runnable goHome;
 
-    /** 当前设置页的 View Binding；页面重建时会替换为新的实例。 */
+    /** 设置页视图绑定对象 */
     private PageSettingsBinding binding;
 
-    /** 程序主动联动两个互斥开关时，阻止监听器重复保存。 */
+    /** 标记是否正在批量更新开关状态，防止触发多余的保存 */
     private boolean isUpdatingSwitches;
 
-    /** 开关动画结束后发送的悬浮窗刷新任务；重复切换时只保留最后一次。 */
+    /** 刷新悬浮窗服务的延迟任务 */
     private final Runnable delayedServiceReload = this::notifyServiceReload;
 
-    /** 保存设置页所需依赖和导航动作。 */
+    /**
+     * 创建设置页面对象。
+     *
+     * @param activity 所属的主界面对象
+     * @param ui       界面辅助工具
+     * @param goHome   返回首页的回调
+     */
     public SettingsTab(MainActivity activity, AndroidUi ui, Runnable goHome) {
         this.activity = activity;
         this.ui = ui;
         this.goHome = goHome;
     }
 
-    /** 创建设置页，初始化下拉框和步进按钮，再加载设置并绑定监听器。 */
+    /**
+     * 加载并返回设置页视图。
+     *
+     * @return 设置页根视图
+     */
     public View getView() {
         this.binding = PageSettingsBinding.inflate(this.activity.getLayoutInflater());
         this.ui.styleIcon(this.binding.backIcon);
         this.binding.backIcon.setOnClickListener(view -> this.goHome.run());
 
-        // 下拉框只允许选择固定值，适配器和夜间模式文字颜色由 AndroidUi 统一处理。
+        // 下拉框绑定候选数据
         this.ui.bindDropdown(this.binding.vocabularyDropdown, AndroidSettingsStore.VOCABULARY_FILES);
         this.ui.bindDropdown(this.binding.displayModeDropdown, DisplayMode.labels());
         this.ui.bindDropdown(this.binding.playbackModeDropdown, PlaybackMode.labels());
@@ -99,7 +115,7 @@ public final class SettingsTab {
         return this.binding.getRoot();
     }
 
-    /** 把持久化的十六进制颜色转换为下拉框中的完整显示文字。 */
+    /** 把保存的十六进制颜色转换为下拉框中的完整显示文字。 */
     private String formatColor(String hex) {
         if (hex == null) {
             return "";
@@ -113,7 +129,7 @@ public final class SettingsTab {
         return upper;
     }
 
-    /** 从“#RRGGBB (名称)”形式的显示文字中提取可保存的颜色值。 */
+    /** 从“#RRGGBB (名称)”格式的文本中获取十六进制颜色字符串。 */
     private String extractHex(String text) {
         if (text == null || text.trim().isEmpty()) {
             return "";
@@ -121,7 +137,7 @@ public final class SettingsTab {
         return text.split(" ")[0];
     }
 
-    /** 给一组减号/加号按钮绑定带上下限的数字调整逻辑。 */
+    /** 给一组减号/加号按钮绑定带上下限的数值调节事件。 */
     private void configureStepper(
             MaterialButton minusButton,
             MaterialButton plusButton,
@@ -147,13 +163,17 @@ public final class SettingsTab {
         }
     }
 
-    /** 把设置模型的全部字段写入页面控件。 */
+    /**
+     * 将当前配置的值填入界面控件中。
+     *
+     * @param settings 应用配置
+     */
     private void bindSettings(AppSettings settings) {
         this.binding.vocabularyDropdown.setText(settings.getVocabularyFileName(), false);
-        this.binding.displayModeDropdown.setText(settings.getDisplayMode().getLabel(), false);
-        this.binding.playbackModeDropdown.setText(settings.getPlaybackMode().getLabel(), false);
+        this.binding.displayModeDropdown.setText(settings.getDisplayMode().toString(), false);
+        this.binding.playbackModeDropdown.setText(settings.getPlaybackMode().toString(), false);
         this.binding.loopPlaybackSwitch.setChecked(settings.isLoopPlayback());
-        this.binding.overlayModeDropdown.setText(settings.getOverlayMode().getLabel(), false);
+        this.binding.overlayModeDropdown.setText(settings.getOverlayMode().toString(), false);
         setInteger(this.binding.intervalSeconds, settings.getIntervalSeconds());
         this.binding.startingPrefix.setText(settings.getStartingPrefix());
         this.binding.opacitySeekBar.setProgress((int) Math.round(settings.getOpacity() * 100) - 20);
@@ -183,7 +203,7 @@ public final class SettingsTab {
     /**
      * 读取当前页面值、更新本地设置，并通知运行中的悬浮窗重新加载。
      *
-     * <p>该方法会被多个输入监听器调用，因此每次都先读取最新设置，只修改页面负责的字段。</p>
+     * <p>该方法会被多个输入事件回调调用，因此每次都先读取最新设置，只修改页面负责的字段。</p>
      */
     private void saveAndReload() {
         if (this.binding != null) {
@@ -192,7 +212,7 @@ public final class SettingsTab {
         saveSettings(true);
     }
 
-    /** 立即保存开关状态，并在系统短动画结束后刷新悬浮窗，避免重载阻塞过渡帧。 */
+    /** 立即保存开关状态，并在开关动画结束后刷新悬浮窗，避免界面卡顿。 */
     private void saveSwitchAndReload() {
         saveSettings(false);
         if (this.binding == null) {
@@ -327,12 +347,12 @@ public final class SettingsTab {
         }
     }
 
-    /** 使用本地化整数资源更新输入框，避免各处重复字符串转换。 */
+    /** 更新数字输入框的显示文本。 */
     private void setInteger(EditText input, int value) {
         input.setText(this.activity.getString(R.string.integer_value, value));
     }
 
-    /** 为所有可编辑控件绑定即时保存监听器。 */
+    /** 为所有可编辑控件绑定即时保存事件。 */
     private void bindSettingsListeners() {
         // 固定选项只有在用户真正选中某一项后才触发保存。
         AdapterView.OnItemClickListener dropdownListener =
@@ -346,7 +366,7 @@ public final class SettingsTab {
         this.binding.translationColor.setOnItemClickListener(dropdownListener);
         this.binding.phraseColor.setOnItemClickListener(dropdownListener);
 
-        // 文本类设置在内容变更后统一保存，减少重复的监听器实现。
+        // 文本类设置在内容变更后统一保存，减少重复的代码。
         TextWatcher textChangeListener = new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence text, int start, int count, int after) {

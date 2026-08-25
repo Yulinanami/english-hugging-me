@@ -6,58 +6,59 @@ import javafx.application.Platform;
 import javafx.stage.Stage;
 
 /**
- * Windows 平台 UI 特效深度挂载器。
+ * Windows 平台鼠标穿透与任务栏隐藏工具。
  *
- * <p>原生 JavaFX 无法实现“点击穿透”以及“彻底从任务栏隐藏”。
- * 这个工具类通过 JNA 调用 User32.dll，直接修改 JavaFX 窗口在操作系统级别的
- * 扩展样式属性（EXSTYLE），强制为其打上 {@code WS_EX_TRANSPARENT}（鼠标穿透）
- * 和 {@code WS_EX_TOOLWINDOW}（隐藏任务栏）标签。
+ * <p>这个类通过 Windows 原生系统接口（User32.dll），让桌面悬浮窗支持“鼠标点击穿透”
+ * （鼠标点击直接穿透到下层软件，不挡住正常操作），并从 Windows 任务栏中隐藏。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
- * // 让悬浮窗对鼠标点击完全免疫，变成一层幽灵贴图
+ * // 设置悬浮窗鼠标穿透
  * WindowsClickThrough.apply(overlayStage, true);
  * 
- * // 彻底从 Alt-Tab 和任务栏中抹除悬浮窗的痕迹
+ * // 从任务栏隐藏悬浮窗
  * WindowsClickThrough.hideFromTaskbar(overlayStage);
  * </code></pre>
  */
 public final class WindowsClickThrough {
 
-    // --- Windows API 常量 ---
+    /** 获取窗口扩展样式的标识 */
     private static final int GWL_EXSTYLE = -20;
     
-    // 鼠标穿透核心标签
+    /** 鼠标穿透样式标志 */
     private static final int WS_EX_TRANSPARENT = 0x00000020;
     
-    // 工具窗口标签，会使其从 Alt-Tab 和任务栏隐藏
+    /** 工具窗口标志（使窗口不显示在任务栏和 Alt-Tab 中） */
     private static final int WS_EX_TOOLWINDOW = 0x00000080;
+    /** 普通应用程序窗口标志 */
     private static final int WS_EX_APPWINDOW = 0x00040000;
     
-    // 分层窗口标签，是透明度特效的基础
+    /** 分层窗口样式标志（透明窗口基础） */
     private static final int WS_EX_LAYERED = 0x00080000;
     
-    // 窗口位置重绘标志位
+    /** 保持窗口当前尺寸不变 */
     private static final int SWP_NOSIZE = 0x0001;
+    /** 保持窗口当前位置不变 */
     private static final int SWP_NOMOVE = 0x0002;
+    /** 保持窗口 Z 轴层级不变 */
     private static final int SWP_NOZORDER = 0x0004;
+    /** 通知系统立即刷新窗口框架样式 */
     private static final int SWP_FRAMECHANGED = 0x0020;
     
-    // 系统托盘溢出菜单的特殊类名
+    /** Windows 任务栏折叠托盘窗口的类名 */
     private static final String NOTIFY_ICON_OVERFLOW_WINDOW = "NotifyIconOverflowWindow";
 
     /**
-     * 阻止工具类被实例化。
+     * 私有构造函数，无需实例化。
      */
     private WindowsClickThrough() {
         // 无需实例化
     }
 
     /**
-     * 为 JavaFX 舞台热切换“鼠标穿透”状态。
-     * 所有的 JNA 操作都被强制推送到 JavaFX UI 线程以防止并发闪退。
+     * 设置窗口是否支持鼠标点击穿透。
      *
-     * @param stage        目标舞台
+     * @param stage        目标窗口
      * @param clickThrough true 表示鼠标穿透，false 表示可以点击交互
      */
     public static void apply(Stage stage, boolean clickThrough) {
@@ -69,10 +70,9 @@ public final class WindowsClickThrough {
     }
 
     /**
-     * 扒掉目标窗口的普通应用外衣，强行替换为工具窗口（Tool Window），
-     * 从而使得用户无法在任务栏找到它的踪迹。
+     * 将目标窗口从 Windows 任务栏和 Alt-Tab 列表中隐藏。
      *
-     * @param stage 目标舞台
+     * @param stage 目标窗口
      */
     public static void hideFromTaskbar(Stage stage) {
         if (!com.sun.jna.Platform.isWindows()) {
@@ -86,19 +86,19 @@ public final class WindowsClickThrough {
             }
             
             int style = User32.INSTANCE.GetWindowLong(hwnd, GWL_EXSTYLE);
-            // 剥夺 APPWINDOW，赋予 TOOLWINDOW
+            // 设置为工具窗口样式，使任务栏不显示图标
             int updated = (style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW;
             
             User32.INSTANCE.SetWindowLong(hwnd, GWL_EXSTYLE, updated);
             
-            // 强制刷新系统对该窗口样式的缓存，否则任务栏图标不会立刻消失
+            // 刷新窗口样式
             User32.INSTANCE.SetWindowPos(hwnd, null, 0, 0, 0, 0,
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         });
     }
 
     /**
-     * 探测当前 Windows 系统的折叠托盘（就是那个“^”符号点开的溢出面板）是否处于展开状态。
+     * 检查 Windows 系统的托盘折叠菜单（"^" 菜单）是否正处于展开状态。
      *
      * @return 如果正在显示则返回 true
      */
@@ -117,7 +117,7 @@ public final class WindowsClickThrough {
     }
 
     /**
-     * 内部真实的穿透挂载逻辑。
+     * 实际设置窗口样式为穿透或正常交互。
      */
     private static void applyNow(Stage stage, boolean clickThrough) {
         HWND hwnd = User32.INSTANCE.FindWindow(null, stage.getTitle());
@@ -129,10 +129,10 @@ public final class WindowsClickThrough {
         int updated;
         
         if (clickThrough) {
-            // 加入鼠标穿透和图层标签
+            // 添加鼠标穿透和分层窗口样式
             updated = style | WS_EX_TRANSPARENT | WS_EX_LAYERED;
         } else {
-            // 剔除穿透标签，恢复正常拦截点击
+            // 移除鼠标穿透样式，恢复正常可点击状态
             updated = style & ~WS_EX_TRANSPARENT;
         }
         

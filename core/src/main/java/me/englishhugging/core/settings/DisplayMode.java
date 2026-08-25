@@ -1,27 +1,20 @@
 package me.englishhugging.core.settings;
 
 /**
- * 单词在界面上的显示模式枚举。
+ * 单词在界面上的显示模式。
  * 
- * <p>用户可以在设置中自由选择词条内容的丰富程度，以适应不同的屏幕大小
- * 或不同的记忆阶段需求。
- * 
- * <p><b>Usage Example:</b>
- * <pre><code>
- * // 将显示模式切换为最精简的只显示单词
- * settings.setDisplayMode(DisplayMode.WORD_ONLY);
- * </code></pre>
+ * <p>用户可以在设置中选择词条内容的丰富程度（如只显示单词、显示单词加释义、显示单词加释义及短语）。
  */
 public enum DisplayMode {
     
     /**
-     * 极简模式：只显示英文单词本体。
+     * 极简模式：只显示英文单词。
      * 适合复习阶段或极小的桌面悬浮窗。
      */
     WORD_ONLY("只显示单词"),
     
     /**
-     * 标准模式：显示单词本体和对应的中文释义。
+     * 标准模式：显示单词和中文释义。
      * 适合绝大部分日常背词场景。
      */
     WORD_WITH_TRANSLATION("单词 + 释义"),
@@ -33,37 +26,33 @@ public enum DisplayMode {
     WORD_WITH_TRANSLATION_AND_PHRASE("单词 + 释义 + 短语");
 
     /**
-     * 对应在 UI 下拉列表中显示的人类可读标签
+     * 下拉框中显示的中文名称
      */
     private final String label;
 
     /**
-     * 构造一个新的枚举值并绑定其显示标签。
+     * 初始化显示模式。
      *
-     * @param label 中文显示名称
+     * @param label 下拉框中显示的中文名称
      */
     DisplayMode(String label) {
         this.label = label;
     }
 
     /**
-     * 获取供 UI 界面展示的中文描述。
+     * 返回下拉框中显示的中文名称。
      *
      * @return 中文标签字符串
      */
-    public String getLabel() {
-        return this.label;
-    }
-
     @Override
     public String toString() {
         return this.label;
     }
 
     /**
-     * 获取所有的可用显示模式中文标签，常用于填充 UI 下拉列表。
+     * 获取所有显示模式的中文名称数组。
      *
-     * @return 包含所有标签的字符串数组
+     * @return 包含所有显示模式中文名称的字符串数组
      */
     public static String[] labels() {
         DisplayMode[] values = values();

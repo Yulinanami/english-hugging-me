@@ -11,33 +11,54 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * 播放进度游标：封装顺序 / 完全随机 / 乱序不重复三种模式下
- * “下一个播放哪个下标”的全部算法与计数状态。
+ * 单词播放顺序与进度计算。
  *
- * <p>职责边界：只做纯状态推进，不含线程、定时与回调逻辑，
- * 因此可以脱离定时器直接进行毫秒级单元测试。
+ * <p>负责计算在顺序播放、完全随机或乱序不重复模式下，下一个应该播放词库里的哪个单词。
+ * 本类不包含任何后台定时或多线程操作，仅负责单词播放顺序与位置计算。
  *
- * <p>非线程安全——由 {@link WordScheduler} 在自身锁内调用。
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * PlaybackCursor cursor = new PlaybackCursor(
+ *         100,
+ *         PlaybackMode.SEQUENTIAL,
+ *         true,
+ *         PlaybackProgress.EMPTY,
+ *         new Random()
+ * );
+ * int firstIndex = cursor.next(); // 返回 0
+ * int secondIndex = cursor.next(); // 返回 1
+ * </code></pre>
  */
 final class PlaybackCursor {
 
+    /** 词库中的单词总数 */
     private final int wordCount;
+    /** 当前生效的播放模式（顺序/随机/乱序） */
     private final PlaybackMode playbackMode;
+    /** 是否循环播放 */
     private final boolean loopPlayback;
+    /** 随机数对象 */
     private final Random random;
 
+    /** 顺序播放模式下下一个单词的位置序号 */
     private int nextWordIndex;
+    /** 乱序不重复模式下打乱的单词序号列表 */
     private List<Integer> shuffleOrder;
+    /** 乱序不重复模式下当前播放到列表的第几个位置 */
     private int shufflePosition;
+    /** 完全随机模式下已累计播放的单词次数 */
     private int randomPlayedCount;
+    /** 本轮播放会话中已播放的单词数 */
     private int sessionPlayedCount = 0;
 
     /**
-     * @param wordCount    词库（过滤后）的总词数
-     * @param playbackMode 播放模式，不可为 null
-     * @param loopPlayback 生效的循环开关（无前缀播放时上游会强制为 true）
-     * @param initial      上次会话遗留的进度快照
-     * @param random       随机源
+     * 初始化单词播放进度。
+     *
+     * @param wordCount    单词总数
+     * @param playbackMode 播放模式
+     * @param loopPlayback 是否循环播放
+     * @param initial      历史进度数据
+     * @param random       随机数对象
      */
     PlaybackCursor(int wordCount, PlaybackMode playbackMode, boolean loopPlayback, PlaybackProgress initial, Random random) {
         this.wordCount = wordCount;
@@ -45,7 +66,7 @@ final class PlaybackCursor {
         this.loopPlayback = loopPlayback;
         this.random = random;
 
-        // 顺序播放索引：越界的历史进度作废归零
+        // 顺序播放位置：超出范围的历史进度重置为 0
         if (initial.nextWordIndex() < 0 || initial.nextWordIndex() > wordCount) {
             this.nextWordIndex = 0;
         } else {
@@ -64,16 +85,16 @@ final class PlaybackCursor {
 
     /**
      * 每次 {@code start()} 重新开始一轮会话时清零本轮播放计数。
-     * 历史进度（顺序索引、乱序位置等）不受影响。
+     * 历史进度（顺序位置、乱序位置等）不受影响。
      */
     void resetSession() {
         this.sessionPlayedCount = 0;
     }
 
     /**
-     * 取出下一个应该播放的词库下标并推进内部计数。
+     * 取出下一个应该播放的单词位置序号并推进内部计数。
      *
-     * @return 有效下标；-1 代表本轮已无可播放的词（不循环时播完）
+     * @return 有效单词序号；-1 代表本轮已无可播放的词（不循环时播完）
      */
     int next() {
         // 完全随机模式没有天然的“播完”概念，用本轮会话计数判定
@@ -92,7 +113,7 @@ final class PlaybackCursor {
     }
 
     /**
-     * 把当前所有计数器打包成可持久化的进度快照。
+     * 获取当前播放进度快照。
      */
     PlaybackProgress snapshot() {
         return new PlaybackProgress(
@@ -104,10 +125,10 @@ final class PlaybackCursor {
     }
 
     /**
-     * 算法核心：计算物理数据集合中的哪一个下标应该被下一次取出。
+     * 计算下一个应该播放的单词位置序号。
      */
     private int nextPosition() {
-        // 穷尽匹配 PlaybackMode，勿加 default：新增播放模式时漏写分支应直接编译失败
+        // 按播放模式分别计算下一个单词位置
         return switch (this.playbackMode) {
             case RANDOM -> {
                 this.randomPlayedCount++;
@@ -115,18 +136,18 @@ final class PlaybackCursor {
             }
 
             case SHUFFLE_NO_REPEAT -> {
-                // 乱序池为空或尺寸不对则重建
+                // 乱序列表为空或长度不匹配时重新打乱生成
                 if (this.shuffleOrder.size() != this.wordCount) {
                     this.shuffleOrder = newShuffleOrder(this.wordCount);
                     this.shufflePosition = 0;
                 }
 
-                // 当前这批乱序列表消费殆尽了
+                // 乱序列表已全部播放完毕
                 if (this.shufflePosition >= this.shuffleOrder.size()) {
                     if (!this.loopPlayback) {
                         yield -1;
                     }
-                    // 如果允许循环，那么就新洗一副牌，从头抽
+                    // 如果开启循环播放，重新生成乱序列表并从头开始
                     this.shuffleOrder = newShuffleOrder(this.wordCount);
                     this.shufflePosition = 0;
                 }
@@ -154,8 +175,8 @@ final class PlaybackCursor {
     }
 
     /**
-     * 将字符串化的乱序数组重新反序列化为可操作的 List。
-     * 进行强容错，只要发现异常的乱数序列，立马丢弃重塑。
+     * 将逗号分隔的数字字符串解析为整数列表。
+     * 如果字符串为空或内容格式错误，则重新生成一组打乱的序号列表。
      */
     private List<Integer> parseShuffleOrder(String value, int wordCount) {
         if (value == null || value.trim().length() == 0) {
@@ -185,7 +206,7 @@ final class PlaybackCursor {
     }
 
     /**
-     * 生成一副全新的打乱乱序数组。
+     * 生成一组打乱顺序的单词序号列表。
      */
     private List<Integer> newShuffleOrder(int wordCount) {
         List<Integer> order = new ArrayList<>();
@@ -197,7 +218,7 @@ final class PlaybackCursor {
     }
 
     /**
-     * 将打乱的数组序列化为逗号分割的普通字符串。
+     * 将乱序列表拼接为逗号分隔的字符串，便于保存到本地配置。
      */
     private String serializeShuffleOrder(List<Integer> order) {
         StringBuilder builder = new StringBuilder();

@@ -1,22 +1,15 @@
 package me.englishhugging.core.settings;
 
 /**
- * 词库播放顺序控制枚举。
+ * 词库播放顺序控制模式。
  * 
- * <p>定义了 {@link me.englishhugging.core.WordScheduler} 选取下一个播放单词的算法逻辑。
- * 支持严格按顺序、纯随机或是无放回乱序三种核心模式。
- * 
- * <p><b>Usage Example:</b>
- * <pre><code>
- * // 设置为随机打乱但不重复，适合需要全面复习的场景
- * settings.setPlaybackMode(PlaybackMode.SHUFFLE_NO_REPEAT);
- * </code></pre>
+ * <p>定义了选取下一个播放单词的顺序规则（顺序播放、完全随机、随机不重复）。
  */
 public enum PlaybackMode {
 
     /**
      * 顺序播放模式。
-     * 严格按照 JSON 词库文件中单词出现的先后顺序进行轮询播放。
+     * 按照词库文件中单词出现的先后顺序依次播放。
      */
     SEQUENTIAL("顺序播放"),
 
@@ -28,42 +21,38 @@ public enum PlaybackMode {
 
     /**
      * 随机但不重复模式（乱序模式）。
-     * 生成一个全局乱序索引列表，按照该列表遍历。在遍历完所有单词之前，绝对不会出现重复的词汇。
+     * 生成打乱的单词列表并依次播放，在播完一轮前绝不重复。
      */
     SHUFFLE_NO_REPEAT("随机不重复");
 
     /**
-     * 对应设置 UI 中的中文标签。
+     * 下拉框中显示的中文名称
      */
     private final String label;
 
     /**
-     * 构造播放模式枚举值。
+     * 初始化播放模式。
      *
-     * @param label UI 中文名称
+     * @param label 下拉框中显示的中文名称
      */
     PlaybackMode(String label) {
         this.label = label;
     }
 
     /**
-     * 获取用于界面显示的中文名称。
+     * 返回下拉框中显示的中文名称。
      *
-     * @return 中文标签
+     * @return 中文标签字符串
      */
-    public String getLabel() {
-        return this.label;
-    }
-
     @Override
     public String toString() {
         return this.label;
     }
 
     /**
-     * 获取所有的可用播放模式中文标签，便于绑定到 UI 下拉菜单。
+     * 获取所有播放模式的中文名称数组。
      *
-     * @return 标签字符串数组
+     * @return 包含所有播放模式中文名称的字符串数组
      */
     public static String[] labels() {
         PlaybackMode[] values = values();

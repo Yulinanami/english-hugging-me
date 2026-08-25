@@ -13,36 +13,70 @@ import me.englishhugging.desktop.ui.DesktopUi;
 import java.io.InputStream;
 
 /**
- * 桌面端系统首选项窗口及各 FXML 设置页的装配控制器。
+ * 桌面端主设置窗口，集中管理常规、词库、自定义、外观和学习记录五个设置页面。
  *
- * <p>窗口和选项卡结构由 FXML 声明；本类只负责注入业务依赖、装配各页面控制器，
- * 以及保留“关闭或最小化时隐藏到托盘”的窗口生命周期行为。</p>
+ * <p>负责主设置窗口的显示与隐藏，关闭或最小化时会自动退到系统托盘后台运行。
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * DesktopSettingsPanel panel = new DesktopSettingsPanel(
+ *         settings,
+ *         settingsStore,
+ *         overlayController,
+ *         () -> onSettingsUpdated(),
+ *         () -> onVocabularyUpdated()
+ * );
+ * panel.init();
+ * panel.show();
+ * </code></pre>
  */
 public final class DesktopSettingsPanel {
-    /** 应用图标的 classpath 资源路径。 */
+    /** 图标资源路径 */
     private static final String APP_ICON_RESOURCE = "/icons/app.png";
 
+    /** 应用配置 */
     private final AppSettings settings;
+    /** 配置存储 */
     private final DesktopSettingsStore settingsStore;
+    /** 桌面悬浮窗 */
     private final DesktopOverlayController overlayController;
+    /** 播放参数改变时的刷新回调 */
     private final Runnable onSettingsChanged;
+    /** 词库或播放模式切换时的刷新回调 */
     private final Runnable onVocabularyChanged;
 
+    /** 常规设置页 */
     @FXML
     private Tab generalTab;
+    /** 词库选择页 */
     @FXML
     private Tab vocabularyTab;
+    /** 自定义词库页 */
     @FXML
     private Tab customVocabularyTab;
+    /** 外观样式页 */
     @FXML
     private Tab appearanceTab;
+    /** 学习记录页 */
     @FXML
     private Tab recordsTabContainer;
 
+    /** 设置窗口 */
     private Stage settingsStage;
+    /** 学习记录页面对象 */
     private PlaybackRecordsTab recordsTab;
+    /** 应用图标 */
     private Image appIcon;
 
+    /**
+     * 创建桌面端设置窗口。
+     *
+     * @param settings            应用配置
+     * @param settingsStore       配置存储
+     * @param overlayController   桌面悬浮窗
+     * @param onSettingsChanged   播放参数改变时的刷新回调
+     * @param onVocabularyChanged 词库或播放模式切换时的刷新回调
+     */
     public DesktopSettingsPanel(
             AppSettings settings,
             DesktopSettingsStore settingsStore,
@@ -57,26 +91,36 @@ public final class DesktopSettingsPanel {
         this.onVocabularyChanged = onVocabularyChanged;
     }
 
-    /** 创建设置窗口并加载全部 FXML 页面。 */
+    /**
+     * 初始化并创建设置窗口。
+     */
     public void init() {
         this.settingsStage = createSettingsStage();
     }
 
-    /** 显示设置窗口；若窗口已最小化则先恢复。 */
+    /**
+     * 打开并置顶显示设置窗口。
+     */
     public void show() {
         this.settingsStage.show();
         this.settingsStage.setIconified(false);
         this.settingsStage.toFront();
     }
 
-    /** 播放进度变化后刷新记录页。 */
+    /**
+     * 刷新学习记录页中的数据列表。
+     */
     public void refreshPlaybackRecords() {
         if (this.recordsTab != null) {
             this.recordsTab.refresh();
         }
     }
 
-    /** 组装窗口生命周期、FXML 根节点和五个设置页控制器。 */
+    /**
+     * 创建设置窗口并添加各个选项卡页面。
+     *
+     * @return 设置窗口对象
+     */
     private Stage createSettingsStage() {
         Stage stage = new Stage();
         stage.setTitle("English Hugging Me 首选项");
@@ -129,19 +173,25 @@ public final class DesktopSettingsPanel {
         this.appearanceTab.setContent(appearanceController.createContent());
         this.recordsTabContainer.setContent(this.recordsTab.createContent());
 
-        // 为卡片式设置页面提供舒适的默认阅读空间，窗口仍可由用户自由缩放。
         Scene scene = new Scene(root, 720, 600);
         stage.setScene(scene);
         return stage;
     }
 
-    /** 由 FXML 底部按钮触发，彻底退出桌面程序。 */
+    /**
+     * 退出应用程序。
+     */
     @FXML
     private void exitApplication() {
         javafx.application.Platform.exit();
         System.exit(0);
     }
 
+    /**
+     * 为窗口设置应用图标。
+     *
+     * @param stage 目标窗口
+     */
     private void applyStageIcon(Stage stage) {
         Image icon = appIcon();
         if (icon != null) {
@@ -149,7 +199,11 @@ public final class DesktopSettingsPanel {
         }
     }
 
-    /** 延迟加载并缓存窗口图标。 */
+    /**
+     * 加载应用图标。
+     *
+     * @return 图标图片对象，如果加载失败则返回 null
+     */
     private Image appIcon() {
         if (this.appIcon == null) {
             try (InputStream input = DesktopSettingsPanel.class.getResourceAsStream(
@@ -159,7 +213,7 @@ public final class DesktopSettingsPanel {
                     this.appIcon = new Image(input);
                 }
             } catch (Exception ignored) {
-                // 图标缺失不影响设置窗口和悬浮窗运行。
+                // 图标缺失不影响窗口运行
             }
         }
         return this.appIcon;

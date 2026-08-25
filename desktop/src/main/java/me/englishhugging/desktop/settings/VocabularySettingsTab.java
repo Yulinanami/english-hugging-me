@@ -14,18 +14,36 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-/** 词库设置 FXML 页面的选择、导入和重新加载控制器。 */
+/**
+ * 桌面端“词库设置”页面，负责选择内置词库或导入外部词库文件。
+ *
+ * <p>支持选择内置词库、自定义生词库或导入外部 JSON 词库文件。
+ */
 final class VocabularySettingsTab {
+    /** 自定义词库在下拉选择框中的专用显示名称 */
     static final String CUSTOM_VOCABULARY_LABEL = "自定义词汇";
 
+    /** 应用配置 */
     private final AppSettings settings;
+    /** 配置存储 */
     private final DesktopSettingsStore settingsStore;
+    /** 设置窗口，用于弹出文件选择框 */
     private final Stage owner;
+    /** 词库变更时的刷新回调 */
     private final Runnable onVocabularyChanged;
 
+    /** 词库选择下拉框 */
     @FXML
     private ComboBox<String> vocabularyChoice;
 
+    /**
+     * 创建词库设置页面。
+     *
+     * @param settings            应用配置
+     * @param settingsStore       配置存储
+     * @param owner               所属窗口
+     * @param onVocabularyChanged 词库切换回调
+     */
     VocabularySettingsTab(
             AppSettings settings,
             DesktopSettingsStore settingsStore,
@@ -38,16 +56,27 @@ final class VocabularySettingsTab {
         this.onVocabularyChanged = onVocabularyChanged;
     }
 
+    /**
+     * 获取词库下拉框。
+     *
+     * @return 词库下拉框
+     */
     ComboBox<String> getVocabularyChoice() {
         return this.vocabularyChoice;
     }
 
-    /** 加载由 FXML 声明的词库设置页面。 */
+    /**
+     * 加载词库设置界面。
+     *
+     * @return 词库设置界面的根节点
+     */
     Node createContent() {
         return DesktopUi.loadFxml("/fxml/vocabulary-settings.fxml", this);
     }
 
-    /** FXML 字段注入完成后填充可选词库并绑定选择事件。 */
+    /**
+     * 初始化界面控件，填充内置词库列表并绑定选择事件。
+     */
     @FXML
     private void initialize() {
         this.vocabularyChoice.getItems().addAll(VocabularyCatalog.fileNames());
@@ -65,7 +94,9 @@ final class VocabularySettingsTab {
         );
     }
 
-    /** 打开文件选择器并把用户选中的 JSON 文件切换为当前词库。 */
+    /**
+     * 弹出文件选择框，让用户导入外部 JSON 词库文件。
+     */
     @FXML
     private void importVocabulary() {
         FileChooser fileChooser = new FileChooser();
@@ -86,12 +117,19 @@ final class VocabularySettingsTab {
         applyVocabularyChoice(path);
     }
 
-    /** 使用当前选择重新加载词库。 */
+    /**
+     * 重新加载当前选中的词库。
+     */
     @FXML
     private void reloadVocabulary() {
         applyVocabularyChoice(this.vocabularyChoice.getValue());
     }
 
+    /**
+     * 将选中的词库应用到当前设置中，保存并通知应用重新加载。
+     *
+     * @param choice 下拉框中选中的词库名称或外部文件路径
+     */
     void applyVocabularyChoice(String choice) {
         if (choice == null || choice.trim().isEmpty()) {
             return;
@@ -109,6 +147,12 @@ final class VocabularySettingsTab {
         this.onVocabularyChanged.run();
     }
 
+    /**
+     * 根据下拉框选项获取对应的文件路径。
+     *
+     * @param choice 下拉框选中的词库名称
+     * @return 对应的文件路径
+     */
     private String vocabularyPathForChoice(String choice) {
         if (CUSTOM_VOCABULARY_LABEL.equals(choice)) {
             return customVocabularyPath().toString();
@@ -121,6 +165,12 @@ final class VocabularySettingsTab {
         return choice;
     }
 
+    /**
+     * 根据下拉框选项获取对应的词库显示文件名。
+     *
+     * @param choice 下拉框选中的词库名称
+     * @return 词库文件名
+     */
     private String vocabularyFileNameForChoice(String choice) {
         if (CUSTOM_VOCABULARY_LABEL.equals(choice)) {
             return CUSTOM_VOCABULARY_LABEL;
@@ -133,6 +183,12 @@ final class VocabularySettingsTab {
         return Paths.get(choice).getFileName().toString();
     }
 
+    /**
+     * 把保存的文件路径转换成在下拉框中显示的名字。
+     *
+     * @param value 配置文件中记录的路径字符串
+     * @return 匹配到的下拉框选项名称
+     */
     String vocabularyChoiceForPath(String value) {
         if (value == null || value.trim().isEmpty()) {
             return AppSettings.DEFAULT_VOCABULARY_FILE_NAME;
@@ -153,6 +209,11 @@ final class VocabularySettingsTab {
         return value;
     }
 
+    /**
+     * 获取桌面端自定义词库 JSON 文件的保存路径：`~/.english-hugging-me/custom-vocabulary.json`。
+     *
+     * @return 自定义词库文件的本地保存路径
+     */
     static Path customVocabularyPath() {
         return Paths.get(
                 System.getProperty("user.home"),
@@ -161,6 +222,12 @@ final class VocabularySettingsTab {
         );
     }
 
+    /**
+     * 判断某个名字是不是系统内置的官方词库。
+     *
+     * @param choice 词库名称
+     * @return 如果是内置词库之一则返回 true
+     */
     static boolean isBuiltInVocabularyChoice(String choice) {
         for (VocabularyCatalog.VocabularyItem item : VocabularyCatalog.items()) {
             if (item.fileName().equals(choice)) {

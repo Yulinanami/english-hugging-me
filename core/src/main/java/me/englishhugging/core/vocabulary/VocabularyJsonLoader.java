@@ -17,14 +17,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 将 JSON 文件反序列化为 {@link WordEntry} 对象的加载工具类。
+ * JSON 词库文件加载工具。
  *
- * <p>该类封装了 Gson 库的调用，专门用于从文件系统或输入流中安全地读取并解析 JSON 格式的词库。
- * 解析过程中会过滤掉不合法或空缺的单词；{@link WordEntry} 本身是不可变 record，无需额外拷贝。
+ * <p>从本地文件或输入流中读取并解析 JSON 格式词库，自动过滤空白与无效条目。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
- * // 通过路径加载词库
+ * // 通过路径读取并解析词库
  * VocabularyJsonLoader loader = new VocabularyJsonLoader();
  * List&lt;WordEntry&gt; words = loader.load(Paths.get("vocab.json"));
  * System.out.println("成功加载了 " + words.size() + " 个单词");
@@ -32,29 +31,25 @@ import java.util.List;
  */
 public final class VocabularyJsonLoader {
 
-    /** 
-     * Gson 解析时需要明确泛型集合的具体类型信息 
-     */
+    /** 单词列表类型标记 */
     private static final Type WORD_LIST_TYPE = new TypeToken<List<WordEntry>>() { }.getType();
 
-    /** 
-     * JSON 解析核心对象 
-     */
+    /** JSON 数据转换工具 */
     private final Gson gson = new Gson();
 
     /**
-     * 默认构造函数。
+     * 创建词库加载工具。
      */
     public VocabularyJsonLoader() {
         // 无需额外初始化
     }
 
     /**
-     * 从指定的文件系统路径读取并解析 JSON 词库。
+     * 从本地文件路径读取并解析词库。
      *
      * @param path 本地文件路径
-     * @return 解析后的 {@link WordEntry} 列表
-     * @throws IOException 如果文件不存在或读取失败时抛出异常
+     * @return 解析出的单词列表
+     * @throws IOException 如果文件不存在或读取失败
      */
     public List<WordEntry> load(Path path) throws IOException {
         try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
@@ -63,11 +58,11 @@ public final class VocabularyJsonLoader {
     }
 
     /**
-     * 从输入流（如 Android Assets 或 Desktop Resources）读取并解析 JSON 词库。
+     * 从输入流（如资源文件或应用内置资源）读取并解析词库。
      *
      * @param inputStream 数据输入流
-     * @return 解析后的 {@link WordEntry} 列表
-     * @throws IOException 如果流读取失败时抛出异常
+     * @return 解析出的单词列表
+     * @throws IOException 如果读取流失败
      */
     public List<WordEntry> load(InputStream inputStream) throws IOException {
         try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
@@ -76,16 +71,16 @@ public final class VocabularyJsonLoader {
     }
 
     /**
-     * 核心加载逻辑，从 Reader 读取文本并反序列化，执行必要的清洗操作。
+     * 从 Reader 读取字符并解析为单词列表，同时过滤掉无效数据。
      *
-     * @param reader 数据读取器
-     * @return 一个不可变的 {@link WordEntry} 集合
-     * @throws IOException 如果 GSON 解析遇到 IO 异常
+     * @param reader 字符输入流读取对象
+     * @return 只读的单词列表
+     * @throws IOException 如果解析或读取出错
      */
     public List<WordEntry> load(Reader reader) throws IOException {
         List<WordEntry> parsed = this.gson.fromJson(reader, WORD_LIST_TYPE);
         
-        // 提前返回：如果 JSON 文件为空或解析不出集合结构
+        // 如果文件内容为空或无法解析为列表，返回空列表
         if (parsed == null) {
             return Collections.emptyList();
         }
@@ -93,7 +88,7 @@ public final class VocabularyJsonLoader {
         List<WordEntry> entries = new ArrayList<>();
         
         for (WordEntry entry : parsed) {
-            // 过滤无效数据：单词对象为空，或单词字符串为空白
+            // 过滤掉 null 或空白单词
             if (entry == null) {
                 continue;
             }
@@ -104,8 +99,7 @@ public final class VocabularyJsonLoader {
                 continue;
             }
 
-            // Gson 反序列化 record 时可能绕过紧凑构造器，导致 JSON 中缺失的集合字段仍为 null。
-            // 重新构造一次，统一执行 WordEntry 的空集合归一化，避免播放时遍历 null 崩溃。
+            // 重新构造一次，确保内部的释义和短语列表不为 null
             entries.add(new WordEntry(entry.word(), entry.translations(), entry.phrases()));
         }
         

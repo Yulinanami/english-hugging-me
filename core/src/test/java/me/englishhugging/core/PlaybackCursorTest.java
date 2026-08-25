@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * PlaybackCursor 的纯逻辑单元测试：不涉及线程与定时器，毫秒级完成。
+ * PlaybackCursor 的单元测试。
  */
 class PlaybackCursorTest {
 
@@ -30,7 +30,7 @@ class PlaybackCursorTest {
         assertEquals(0, cursor.next());
         assertEquals(1, cursor.next());
         assertEquals(2, cursor.next());
-        assertEquals(0, cursor.next(), "循环模式播到底应当回卷到开头");
+        assertEquals(0, cursor.next(), "循环模式播放到底后应当回到开头");
     }
 
     @Test
@@ -47,7 +47,7 @@ class PlaybackCursorTest {
     void sequentialResumesFromSavedProgress() {
         PlaybackCursor cursor = cursor(3, PlaybackMode.SEQUENTIAL, true, new PlaybackProgress(1, "", 0, 0));
 
-        assertEquals(1, cursor.next(), "应当从保存的下标继续播放");
+        assertEquals(1, cursor.next(), "应当从保存的进度继续播放");
         assertEquals(2, cursor.snapshot().nextWordIndex(), "快照应当指向再下一个词");
     }
 
@@ -55,7 +55,7 @@ class PlaybackCursorTest {
     void sequentialOutOfRangeProgressIsResetToZero() {
         PlaybackCursor cursor = cursor(3, PlaybackMode.SEQUENTIAL, true, new PlaybackProgress(99, "", 0, 0));
 
-        assertEquals(0, cursor.next(), "越界的历史进度应当作废归零");
+        assertEquals(0, cursor.next(), "超出范围的历史进度应当重置为 0");
     }
 
     @Test
@@ -66,9 +66,9 @@ class PlaybackCursorTest {
         for (int i = 0; i < 5; i++) {
             int position = cursor.next();
             assertTrue(position >= 0 && position < 5);
-            assertTrue(seen.add(position), "同一轮内不应当重复出现同一个下标");
+            assertTrue(seen.add(position), "同一轮内不应当重复出现同一个单词");
         }
-        assertEquals(-1, cursor.next(), "不循环时抽完一轮应当返回 -1");
+        assertEquals(-1, cursor.next(), "不循环时播完一轮应当返回 -1");
     }
 
     @Test
@@ -85,7 +85,7 @@ class PlaybackCursorTest {
         }
 
         assertEquals(Set.of(0, 1, 2), firstRound);
-        assertEquals(Set.of(0, 1, 2), secondRound, "循环模式抽完一轮应当重新洗牌再来一轮");
+        assertEquals(Set.of(0, 1, 2), secondRound, "循环模式播完一轮后应当重新打乱并开始新一轮");
     }
 
     @Test
@@ -96,7 +96,7 @@ class PlaybackCursorTest {
         playedByFirst.add(first.next());
         playedByFirst.add(first.next());
 
-        // 用快照重建游标：应当接着抽剩下的两个，不与前两个重复
+        // 用快照恢复播放进度：应当接着播放剩下的两个，不与前两个重复
         PlaybackCursor resumed = cursor(4, PlaybackMode.SHUFFLE_NO_REPEAT, false, first.snapshot());
 
         Set<Integer> playedByResumed = new HashSet<>();
@@ -106,12 +106,12 @@ class PlaybackCursorTest {
 
         Set<Integer> all = new HashSet<>(playedByFirst);
         all.addAll(playedByResumed);
-        assertEquals(Set.of(0, 1, 2, 3), all, "快照恢复后应当恰好补完剩余的下标");
+        assertEquals(Set.of(0, 1, 2, 3), all, "快照恢复后应当恰好播完剩余的单词");
     }
 
     @Test
     void corruptedShuffleOrderIsRebuilt() {
-        // 长度不符 / 重复 / 越界的序列串都应当被丢弃重塑，而不是崩溃
+        // 长度不符、重复或超出范围的乱序字符串都应当被丢弃并重新生成，而不是报错崩溃
         PlaybackCursor cursor = cursor(3, PlaybackMode.SHUFFLE_NO_REPEAT, false,
                 new PlaybackProgress(0, "9,9,abc", 0, 0));
 

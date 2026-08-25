@@ -5,26 +5,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 单个单词的完整词条模型，对应 JSON 词库中的一个独立条目。
+ * 词库中的单个单词。
  *
- * <p>包含了单词本体、一系列不同的词性与翻译，以及若干帮助理解的常用短语。
- * 此类是整个项目的核心数据结构。
+ * <p>包含英文单词拼写、中文释义列表以及常用短语例句。
  *
- * <p>紧凑构造器会把 null 集合归一为空列表、剔除 null 元素并做不可变包装，
- * 因此 {@link #translations()} 与 {@link #phrases()} 永远不会返回 null，
- * 外部也无法修改其内容。
- *
- * <p><b>Usage Example:</b>
- * <pre><code>
- * WordEntry entry = new WordEntry("apple",
- *         Collections.singletonList(new Translation("苹果", "n.")),
- *         Collections.singletonList(new Phrase("an apple a day", "每天一个苹果")));
- * System.out.println(entry.word());
- * </code></pre>
- *
- * @param word         英文单词本体，如 "apple"
- * @param translations 该单词的一组释义，允许一个单词在不同词性下有多个翻译
- * @param phrases      包含该单词的常用短语或例句列表
+ * @param word         英文单词拼写，如 "apple"
+ * @param translations 中文释义列表
+ * @param phrases      常用短语与例句列表
  */
 public record WordEntry(String word, List<Translation> translations, List<Phrase> phrases) {
 
@@ -34,8 +21,7 @@ public record WordEntry(String word, List<Translation> translations, List<Phrase
     }
 
     /**
-     * 归一化集合：null 集合视为空列表，剔除 null 元素（用户手编 JSON 可能出现），
-     * 并做不可变包装。core 需兼容 Android minSdk 26，故不能使用 List.copyOf（API 30+）。
+     * 复制列表并转为只读列表，同时剔除 null 元素。
      */
     private static <T> List<T> safeCopy(List<T> source) {
         if (source == null || source.isEmpty()) {

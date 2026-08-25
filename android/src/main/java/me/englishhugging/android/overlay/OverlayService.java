@@ -47,71 +47,92 @@ import me.englishhugging.core.WordScheduler;
 import me.englishhugging.core.WordSchedulerConfig;
 
 /**
- * Android 平台核心悬浮窗前台服务。
+ * Android 手机端桌面悬浮窗后台服务。
  *
- * <p>这个服务（Service）是整个 Android 端的灵魂。由于系统机制限制，它必须被注册为前台服务（Foreground Service）
- * 并长驻通知栏，以免被系统内存回收机制（OOM Killer）干掉。
+ * <p>这个服务负责在手机屏幕最上层显示单词悬浮窗，即使切换到其他 App 也能继续背单词。
  *
- * <p>它负责：
- * 1. 在 Android {@link WindowManager} 的最顶层（TYPE_APPLICATION_OVERLAY）绘制一个全局悬浮的 View。
- * 2. 挂载 Core 核心的 {@link WordScheduler} 调度器，将单词推送到悬浮窗。
- * 3. 监听屏幕状态广播（息屏暂停，亮屏恢复）。
- * 4. 监听外部的重载命令，当用户在 MainActivity 修改设置后即时应用颜色和大小。
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * // 启动悬浮窗服务
+ * Intent intent = new Intent(context, OverlayService.class);
+ * context.startForegroundService(intent);
+ *
+ * // 停止悬浮窗服务
+ * context.stopService(intent);
+ * </code></pre>
  */
 public final class OverlayService extends Service {
     
-    // --- 服务控制常量指令 ---
+    /** 启动悬浮窗服务的广播指令 */
     public static final String ACTION_START = "me.englishhugging.android.START_OVERLAY";
+    /** 停止悬浮窗服务的广播指令 */
     public static final String ACTION_STOP = "me.englishhugging.android.STOP_OVERLAY";
+    /** 重新加载设置的广播指令 */
     public static final String ACTION_RELOAD = "me.englishhugging.android.RELOAD_SETTINGS";
 
+    /** 前台通知渠道名称 */
     private static final String CHANNEL_ID = "floating_words";
+    /** 前台服务通知编号 */
     private static final int NOTIFICATION_ID = 20260517;
 
-    // 所有的视图更新必须被抛到 Android 的主线程执行
+    /** 主线程消息队列，用于向界面发送更新任务 */
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     
-    // 跨平台通用的高亮拆词器
+    /** 单词文本拆分工具 */
     private final WordDisplayFormatter wordDisplayFormatter = new WordDisplayFormatter();
 
-    // --- Android 视图及布局 ---
+    /** 窗口管理服务，用于添加和更新悬浮窗 */
     private WindowManager windowManager;
+    /** 悬浮窗根布局 */
     private FrameLayout overlayRoot;
+    /** 悬浮窗中展示单词富文本的文本控件 */
     private TextView overlayText;
+    /** 悬浮窗的窗口布局参数 */
     private WindowManager.LayoutParams layoutParams;
     
-    // 缩放控制柄视图
+    /** 悬浮窗右下角缩放把手视图 */
     private TextView resizeHandleView;
+    /** 缩放把手的窗口布局参数 */
     private WindowManager.LayoutParams resizeHandleParams;
     
-    // 尺寸监听器：当主悬浮窗宽高发生变化时（例如内容撑大了容器），自动修正右下角缩放把手的位置
+    /** 监听主悬浮窗尺寸变化以同步更新缩放把手位置的布局监听回调 */
     private final android.view.ViewTreeObserver.OnGlobalLayoutListener layoutListener = this::syncResizeHandlePosition;
 
-    // --- 业务模型与状态 ---
+    /** 单词后台定时播放任务 */
     private WordScheduler scheduler;
+    /** 应用配置 */
     private AppSettings settings;
 
-    // 保存悬浮窗当前真正显示的内容，热更新颜色或字号时不会破坏正在进行的填空画面。
+    /** 当前屏幕上显示的单词条目 */
     private WordEntry displayedWord;
+    /** 当前是否隐藏短语 */
     private boolean displayedHidePhrases;
+    /** 当前是否隐藏中文释义 */
     private boolean displayedHideTranslation;
     
-    // 拖拽手势中间状态缓存
+    /** 拖拽移动时窗口初始 X 坐标（像素） */
     private int initialX;
+    /** 拖拽移动时窗口初始 Y 坐标（像素） */
     private int initialY;
+    /** 拖拽移动时手指按下起始 X 坐标（像素） */
     private float initialTouchX;
+    /** 拖拽移动时手指按下起始 Y 坐标（像素） */
     private float initialTouchY;
+    /** 拖拽缩放时窗口初始宽度（像素） */
     private int initialWidth;
+    /** 拖拽缩放时窗口初始高度（像素） */
     private int initialHeight;
+    /** 拖拽缩放时手指按下起始 X 坐标（像素） */
     private float initialResizeTouchX;
+    /** 拖拽缩放时手指按下起始 Y 坐标（像素） */
     private float initialResizeTouchY;
 
-    /** 提供给 MainActivity 等组件用来查询当前服务是否处于存活状态 */
+    /** 标识悬浮窗前台服务当前是否正在运行 */
     public static boolean isRunning = false;
 
     /**
-     * 息屏/亮屏广播接收器：
-     * 用于在用户离开手机时自动挂起背单词流水线，节省电池。
+     * 息屏与亮屏系统广播监听：
+     * 用于在用户息屏时自动暂停播放单词，节省电量；亮屏后自动恢复播放。
      */
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
         @Override
@@ -149,7 +170,7 @@ public final class OverlayService extends Service {
         
         if (intent != null && ACTION_RELOAD.equals(intent.getAction())) {
             reloadSettings();
-            // START_STICKY 保证如果服务被系统杀死，重启时可以继续运行
+            // 服务被系统回收后，系统会自动尝试重启服务
             return START_STICKY;
         }
         
@@ -194,7 +215,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 首次冷启动悬浮窗，负责加载视图和启动单词泵。
+     * 首次启动悬浮窗，加载视图并启动后台单词播放定时任务。
      */
     private void startOverlay() {
         this.settings = AndroidSettingsStore.load(this);
@@ -214,7 +235,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 当主页面（MainActivity）的用户修改了偏好设置时，热重载内存。
+     * 当用户在设置页面修改了配置时，重新加载配置并应用到悬浮窗。
      */
     private void reloadSettings() {
         AppSettings previous = this.settings;
@@ -231,7 +252,7 @@ public final class OverlayService extends Service {
         boolean resizeModeChanged = previous == null || previous.isResizeMode() != this.settings.isResizeMode();
 
         if (modeChanged || sizeChanged || resizeModeChanged) {
-            // 如果缩放模式发生变更，牵扯到独立窗口和手势，我们干脆把悬浮窗全部推倒重建最稳妥
+            // 如果缩放模式发生变化，重新创建悬浮窗
             if (previous != null && previous.isResizeMode() != this.settings.isResizeMode() && this.overlayRoot != null) {
                 this.windowManager.removeView(this.overlayRoot);
                 this.overlayRoot = createOverlayView();
@@ -240,7 +261,7 @@ public final class OverlayService extends Service {
                 manageResizeHandleWindow();
                 renderDisplayedWord();
             } else {
-                // 否则只是简单刷新外壳属性
+                // 仅更新窗口布局参数
                 this.layoutParams = createLayoutParams(this.settings.getOverlayMode());
                 if (this.overlayRoot != null) {
                     this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
@@ -249,7 +270,7 @@ public final class OverlayService extends Service {
             }
         }
 
-        // 这些设置都参与调度器构造；变化后立即用已保存进度重建，避免等到下一轮才生效。
+        // 播放参数发生变化后立即用已保存进度重建，避免等到下一轮才生效。
         boolean vocabularyChanged = previous == null || !previous.getVocabularyFileName().equals(this.settings.getVocabularyFileName());
         boolean playbackModeChanged = previous == null || previous.getPlaybackMode() != this.settings.getPlaybackMode();
         boolean schedulerSettingsChanged = previous == null
@@ -270,7 +291,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 利用 XML 布局声明加载深色圆角的背单词悬浮窗视图。
+     * 加载悬浮窗布局视图。
      */
     private FrameLayout createOverlayView() {
         OverlayWindowBinding binding = OverlayWindowBinding.inflate(android.view.LayoutInflater.from(this));
@@ -286,7 +307,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 判断当前是否需要展现“右下角调节大小把手”，并进行挂载/卸载管理。
+     * 根据设置动态显示或隐藏右下角的悬浮窗缩放把手。
      */
     private void manageResizeHandleWindow() {
         if (this.settings.isResizeMode()) {
@@ -328,7 +349,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 吸附算法：使得右下角的缩放把手始终牢牢贴紧悬浮黑板的右下角。
+     * 同步缩放把手位置，使其始终跟随悬浮窗右下角。
      */
     private void syncResizeHandlePosition() {
         if (this.resizeHandleView != null && this.overlayRoot != null && this.layoutParams != null) {
@@ -348,8 +369,8 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 基于安卓系统层级生成 LayoutParams。
-     * 如果用户勾选了“鼠标穿透”，我们会打上 FLAG_NOT_TOUCHABLE 使得黑板无法拦截任何触摸事件。
+     * 创建悬浮窗的窗口参数。
+     * 如果开启鼠标穿透，添加 FLAG_NOT_TOUCHABLE 标志使触摸事件直接穿透到下层界面。
      */
     private WindowManager.LayoutParams createLayoutParams(OverlayMode overlayMode) {
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
@@ -402,7 +423,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 响应用户在缩放把手上的手指拖动，改变悬浮窗的宽和高（拉伸变形）。
+     * 响应用户在缩放把手上的手指拖动，调整悬浮窗的宽和高。
      */
     private boolean onResizeTouch(View view, MotionEvent event) {
         switch (event.getAction()) {
@@ -441,7 +462,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 停止旧任务，实例化全新的调度器并启动单词瀑布流。
+     * 停止旧任务并根据最新词库启动播放。
      */
     private void startScheduler(List<WordEntry> words) {
         if (this.scheduler != null) {
@@ -469,7 +490,7 @@ public final class OverlayService extends Service {
                     public void onPlaybackFinished() {
                         mainHandler.post(() -> {
                             WordEntry finished = new WordEntry(
-                                    "播放结束",
+                                     "播放结束",
                                     Collections.emptyList(),
                                     Collections.emptyList()
                             );
@@ -488,7 +509,7 @@ public final class OverlayService extends Service {
         this.scheduler.start();
     }
 
-    /** 保存并渲染调度器刚刚发送到悬浮窗的内容。 */
+    /** 保存并在悬浮窗上渲染刚刚接收到的单词内容。 */
     private void showWord(
             WordEntry wordToDisplay,
             boolean hidePhrases,
@@ -513,7 +534,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 将业务侧抽象的颜色分片，转换为 Android 平台专属的 SpannableStringBuilder 富文本格式。
+     * 将单词分段信息转换为带颜色与字号的 SpannableStringBuilder 富文本。
      */
     private CharSequence formatWord(WordEntry wordEntry, boolean hidePhrases, boolean hideTranslation) {
         SpannableStringBuilder builder = new SpannableStringBuilder();
@@ -527,15 +548,15 @@ public final class OverlayService extends Service {
                 continue;
             }
             
-            // 染色
+            // 设置字体颜色
             builder.setSpan(new ForegroundColorSpan(colorForSegment(segment.type())), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             
-            // 加粗
+            // 设置加粗
             if (isBoldSegment(segment.type())) {
                 builder.setSpan(new StyleSpan(Typeface.BOLD), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
             
-            // 字号（区分主标题和副标题大小）
+            // 设置字号（区分单词和释义字号）
             int fontSizeSp = segment.type() == WordDisplaySegment.Type.WORD ? this.settings.getWordFontSize() : this.settings.getDetailFontSize();
             builder.setSpan(new AbsoluteSizeSpan(fontSizeSp, true), start, end, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
@@ -544,7 +565,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 将 CSS 的十六进制色值转换为 Android 原生的 Color Int。
+     * 将十六进制颜色字符串转换为 Android 颜色值。
      */
     private int colorForSegment(WordDisplaySegment.Type type) {
         if (type == WordDisplaySegment.Type.WORD) {
@@ -572,7 +593,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 智能路由：如果是预置词库就走 assets 加载，如果是自定义词库则走文件系统。
+     * 加载内置词库或自定义生词列表。
      */
     private List<WordEntry> loadWords(String vocabularyFileName) {
         if (AndroidSettingsStore.isCustomVocabulary(vocabularyFileName)) {
@@ -592,7 +613,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 创建前台保活的系统通知。
+     * 创建前台服务通知。
      */
     private Notification createNotification() {
         createNotificationChannel();

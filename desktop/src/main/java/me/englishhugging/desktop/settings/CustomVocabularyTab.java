@@ -22,43 +22,69 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** 自定义词库 FXML 页面的表单、表格和本地文件控制器。 */
+/**
+ * 桌面端“自定义词库”页面，支持添加、修改和删除生词。
+ *
+ * <p>用户录入的生词会自动保存到本地文件（`~/.english-hugging-me/custom-vocabulary.json`）。
+ */
 final class CustomVocabularyTab {
+    /** 词库变更时的刷新回调 */
     private final Runnable onVocabularyChanged;
+    /** 表格数据列表 */
     private final ObservableList<WordItem> wordItems = FXCollections.observableArrayList();
 
+    /** 单词输入框 */
     @FXML
     private TextField customWord;
+    /** 词性输入框（如 n. / v. / adj.） */
     @FXML
     private TextField customType;
+    /** 中文释义输入框 */
     @FXML
     private TextField customMeaning;
+    /** 常用短语输入框 */
     @FXML
     private TextField customPhrase;
+    /** 短语释义输入框 */
     @FXML
     private TextField customPhraseMeaning;
+    /** 英文例句输入框 */
     @FXML
     private TextField customExample;
+    /** 自定义生词列表表格 */
     @FXML
     private TableView<WordItem> tableView;
 
+    /**
+     * 创建自定义词库页面。
+     *
+     * @param onVocabularyChanged 词库变更时的刷新回调
+     */
     CustomVocabularyTab(Runnable onVocabularyChanged) {
         this.onVocabularyChanged = onVocabularyChanged;
     }
 
-    /** 加载由 FXML 声明的自定义词库页面。 */
+    /**
+     * 加载自定义词库界面。
+     *
+     * @return 自定义词库界面的根节点
+     */
     Node createContent() {
         return DesktopUi.loadFxml("/fxml/custom-vocabulary.fxml", this);
     }
 
-    /** FXML 字段注入完成后绑定数据源并读取现有自定义词汇。 */
+    /**
+     * 初始化界面，绑定表格数据并加载已保存的生词。
+     */
     @FXML
     private void initialize() {
         this.tableView.setItems(this.wordItems);
         loadCustomWords();
     }
 
-    /** 把选中的词汇回填到上方表单。 */
+    /**
+     * 将表格中选中的单词填入上方输入框，方便编辑。
+     */
     @FXML
     private void editSelectedWord() {
         WordItem selected = this.tableView.getSelectionModel().getSelectedItem();
@@ -88,7 +114,9 @@ final class CustomVocabularyTab {
         }
     }
 
-    /** 删除表格当前选中的词汇。 */
+    /**
+     * 删除表格中当前选中的单词。
+     */
     @FXML
     private void deleteSelectedWord() {
         WordItem selected = this.tableView.getSelectionModel().getSelectedItem();
@@ -97,6 +125,9 @@ final class CustomVocabularyTab {
         }
     }
 
+    /**
+     * 从本地文件加载自定义生词列表并显示在表格中。
+     */
     private void loadCustomWords() {
         this.wordItems.clear();
         Path path = VocabularySettingsTab.customVocabularyPath();
@@ -138,7 +169,9 @@ final class CustomVocabularyTab {
         }
     }
 
-    /** 校验表单并保存或覆盖同名单词。 */
+    /**
+     * 从输入框读取内容并保存为自定义生词。
+     */
     @FXML
     private void addCustomWord() {
         String word = this.customWord.getText().trim();
@@ -188,6 +221,9 @@ final class CustomVocabularyTab {
         }
     }
 
+    /**
+     * 清空输入框内容。
+     */
     private void clearForm() {
         this.customWord.clear();
         this.customType.clear();
@@ -197,6 +233,11 @@ final class CustomVocabularyTab {
         this.customExample.clear();
     }
 
+    /**
+     * 删除指定的单词并保存到本地文件。
+     *
+     * @param item 要删除的单词条目
+     */
     private void deleteCustomWord(WordItem item) {
         try {
             Path path = VocabularySettingsTab.customVocabularyPath();
@@ -213,6 +254,13 @@ final class CustomVocabularyTab {
         }
     }
 
+    /**
+     * 将单词列表保存到本地 JSON 文件。
+     *
+     * @param path  本地文件路径
+     * @param words 单词列表
+     * @throws Exception 保存失败时抛出异常
+     */
     private void saveCustomWords(Path path, List<WordEntry> words) throws Exception {
         Files.createDirectories(path.getParent());
         try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
@@ -220,15 +268,38 @@ final class CustomVocabularyTab {
         }
     }
 
-    /** TableView 使用的只读行模型。 */
+    /**
+     * 表格中展示单行生词的数据类。
+     */
     public static class WordItem {
+        /** 英文单词拼写 */
         private final String word;
+
+        /** 中文释义 */
         private final String meaning;
+
+        /** 常用短语 */
         private final String phrase;
+
+        /** 短语释义 */
         private final String phraseMeaning;
+
+        /** 英文例句 */
         private final String example;
+
+        /** 原始单词条目对象 */
         private final WordEntry entry;
 
+        /**
+         * 创建表格行数据。
+         *
+         * @param word          单词拼写
+         * @param meaning       中文释义
+         * @param phrase        短语
+         * @param phraseMeaning 短语释义
+         * @param example       例句
+         * @param entry         单词条目对象
+         */
         public WordItem(
                 String word,
                 String meaning,
@@ -245,26 +316,56 @@ final class CustomVocabularyTab {
             this.entry = entry;
         }
 
+        /**
+         * 获取单词拼写。
+         *
+         * @return 单词拼写
+         */
         public String getWord() {
             return this.word;
         }
 
+        /**
+         * 获取中文释义。
+         *
+         * @return 中文释义
+         */
         public String getMeaning() {
             return this.meaning;
         }
 
+        /**
+         * 获取短语。
+         *
+         * @return 短语
+         */
         public String getPhrase() {
             return this.phrase;
         }
 
+        /**
+         * 获取短语释义。
+         *
+         * @return 短语释义
+         */
         public String getPhraseMeaning() {
             return this.phraseMeaning;
         }
 
+        /**
+         * 获取例句。
+         *
+         * @return 例句
+         */
         public String getExample() {
             return this.example;
         }
 
+        /**
+         * 获取单词条目对象。
+         *
+         * @return 单词条目对象
+         */
         public WordEntry getEntry() {
             return this.entry;
         }

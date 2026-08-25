@@ -13,25 +13,38 @@ import me.englishhugging.android.ui.AndroidUi;
 import me.englishhugging.core.settings.AppSettings;
 
 /**
- * 播放记录页面的数据展示与清除交互。
+ * Android 手机端“学习记录”界面，展示各词库背诵进度并提供清除功能。
  *
- * <p>记录行由 XML 条目逐个创建；清除操作同时重置内存设置和本地进度文件，
- * 防止服务重新加载后恢复已经删除的进度。</p>
+ * <p>这个类负责展示所有词库的背词进度统计，并提供清空进度记录的功能。
+ *
+ * <p><b>Usage Example:</b>
+ * <pre><code>
+ * RecordsTab recordsTab = new RecordsTab(activity, ui, () -> reload(), () -> goHome());
+ * View view = recordsTab.getView();
+ * pageContainer.addView(view);
+ * </code></pre>
  */
 public final class RecordsTab {
-    /** 页面所属 Activity。 */
+    /** 所属的主界面对象 */
     private final MainActivity activity;
 
-    /** 负责图标字体等公共 UI 行为。 */
+    /** 界面辅助工具 */
     private final AndroidUi ui;
 
-    /** 清除记录后重新创建当前页面的动作。 */
+    /** 刷新页面的回调 */
     private final Runnable onReloadPage;
 
-    /** 顶部返回按钮触发的回首页动作。 */
+    /** 返回首页的回调 */
     private final Runnable goHome;
 
-    /** 保存记录页所需依赖和页面导航动作。 */
+    /**
+     * 创建学习记录页面对象。
+     *
+     * @param activity     所属的主界面对象
+     * @param ui           界面辅助工具
+     * @param onReloadPage 重新加载页面的回调
+     * @param goHome       返回首页的回调
+     */
     public RecordsTab(
             MainActivity activity,
             AndroidUi ui,
@@ -44,7 +57,11 @@ public final class RecordsTab {
         this.goHome = goHome;
     }
 
-    /** 创建记录页，并把本地播放记录逐行渲染到 XML 容器中。 */
+    /**
+     * 加载并返回学习记录页面视图。
+     *
+     * @return 学习记录页面根视图
+     */
     public View getView() {
         PageRecordsBinding binding = PageRecordsBinding.inflate(this.activity.getLayoutInflater());
         this.ui.styleIcon(binding.backIcon);
@@ -73,7 +90,7 @@ public final class RecordsTab {
                 .setMessage("确定要清除所有播放记录吗？这将使所有词汇本从头开始播放。")
                 .setPositiveButton("确定", (dialog, which) -> {
                     AppSettings currentSettings = AndroidSettingsStore.load(this.activity);
-                    // 同时清理当前设置对象和各词库的持久化进度。
+                    // 同时重置当前配置和本地保存的所有词库进度
                     currentSettings.resetPlaybackProgress();
                     AndroidSettingsStore.clearAllPlaybackProgress(this.activity);
                     AndroidSettingsStore.savePlaybackProgress(
