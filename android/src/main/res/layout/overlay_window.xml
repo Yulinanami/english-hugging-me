@@ -16,4 +16,18 @@
         android:paddingEnd="14dp"
         android:paddingBottom="9dp"
         android:textColor="@android:color/white" />
+
+    <TextView
+        android:id="@+id/internalResizeHandle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:paddingStart="8dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="4dp"
+        android:text="@string/icon_zoom_out_map"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:visibility="gone" />
 </FrameLayout>
