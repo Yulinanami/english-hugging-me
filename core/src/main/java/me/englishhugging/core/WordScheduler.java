@@ -113,6 +113,12 @@ public final class WordScheduler implements AutoCloseable {
     private ScheduledFuture<?> future;
     /** 标记当前是否处于暂停状态 */
     private boolean paused;
+    /** 上次安排定时任务的时间戳（毫秒） */
+    private long lastScheduleTimeMs;
+    /** 当前安排的延迟毫秒数 */
+    private long currentScheduledDelayMs;
+    /** 暂停瞬间计算得到的剩余倒计时毫秒数 */
+    private long remainingDelayMsOnPause;
 
     // --- 填空模式设置 ---
 
@@ -227,13 +233,16 @@ public final class WordScheduler implements AutoCloseable {
     /**
      * 暂停播放。
      *
-     * <p>当前正在展示的单词会一直停留在屏幕上，后台播放暂停。
+     * <p>当前正在展示的单词会一直停留在屏幕上，后台播放暂停，并记录剩余倒计时毫秒数。
      */
     public synchronized void pause() {
         if (this.future != null) {
             this.future.cancel(false);
             this.future = null;
         }
+        long now = System.currentTimeMillis();
+        long elapsed = now - this.lastScheduleTimeMs;
+        this.remainingDelayMsOnPause = Math.max(0, this.currentScheduledDelayMs - elapsed);
         this.paused = true;
     }
 
@@ -246,6 +255,43 @@ public final class WordScheduler implements AutoCloseable {
         }
         this.paused = false;
         emitNext();
+    }
+
+    /**
+     * 恢复播放，并继承暂停前的剩余倒计时时间。
+     *
+     * <p>如果剩余时间小于保底时间（minGracePeriodMs），则使用保底时间，
+     * 确保松手后不会因为碰巧只剩 0.1 秒而瞬间闪跳；
+     * 如果剩余时间还很充足（例如还剩 6 秒），则严格等待剩余的 6 秒，
+     * 彻底避免用户手滑轻微拖动一下就被迫从头重新等待完整周期的糟糕体验。
+     *
+     * @param minGracePeriodMs 最小保底展示毫秒数（若 <= 0 则默认 1500 毫秒）
+     */
+    public synchronized void resumeWithRemaining(long minGracePeriodMs) {
+        if (!this.paused || this.executor == null) {
+            return;
+        }
+        this.paused = false;
+        long grace = minGracePeriodMs > 0 ? minGracePeriodMs : 1500L;
+        long delayMs = Math.max(this.remainingDelayMsOnPause, grace);
+        scheduleNextMillis(delayMs);
+    }
+
+    /**
+     * 恢复播放并在指定延迟时间后切换到下一个单词。
+     * 
+     * <p>常用于用户交互（如拖动或缩放悬浮窗）结束后恢复播放，
+     * 避免松手瞬间立刻跳词，让屏幕上的当前单词获得完整的阅读展示时间。
+     *
+     * @param delaySeconds 延迟秒数；若小于等于 0 则使用默认的切换间隔 intervalSeconds
+     */
+    public synchronized void resumeWithDelay(long delaySeconds) {
+        if (!this.paused || this.executor == null) {
+            return;
+        }
+        this.paused = false;
+        long delay = delaySeconds > 0 ? delaySeconds * 1000L : this.intervalSeconds * 1000L;
+        scheduleNextMillis(delay);
     }
 
     /**
@@ -316,11 +362,20 @@ public final class WordScheduler implements AutoCloseable {
     }
 
     /**
-     * 安排下一次单词切换或填空提示任务。
+     * 安排下一次单词切换或填空提示任务（秒）。
      *
      * @param delaySeconds 延迟执行的秒数
      */
     private synchronized void scheduleNext(long delaySeconds) {
+        scheduleNextMillis(delaySeconds * 1000L);
+    }
+
+    /**
+     * 安排下一次单词切换或填空提示任务（毫秒）。
+     *
+     * @param delayMillis 延迟执行的毫秒数
+     */
+    private synchronized void scheduleNextMillis(long delayMillis) {
         if (this.paused || this.executor == null) {
             return;
         }
@@ -329,7 +384,9 @@ public final class WordScheduler implements AutoCloseable {
             this.future.cancel(false);
         }
 
-        this.future = this.executor.schedule(this::emitNext, delaySeconds, TimeUnit.SECONDS);
+        this.lastScheduleTimeMs = System.currentTimeMillis();
+        this.currentScheduledDelayMs = delayMillis;
+        this.future = this.executor.schedule(this::emitNext, delayMillis, TimeUnit.MILLISECONDS);
     }
 
     /**

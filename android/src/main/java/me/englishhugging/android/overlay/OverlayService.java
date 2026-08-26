@@ -24,6 +24,7 @@ import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -90,15 +91,21 @@ public final class OverlayService extends Service {
     /** 悬浮窗的窗口布局参数 */
     private WindowManager.LayoutParams layoutParams;
     
-    /** 可拖拽模式下的内置缩放手柄视图（作为悬浮窗卡片内部子控件） */
+    /** 可拖拽模式下的内置调整把手文本控件（位于悬浮卡片内部右下角） */
     private TextView internalResizeHandle;
-    /** 点击穿透模式下的独立外部缩放手柄视图 */
+    /** 点击穿透模式下的独立外部调整把手文本控件 */
     private TextView externalResizeHandleView;
-    /** 点击穿透模式下独立外部缩放手柄的窗口布局参数 */
+    /** 点击穿透模式下独立外部调整把手的窗口布局参数 */
     private WindowManager.LayoutParams externalResizeHandleParams;
-    /** 标识当前是否正在拖拽手柄缩放悬浮窗，用于锁定外部异步布局回调 */
+    
+    /** 区分点击与拖拽的防误触最小滑动距离（像素 px） */
+    private int touchSlop;
+    /** 标记当前是否正在拖拽平移悬浮窗 */
+    private boolean isDragging = false;
+    /** 标记当前是否正在拖拽把手调整悬浮窗大小 */
     private boolean isResizing = false;
-    /** 监听主悬浮窗尺寸变化以同步更新独立外部缩放手柄位置的布局监听回调 */
+
+    /** 监听主悬浮窗尺寸变化以同步更新独立外部调整把手位置的布局监听回调 */
     private final android.view.ViewTreeObserver.OnGlobalLayoutListener layoutListener = this::syncExternalResizeHandlePosition;
 
     /** 单词后台定时播放任务 */
@@ -113,21 +120,21 @@ public final class OverlayService extends Service {
     /** 当前是否隐藏中文释义 */
     private boolean displayedHideTranslation;
     
-    /** 拖拽移动时窗口初始 X 坐标（像素） */
+    /** 拖拽平移时窗口初始 X 坐标（像素 px） */
     private int initialX;
-    /** 拖拽移动时窗口初始 Y 坐标（像素） */
+    /** 拖拽平移时窗口初始 Y 坐标（像素 px） */
     private int initialY;
-    /** 拖拽移动时手指按下起始 X 坐标（像素） */
+    /** 拖拽平移时手指按下起始 X 坐标（像素 px） */
     private float initialTouchX;
-    /** 拖拽移动时手指按下起始 Y 坐标（像素） */
+    /** 拖拽平移时手指按下起始 Y 坐标（像素 px） */
     private float initialTouchY;
-    /** 拖拽缩放时窗口初始宽度（像素） */
+    /** 调整大小时窗口初始宽度（像素 px） */
     private int initialWidth;
-    /** 拖拽缩放时窗口初始高度（像素） */
+    /** 调整大小时窗口初始高度（像素 px） */
     private int initialHeight;
-    /** 拖拽缩放时手指按下起始 X 坐标（像素） */
+    /** 调整大小时手指按下起始 X 坐标（像素 px） */
     private float initialResizeTouchX;
-    /** 拖拽缩放时手指按下起始 Y 坐标（像素） */
+    /** 调整大小时手指按下起始 Y 坐标（像素 px） */
     private float initialResizeTouchY;
 
     /** 标识悬浮窗前台服务当前是否正在运行 */
@@ -156,6 +163,7 @@ public final class OverlayService extends Service {
     public void onCreate() {
         super.onCreate();
         this.windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        this.touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
         isRunning = true;
         
         IntentFilter filter = new IntentFilter();
@@ -314,9 +322,9 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 统一管理缩放手柄：
-     * 1. 在【可拖拽模式 (DRAGGABLE)】下：采用卡片内嵌手柄（同一个窗口），移动悬浮窗时手柄天然严丝合缝同步，绝不脱离乱跑；
-     * 2. 在【点击穿透模式 (CLICK_THROUGH)】下：采用外部独立微型小窗口手柄，主卡片完全点击穿透，仅右下角独立小按钮响应尺寸调整。
+     * 统一管理调整大小把手：
+     * 1. 在【可拖拽模式 (DRAGGABLE)】下：采用卡片内置把手（位于卡片内部右下角），移动悬浮窗时把手严丝合缝同步跟随；
+     * 2. 在【点击穿透模式 (CLICK_THROUGH)】下：采用外部独立微型小窗口把手，主卡片完全点击穿透，仅右下角独立小按钮响应尺寸调整。
      */
     private void manageResizeHandles() {
         if (this.overlayRoot == null) {
@@ -327,13 +335,13 @@ public final class OverlayService extends Service {
         boolean resizeMode = this.settings.isResizeMode();
 
         if (mode == OverlayMode.DRAGGABLE) {
-            // 可拖拽模式：移除外部独立窗口，使用卡片内嵌手柄
+            // 可拖拽模式：移除外部独立窗口，显示卡片内置把手
             removeExternalResizeHandle();
             if (this.internalResizeHandle != null) {
                 this.internalResizeHandle.setVisibility(resizeMode ? View.VISIBLE : View.GONE);
             }
         } else {
-            // 点击穿透模式：隐藏卡片内嵌手柄，使用外部独立小窗口
+            // 点击穿透模式：隐藏卡片内置把手，根据设置开启或关闭外部独立小窗口
             if (this.internalResizeHandle != null) {
                 this.internalResizeHandle.setVisibility(View.GONE);
             }
@@ -347,7 +355,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 初始化或更新点击穿透模式下的独立外部缩放手柄窗口。
+     * 初始化或更新点击穿透模式下的独立外部调整把手窗口。
      */
     private void setupExternalResizeHandle() {
         if (this.externalResizeHandleView == null) {
@@ -358,7 +366,7 @@ public final class OverlayService extends Service {
             } catch (Exception ignored) {
                 this.externalResizeHandleView.setText("↘");
             }
-            // 初始先设为 INVISIBLE，等待测量出主悬浮窗宽高后再显示，防止 (0,0) 闪烁
+            // 初始先设为 INVISIBLE，等待测量出主悬浮窗宽高后再显示，防止在 (0, 0) 位置闪现
             this.externalResizeHandleView.setVisibility(View.INVISIBLE);
             this.externalResizeHandleView.setOnTouchListener(this::onExternalResizeTouch);
 
@@ -380,7 +388,7 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 移除并销毁点击穿透模式下的独立外部缩放手柄窗口。
+     * 移除并关闭点击穿透模式下的独立外部调整把手窗口。
      */
     private void removeExternalResizeHandle() {
         if (this.externalResizeHandleView != null) {
@@ -397,13 +405,13 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 精确同步外部独立缩放手柄位置，使其始终严丝合缝跟随悬浮窗右下角。
+     * 同步外部独立调整把手位置，紧跟悬浮窗右下角。
      */
     private void syncExternalResizeHandlePosition() {
         if (this.externalResizeHandleView != null && this.overlayRoot != null
                 && this.layoutParams != null && this.externalResizeHandleParams != null) {
             if (this.isResizing) {
-                // 拖拽期间手柄位置由 onExternalResizeTouch 即时推导更新，避免异步布局回调干扰
+                // 拖拽期间把手位置由 onExternalResizeTouch 即时推导更新，避免异步布局回调干扰
                 return;
             }
 
@@ -460,7 +468,8 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 响应可拖拽模式下的手指拖拽事件，平移悬浮窗在屏幕上的坐标。
+     * 响应可拖拽模式下的手指拖拽平移事件。
+     * 通过 touchSlop 阈值过滤纯点击与轻微抖动，避免疯狂点击时重置倒计时与产生无意义写盘。
      */
     private boolean onOverlayTouch(View view, MotionEvent event) {
         if (this.settings.getOverlayMode() != OverlayMode.DRAGGABLE) {
@@ -469,24 +478,45 @@ public final class OverlayService extends Service {
         
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                this.isDragging = false;
                 this.initialX = this.layoutParams.x; 
                 this.initialY = this.layoutParams.y;
                 this.initialTouchX = event.getRawX(); 
                 this.initialTouchY = event.getRawY();
                 return true;
             case MotionEvent.ACTION_MOVE:
-                this.layoutParams.x = this.initialX + (int) (event.getRawX() - this.initialTouchX);
-                this.layoutParams.y = this.initialY + (int) (event.getRawY() - this.initialTouchY);
+                float dx = event.getRawX() - this.initialTouchX;
+                float dy = event.getRawY() - this.initialTouchY;
                 
-                this.settings.setX(this.layoutParams.x); 
-                this.settings.setY(this.layoutParams.y);
+                // 只有移动距离突破防误触阈值后，才真正进入拖拽状态并暂停播放
+                if (!this.isDragging && Math.hypot(dx, dy) > this.touchSlop) {
+                    this.isDragging = true;
+                    if (this.scheduler != null) {
+                        this.scheduler.pause();
+                    }
+                }
                 
-                // 拖动过程中仅更新窗口位置，避免高频频繁写盘导致掉帧卡死
-                this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
+                if (this.isDragging) {
+                    this.layoutParams.x = this.initialX + (int) dx;
+                    this.layoutParams.y = this.initialY + (int) dy;
+                    
+                    this.settings.setX(this.layoutParams.x); 
+                    this.settings.setY(this.layoutParams.y);
+                    
+                    // 拖动过程中仅更新窗口位置，避免高频频繁写盘导致掉帧卡死
+                    this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
+                }
                 return true;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                AndroidSettingsStore.save(this, this.settings);
+                if (this.isDragging) {
+                    this.isDragging = false;
+                    AndroidSettingsStore.save(this, this.settings);
+                    if (this.scheduler != null) {
+                        // 继承剩余倒计时，并提供 1.5 秒保底防闪跳
+                        this.scheduler.resumeWithRemaining(1500);
+                    }
+                }
                 return true;
             default: 
                 return true;
@@ -494,12 +524,12 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 响应可拖拽模式下内置缩放手柄的手指拖拽，调整悬浮窗的宽和高。
+     * 响应可拖拽模式下内置把手的手指拖拽，调整悬浮窗的宽度和高度（像素 px）。
      */
     private boolean onInternalResizeTouch(View view, MotionEvent event) {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                this.isResizing = true;
+                this.isResizing = false;
                 if (view.getParent() != null) {
                     view.getParent().requestDisallowInterceptTouchEvent(true);
                 }
@@ -509,25 +539,42 @@ public final class OverlayService extends Service {
                 this.initialResizeTouchY = event.getRawY();
                 return true;
             case MotionEvent.ACTION_MOVE:
-                DisplayMetrics metrics = getResources().getDisplayMetrics();
-                int minWidth = (int) (180 * metrics.density + 0.5f);
-                int minHeight = (int) (60 * metrics.density + 0.5f);
+                float rdx = event.getRawX() - this.initialResizeTouchX;
+                float rdy = event.getRawY() - this.initialResizeTouchY;
                 
-                int newWidth = Math.max(minWidth, this.initialWidth + (int) (event.getRawX() - this.initialResizeTouchX));
-                int newHeight = Math.max(minHeight, this.initialHeight + (int) (event.getRawY() - this.initialResizeTouchY));
+                if (!this.isResizing && Math.hypot(rdx, rdy) > this.touchSlop) {
+                    this.isResizing = true;
+                    if (this.scheduler != null) {
+                        this.scheduler.pause();
+                    }
+                }
                 
-                this.layoutParams.width = newWidth;
-                this.layoutParams.height = newHeight;
-                
-                this.settings.setWidth(this.layoutParams.width / metrics.density);
-                this.settings.setHeight(this.layoutParams.height / metrics.density);
-                
-                this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
+                if (this.isResizing) {
+                    DisplayMetrics metrics = getResources().getDisplayMetrics();
+                    int minWidth = (int) (180 * metrics.density + 0.5f);
+                    int minHeight = (int) (60 * metrics.density + 0.5f);
+                    
+                    int newWidth = Math.max(minWidth, this.initialWidth + (int) rdx);
+                    int newHeight = Math.max(minHeight, this.initialHeight + (int) rdy);
+                    
+                    this.layoutParams.width = newWidth;
+                    this.layoutParams.height = newHeight;
+                    
+                    this.settings.setWidth(this.layoutParams.width / metrics.density);
+                    this.settings.setHeight(this.layoutParams.height / metrics.density);
+                    
+                    this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
+                }
                 return true;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                this.isResizing = false;
-                AndroidSettingsStore.save(this, this.settings);
+                if (this.isResizing) {
+                    this.isResizing = false;
+                    AndroidSettingsStore.save(this, this.settings);
+                    if (this.scheduler != null) {
+                        this.scheduler.resumeWithRemaining(1500);
+                    }
+                }
                 return true;
             default:
                 return true;
@@ -535,48 +582,65 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 响应点击穿透模式下外部独立缩放手柄的手指拖拽，调整悬浮窗的宽和高。
+     * 响应点击穿透模式下外部独立把手的手指拖拽，调整悬浮窗的宽度和高度（像素 px）。
      */
     private boolean onExternalResizeTouch(View view, MotionEvent event) {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                this.isResizing = true;
+                this.isResizing = false;
                 this.initialWidth = this.layoutParams.width > 0 ? this.layoutParams.width : this.overlayRoot.getWidth();
                 this.initialHeight = this.layoutParams.height > 0 ? this.layoutParams.height : this.overlayRoot.getHeight();
                 this.initialResizeTouchX = event.getRawX();
                 this.initialResizeTouchY = event.getRawY();
                 return true;
             case MotionEvent.ACTION_MOVE:
-                DisplayMetrics metrics = getResources().getDisplayMetrics();
-                int minWidth = (int) (180 * metrics.density + 0.5f);
-                int minHeight = (int) (60 * metrics.density + 0.5f);
+                float erdx = event.getRawX() - this.initialResizeTouchX;
+                float erdy = event.getRawY() - this.initialResizeTouchY;
                 
-                int newWidth = Math.max(minWidth, this.initialWidth + (int) (event.getRawX() - this.initialResizeTouchX));
-                int newHeight = Math.max(minHeight, this.initialHeight + (int) (event.getRawY() - this.initialResizeTouchY));
+                if (!this.isResizing && Math.hypot(erdx, erdy) > this.touchSlop) {
+                    this.isResizing = true;
+                    if (this.scheduler != null) {
+                        this.scheduler.pause();
+                    }
+                }
                 
-                this.layoutParams.width = newWidth;
-                this.layoutParams.height = newHeight;
-                
-                this.settings.setWidth(this.layoutParams.width / metrics.density);
-                this.settings.setHeight(this.layoutParams.height / metrics.density);
-                
-                this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
-                
-                if (this.externalResizeHandleParams != null && this.externalResizeHandleView != null) {
-                    int handleW = this.externalResizeHandleView.getMeasuredWidth();
-                    int handleH = this.externalResizeHandleView.getMeasuredHeight();
-                    this.externalResizeHandleParams.x = this.layoutParams.x + newWidth - handleW;
-                    this.externalResizeHandleParams.y = this.layoutParams.y + newHeight - handleH;
-                    try {
-                        this.windowManager.updateViewLayout(this.externalResizeHandleView, this.externalResizeHandleParams);
-                    } catch (Exception ignored) {
+                if (this.isResizing) {
+                    DisplayMetrics metrics = getResources().getDisplayMetrics();
+                    int minWidth = (int) (180 * metrics.density + 0.5f);
+                    int minHeight = (int) (60 * metrics.density + 0.5f);
+                    
+                    int newWidth = Math.max(minWidth, this.initialWidth + (int) erdx);
+                    int newHeight = Math.max(minHeight, this.initialHeight + (int) erdy);
+                    
+                    this.layoutParams.width = newWidth;
+                    this.layoutParams.height = newHeight;
+                    
+                    this.settings.setWidth(this.layoutParams.width / metrics.density);
+                    this.settings.setHeight(this.layoutParams.height / metrics.density);
+                    
+                    this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
+                    
+                    if (this.externalResizeHandleParams != null && this.externalResizeHandleView != null) {
+                        int handleW = this.externalResizeHandleView.getMeasuredWidth();
+                        int handleH = this.externalResizeHandleView.getMeasuredHeight();
+                        this.externalResizeHandleParams.x = this.layoutParams.x + newWidth - handleW;
+                        this.externalResizeHandleParams.y = this.layoutParams.y + newHeight - handleH;
+                        try {
+                            this.windowManager.updateViewLayout(this.externalResizeHandleView, this.externalResizeHandleParams);
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
                 return true;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                this.isResizing = false;
-                AndroidSettingsStore.save(this, this.settings);
+                if (this.isResizing) {
+                    this.isResizing = false;
+                    AndroidSettingsStore.save(this, this.settings);
+                    if (this.scheduler != null) {
+                        this.scheduler.resumeWithRemaining(1500);
+                    }
+                }
                 return true;
             default: 
                 return true;
@@ -613,8 +677,8 @@ public final class OverlayService extends Service {
                         mainHandler.post(() -> {
                             WordEntry finished = new WordEntry(
                                      "播放结束",
-                                    Collections.emptyList(),
-                                    Collections.emptyList()
+                                     Collections.emptyList(),
+                                     Collections.emptyList()
                             );
                             showWord(finished, false, false);
                         });
@@ -622,8 +686,6 @@ public final class OverlayService extends Service {
                 },
                 progress -> {
                     settings.setPlaybackProgress(progress);
-
-                    AndroidSettingsStore.save(this, settings);
                     AndroidSettingsStore.savePlaybackProgress(this, settings, settings.getVocabularyFileName());
                 }
         );

@@ -229,4 +229,99 @@ class WordSchedulerTest {
             assertEquals("cherry", listener.words.toArray()[1]);
         }
     }
+
+    @Test
+    void resumeWithDelayPostponesNextWordEmission() throws InterruptedException {
+        RecordingListener listener = new RecordingListener(1, 0);
+        try (WordScheduler scheduler = new WordScheduler(
+                words("apple", "banana"),
+                config(PlaybackMode.SEQUENTIAL, PlaybackProgress.EMPTY, "", true, false),
+                listener, progress -> { })) {
+            scheduler.start();
+            assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS), "第一个单词应当立即展示");
+            assertEquals("apple", listener.words.peek());
+
+            // 模拟用户拖拽时暂停
+            scheduler.pause();
+            assertTrue(scheduler.isPaused());
+
+            // 模拟用户松手，以延时 2 秒恢复
+            scheduler.resumeWithDelay(2);
+            assertFalse(scheduler.isPaused());
+
+            // 500ms 内不应立即发射新单词（避免松手闪跳）
+            Thread.sleep(500);
+            assertEquals(1, listener.words.size(), "延时恢复时不应立即切词");
+
+            // 等待延时结束后应当正常发射下一个单词
+            long deadline = System.currentTimeMillis() + 2500;
+            while (listener.words.size() < 2 && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50);
+            }
+            assertEquals(2, listener.words.size(), "延时结束后应当切换到下一个单词");
+            assertEquals("banana", listener.words.toArray()[1]);
+        }
+    }
+
+    @Test
+    void resumeWithRemainingInheritsRemainingTime() throws InterruptedException {
+        RecordingListener listener = new RecordingListener(1, 0);
+        try (WordScheduler scheduler = new WordScheduler(
+                words("apple", "banana"),
+                config(PlaybackMode.SEQUENTIAL, PlaybackProgress.EMPTY, "", true, false),
+                listener, progress -> { })) {
+            scheduler.start();
+            assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS), "第一个单词应当立即展示");
+            assertEquals("apple", listener.words.peek());
+
+            // 在 300ms 时暂停（此时剩余约 1700ms）
+            Thread.sleep(300);
+            scheduler.pause();
+            assertTrue(scheduler.isPaused());
+
+            // 松手恢复，保底设为 500ms，应当等待剩余的约 1700ms
+            scheduler.resumeWithRemaining(500);
+            assertFalse(scheduler.isPaused());
+
+            // 600ms 内不应切词
+            Thread.sleep(600);
+            assertEquals(1, listener.words.size(), "剩余时间充足时不应提前切词");
+
+            // 2.2 秒后应正常切词
+            long deadline = System.currentTimeMillis() + 2000;
+            while (listener.words.size() < 2 && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50);
+            }
+            assertEquals(2, listener.words.size(), "应当在继承的剩余时间到达后切词");
+            assertEquals("banana", listener.words.toArray()[1]);
+        }
+    }
+
+    @Test
+    void resumeWithRemainingAppliesGracePeriodWhenNearEnd() throws InterruptedException {
+        RecordingListener listener = new RecordingListener(1, 0);
+        try (WordScheduler scheduler = new WordScheduler(
+                words("apple", "banana"),
+                config(PlaybackMode.SEQUENTIAL, PlaybackProgress.EMPTY, "", true, false),
+                listener, progress -> { })) {
+            scheduler.start();
+            assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS));
+
+            // 等待 1800ms，只剩约 200ms
+            Thread.sleep(1800);
+            scheduler.pause();
+
+            // 松手恢复，保底设为 800ms，应当等待 800ms 而不是 200ms，防止闪跳
+            scheduler.resumeWithRemaining(800);
+
+            Thread.sleep(400);
+            assertEquals(1, listener.words.size(), "保底期内不应立即闪跳切词");
+
+            long deadline = System.currentTimeMillis() + 1500;
+            while (listener.words.size() < 2 && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50);
+            }
+            assertEquals(2, listener.words.size(), "保底期结束后应当平滑切词");
+        }
+    }
 }
