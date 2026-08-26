@@ -94,7 +94,8 @@ public final class OverlayService extends Service {
     private TextView resizeHandleView;
     /** 缩放把手的窗口布局参数 */
     private WindowManager.LayoutParams resizeHandleParams;
-    
+    /** 标识当前是否正在拖拽手柄缩放悬浮窗，用于锁定外部异步布局回调 */
+    private boolean isResizing = false;
     /** 监听主悬浮窗尺寸变化以同步更新缩放把手位置的布局监听回调 */
     private final android.view.ViewTreeObserver.OnGlobalLayoutListener layoutListener = this::syncResizeHandlePosition;
 
@@ -201,6 +202,7 @@ public final class OverlayService extends Service {
         }
         
         if (this.overlayRoot != null) { 
+            this.overlayRoot.getViewTreeObserver().removeOnGlobalLayoutListener(this.layoutListener);
             this.windowManager.removeView(this.overlayRoot); 
             this.overlayRoot = null; 
         }
@@ -252,22 +254,11 @@ public final class OverlayService extends Service {
         boolean resizeModeChanged = previous == null || previous.isResizeMode() != this.settings.isResizeMode();
 
         if (modeChanged || sizeChanged || resizeModeChanged) {
-            // 如果缩放模式发生变化，重新创建悬浮窗
-            if (previous != null && previous.isResizeMode() != this.settings.isResizeMode() && this.overlayRoot != null) {
-                this.windowManager.removeView(this.overlayRoot);
-                this.overlayRoot = createOverlayView();
-                this.layoutParams = createLayoutParams(this.settings.getOverlayMode());
-                this.windowManager.addView(this.overlayRoot, this.layoutParams);
-                manageResizeHandleWindow();
-                renderDisplayedWord();
-            } else {
-                // 仅更新窗口布局参数
-                this.layoutParams = createLayoutParams(this.settings.getOverlayMode());
-                if (this.overlayRoot != null) {
-                    this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
-                }
-                manageResizeHandleWindow();
+            this.layoutParams = createLayoutParams(this.settings.getOverlayMode());
+            if (this.overlayRoot != null) {
+                this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
             }
+            manageResizeHandleWindow();
         }
 
         // 播放参数发生变化后立即用已保存进度重建，避免等到下一轮才生效。
@@ -301,32 +292,33 @@ public final class OverlayService extends Service {
         this.overlayText = binding.overlayText;
         DisplayMetrics metrics = getResources().getDisplayMetrics();
         this.overlayText.setMaxWidth((int) (metrics.widthPixels * 0.9f));
-        this.overlayText.setOnTouchListener(this::onOverlayTouch);
+
+        root.setOnTouchListener(this::onOverlayTouch);
 
         return root;
     }
 
     /**
-     * 根据设置动态显示或隐藏右下角的悬浮窗缩放把手。
+     * 根据设置动态显示或隐藏右下角的悬浮窗缩放把手独立窗口。
      */
     private void manageResizeHandleWindow() {
         if (this.settings.isResizeMode()) {
             if (this.resizeHandleView == null) {
                 OverlayResizeHandleBinding resizeBinding = OverlayResizeHandleBinding.inflate(android.view.LayoutInflater.from(this));
                 this.resizeHandleView = resizeBinding.getRoot();
-                
                 try {
                     this.resizeHandleView.setTypeface(android.graphics.Typeface.createFromAsset(getAssets(), "fonts/MaterialIcons-Regular.ttf"));
                 } catch (Exception e) {
                     this.resizeHandleView.setText("↘");
                 }
-                
+                // 初始先设为 INVISIBLE，等待测量出主悬浮窗宽高后再显示，防止 (0,0) 闪烁
+                this.resizeHandleView.setVisibility(View.INVISIBLE);
                 this.resizeHandleView.setOnTouchListener(this::onResizeTouch);
 
                 this.resizeHandleParams = new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
                         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, android.graphics.PixelFormat.TRANSLUCENT);
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
                 this.resizeHandleParams.gravity = Gravity.TOP | Gravity.START;
                 
                 this.windowManager.addView(this.resizeHandleView, this.resizeHandleParams);
@@ -352,7 +344,11 @@ public final class OverlayService extends Service {
      * 同步缩放把手位置，使其始终跟随悬浮窗右下角。
      */
     private void syncResizeHandlePosition() {
-        if (this.resizeHandleView != null && this.overlayRoot != null && this.layoutParams != null) {
+        if (this.resizeHandleView != null && this.overlayRoot != null && this.layoutParams != null && this.resizeHandleParams != null) {
+            if (this.isResizing) {
+                // 拖拽期间手柄位置由 onResizeTouch 即时推导更新，避免异步布局回调干扰
+                return;
+            }
             int width = this.overlayRoot.getWidth();
             int height = this.overlayRoot.getHeight();
             
@@ -363,6 +359,10 @@ public final class OverlayService extends Service {
                 
                 this.resizeHandleParams.x = this.layoutParams.x + width - handleW;
                 this.resizeHandleParams.y = this.layoutParams.y + height - handleH;
+                
+                if (this.resizeHandleView.getVisibility() != View.VISIBLE) {
+                    this.resizeHandleView.setVisibility(View.VISIBLE);
+                }
                 this.windowManager.updateViewLayout(this.resizeHandleView, this.resizeHandleParams);
             }
         }
@@ -370,7 +370,7 @@ public final class OverlayService extends Service {
 
     /**
      * 创建悬浮窗的窗口参数。
-     * 如果开启鼠标穿透，添加 FLAG_NOT_TOUCHABLE 标志使触摸事件直接穿透到下层界面。
+     * 如果开启点击穿透，添加 FLAG_NOT_TOUCHABLE 标志使触摸事件直接穿透到下层界面。
      */
     private WindowManager.LayoutParams createLayoutParams(OverlayMode overlayMode) {
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
@@ -428,25 +428,19 @@ public final class OverlayService extends Service {
     private boolean onResizeTouch(View view, MotionEvent event) {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                this.initialWidth = this.layoutParams.width;
-                this.initialHeight = this.layoutParams.height;
-                
-                if (this.initialWidth <= 0) {
-                    this.initialWidth = this.overlayRoot.getWidth();
-                }
-                if (this.initialHeight <= 0) {
-                    this.initialHeight = this.overlayRoot.getHeight();
-                }
+                this.isResizing = true;
+                this.initialWidth = this.layoutParams.width > 0 ? this.layoutParams.width : this.overlayRoot.getWidth();
+                this.initialHeight = this.layoutParams.height > 0 ? this.layoutParams.height : this.overlayRoot.getHeight();
                 
                 this.initialResizeTouchX = event.getRawX();
                 this.initialResizeTouchY = event.getRawY();
                 return true;
             case MotionEvent.ACTION_MOVE:
-                int newWidth = this.initialWidth + (int) (event.getRawX() - this.initialResizeTouchX);
-                int newHeight = this.initialHeight + (int) (event.getRawY() - this.initialResizeTouchY);
+                int newWidth = Math.max(260, this.initialWidth + (int) (event.getRawX() - this.initialResizeTouchX));
+                int newHeight = Math.max(80, this.initialHeight + (int) (event.getRawY() - this.initialResizeTouchY));
                 
-                this.layoutParams.width = Math.max(260, newWidth);
-                this.layoutParams.height = Math.max(80, newHeight);
+                this.layoutParams.width = newWidth;
+                this.layoutParams.height = newHeight;
                 
                 float density = getResources().getDisplayMetrics().density;
                 this.settings.setWidth(this.layoutParams.width / density);
@@ -454,7 +448,18 @@ public final class OverlayService extends Service {
                 AndroidSettingsStore.save(this, this.settings);
                 
                 this.windowManager.updateViewLayout(this.overlayRoot, this.layoutParams);
-                syncResizeHandlePosition();
+                
+                if (this.resizeHandleParams != null && this.resizeHandleView != null) {
+                    int handleW = this.resizeHandleView.getMeasuredWidth();
+                    int handleH = this.resizeHandleView.getMeasuredHeight();
+                    this.resizeHandleParams.x = this.layoutParams.x + newWidth - handleW;
+                    this.resizeHandleParams.y = this.layoutParams.y + newHeight - handleH;
+                    this.windowManager.updateViewLayout(this.resizeHandleView, this.resizeHandleParams);
+                }
+                return true;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                this.isResizing = false;
                 return true;
             default: 
                 return true;
