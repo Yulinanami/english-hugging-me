@@ -23,6 +23,17 @@ dependencies {
 
 application {
     mainClass = 'me.englishhugging.desktop.DesktopLauncher'
+    applicationDefaultJvmArgs = [
+        '-Dfile.encoding=UTF-8',
+        '-Xms32m',
+        '-Xmx96m',
+        '-XX:+UseSerialGC',
+        '-XX:CICompilerCount=2',
+        '-Xss512k',
+        '-XX:ReservedCodeCacheSize=32m',
+        '-XX:MinHeapFreeRatio=10',
+        '-XX:MaxHeapFreeRatio=20'
+    ]
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -31,6 +42,7 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('run') {
     workingDir = rootProject.projectDir
+    jvmArgs = application.applicationDefaultJvmArgs
 }
 
 tasks.named('processResources') {
@@ -75,6 +87,14 @@ tasks.register('packageWindowsExe', Exec) {
             '--win-shortcut',
             '--win-shortcut-prompt',
             '--win-dir-chooser',
-            '--java-options', '-Dfile.encoding=UTF-8'
+            '--java-options', '-Dfile.encoding=UTF-8',
+            '--java-options', '-Xms32m',
+            '--java-options', '-Xmx96m',
+            '--java-options', '-XX:+UseSerialGC',
+            '--java-options', '-XX:CICompilerCount=2',
+            '--java-options', '-Xss512k',
+            '--java-options', '-XX:ReservedCodeCacheSize=32m',
+            '--java-options', '-XX:MinHeapFreeRatio=10',
+            '--java-options', '-XX:MaxHeapFreeRatio=20'
     )
 }
