@@ -3,6 +3,7 @@ package me.englishhugging.desktop.ui;
 import javafx.fxml.FXMLLoader;
 
 import java.io.IOException;
+import java.net.URL;
 
 /**
  * 桌面端界面文件加载工具。
@@ -38,7 +39,7 @@ public final class DesktopUi {
      */
     public static <T> T loadFxml(String resourcePath) {
         try {
-            return FXMLLoader.load(DesktopUi.class.getResource(resourcePath));
+            return FXMLLoader.load(getFxmlUrl(resourcePath));
         } catch (IOException exception) {
             throw new IllegalStateException("无法加载 FXML 资源：" + resourcePath, exception);
         }
@@ -54,12 +55,26 @@ public final class DesktopUi {
      * @throws IllegalStateException 当资源文件不存在或加载失败时抛出异常
      */
     public static <T> T loadFxml(String resourcePath, Object controller) {
-        FXMLLoader loader = new FXMLLoader(DesktopUi.class.getResource(resourcePath));
-        loader.setController(controller);
+        FXMLLoader loader = new FXMLLoader(getFxmlUrl(resourcePath));
+        loader.setControllerFactory(type -> controller);
         try {
             return loader.load();
         } catch (IOException exception) {
             throw new IllegalStateException("无法加载 FXML 资源：" + resourcePath, exception);
         }
+    }
+
+    /**
+     * 获取指定资源路径的 URL 对象，并在资源不存在时抛出清晰的异常。
+     *
+     * @param resourcePath 界面资源文件路径
+     * @return 对应的 URL 对象
+     */
+    private static URL getFxmlUrl(String resourcePath) {
+        URL url = DesktopUi.class.getResource(resourcePath);
+        if (url == null) {
+            throw new IllegalStateException("找不到 FXML 资源文件：" + resourcePath);
+        }
+        return url;
     }
 }

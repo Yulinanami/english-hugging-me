@@ -15,98 +15,89 @@
 
 <ScrollPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="me.englishhugging.desktop.settings.CustomVocabularyTab"
             fitToWidth="true"
             styleClass="settings-scroll">
-    <content>
-        <VBox spacing="10.0" styleClass="settings-page">
-            <children>
-                <Card maxWidth="Infinity" styleClass="settings-card">
-                    <header>
-                        <Label text="添加自定义词汇" styleClass="settings-card-title" />
-                    </header>
-                    <body>
-                        <GridPane hgap="8.0" vgap="8.0">
-                            <children>
-                                <Label text="单词：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                                <TextField fx:id="customWord" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+    <VBox spacing="10.0" styleClass="settings-page">
+        <Card maxWidth="Infinity" styleClass="settings-card">
+            <header>
+                <Label text="添加自定义词汇" styleClass="settings-card-title" />
+            </header>
+            <body>
+                <GridPane hgap="8.0" vgap="8.0">
+                    <Label text="单词：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                    <TextField fx:id="customWord" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="0" />
 
-                                <Label text="词性：" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                                <TextField fx:id="customType" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                    <Label text="词性：" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                    <TextField fx:id="customType" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
-                                <Label text="意思：" GridPane.columnIndex="0" GridPane.rowIndex="2" />
-                                <TextField fx:id="customMeaning" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                    <Label text="意思：" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                    <TextField fx:id="customMeaning" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
-                                <Label text="词组：" GridPane.columnIndex="0" GridPane.rowIndex="3" />
-                                <TextField fx:id="customPhrase" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                    <Label text="词组：" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+                    <TextField fx:id="customPhrase" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
-                                <Label text="词组意思：" GridPane.columnIndex="0" GridPane.rowIndex="4" />
-                                <TextField fx:id="customPhraseMeaning" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                    <Label text="词组意思：" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+                    <TextField fx:id="customPhraseMeaning" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
 
-                                <Label text="例句：" GridPane.columnIndex="0" GridPane.rowIndex="5" />
-                                <TextField fx:id="customExample" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                    <Label text="例句：" GridPane.columnIndex="0" GridPane.rowIndex="5" />
+                    <TextField fx:id="customExample" prefWidth="330.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
 
-                                <Button text="保存单词"
-                                        styleClass="accent"
-                                        onAction="#addCustomWord"
-                                        GridPane.columnIndex="1"
-                                        GridPane.rowIndex="6" />
-                            </children>
-                        </GridPane>
-                    </body>
-                </Card>
+                    <Button fx:id="saveButton"
+                            text="保存单词"
+                            onAction="#addCustomWord"
+                            GridPane.columnIndex="1"
+                            GridPane.rowIndex="6" />
+                </GridPane>
+            </body>
+        </Card>
 
-                <Card maxWidth="Infinity" styleClass="settings-card">
-                    <header>
-                        <Label text="已添加列表" styleClass="settings-card-title" />
-                    </header>
-                    <body>
-                        <VBox spacing="5.0">
-                            <children>
-                                <TableView fx:id="tableView"
-                                           prefHeight="200.0"
-                                           VBox.vgrow="ALWAYS">
-                                    <columns>
-                                        <TableColumn text="单词" prefWidth="120.0">
-                                            <cellValueFactory>
-                                                <PropertyValueFactory property="word" />
-                                            </cellValueFactory>
-                                        </TableColumn>
-                                        <TableColumn text="释义" prefWidth="120.0">
-                                            <cellValueFactory>
-                                                <PropertyValueFactory property="meaning" />
-                                            </cellValueFactory>
-                                        </TableColumn>
-                                        <TableColumn text="词组" prefWidth="100.0">
-                                            <cellValueFactory>
-                                                <PropertyValueFactory property="phrase" />
-                                            </cellValueFactory>
-                                        </TableColumn>
-                                        <TableColumn text="词组意思" prefWidth="100.0">
-                                            <cellValueFactory>
-                                                <PropertyValueFactory property="phraseMeaning" />
-                                            </cellValueFactory>
-                                        </TableColumn>
-                                        <TableColumn text="例句" prefWidth="120.0">
-                                            <cellValueFactory>
-                                                <PropertyValueFactory property="example" />
-                                            </cellValueFactory>
-                                        </TableColumn>
-                                    </columns>
-                                </TableView>
-                                <HBox spacing="8.0">
-                                    <padding>
-                                        <Insets top="5.0" />
-                                    </padding>
-                                    <children>
-                                        <Button text="编辑选中" onAction="#editSelectedWord" />
-                                        <Button text="删除选中" styleClass="danger" onAction="#deleteSelectedWord" />
-                                    </children>
-                                </HBox>
-                            </children>
-                        </VBox>
-                    </body>
-                </Card>
-            </children>
-        </VBox>
-    </content>
+        <Card maxWidth="Infinity" styleClass="settings-card">
+            <header>
+                <Label text="已添加列表" styleClass="settings-card-title" />
+            </header>
+            <body>
+                <VBox spacing="5.0">
+                    <TableView fx:id="tableView"
+                               prefHeight="200.0"
+                               VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn text="单词" prefWidth="120.0">
+                                <cellValueFactory>
+                                    <PropertyValueFactory property="word" />
+                                </cellValueFactory>
+                            </TableColumn>
+                            <TableColumn text="释义" prefWidth="120.0">
+                                <cellValueFactory>
+                                    <PropertyValueFactory property="meaning" />
+                                </cellValueFactory>
+                            </TableColumn>
+                            <TableColumn text="词组" prefWidth="100.0">
+                                <cellValueFactory>
+                                    <PropertyValueFactory property="phrase" />
+                                </cellValueFactory>
+                            </TableColumn>
+                            <TableColumn text="词组意思" prefWidth="100.0">
+                                <cellValueFactory>
+                                    <PropertyValueFactory property="phraseMeaning" />
+                                </cellValueFactory>
+                            </TableColumn>
+                            <TableColumn text="例句" prefWidth="120.0">
+                                <cellValueFactory>
+                                    <PropertyValueFactory property="example" />
+                                </cellValueFactory>
+                            </TableColumn>
+                        </columns>
+                    </TableView>
+                    <HBox spacing="8.0">
+                        <padding>
+                            <Insets top="5.0" />
+                        </padding>
+                        <Button text="编辑选中" onAction="#editSelectedWord" />
+                        <Button fx:id="deleteButton" text="删除选中" onAction="#deleteSelectedWord" />
+                    </HBox>
+                </VBox>
+            </body>
+        </Card>
+    </VBox>
 </ScrollPane>

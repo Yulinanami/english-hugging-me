@@ -11,34 +11,27 @@
 
 <ScrollPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="me.englishhugging.desktop.settings.VocabularySettingsTab"
             fitToWidth="true"
             styleClass="settings-scroll">
-    <content>
-        <VBox spacing="10.0" styleClass="settings-page">
-            <children>
-                <Card maxWidth="Infinity" styleClass="settings-card">
-                    <header>
-                        <Label text="词汇本" styleClass="settings-card-title" />
-                    </header>
-                    <body>
-                        <GridPane hgap="8.0" vgap="8.0">
-                            <children>
-                                <Label text="词汇本：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                                <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
-                                    <children>
-                                        <ComboBox fx:id="vocabularyChoice" prefWidth="300.0" />
-                                        <Button text="导入" styleClass="accent" onAction="#importVocabulary" />
-                                    </children>
-                                </HBox>
-                                <Button text="重新加载"
-                                        onAction="#reloadVocabulary"
-                                        GridPane.columnIndex="1"
-                                        GridPane.rowIndex="1" />
-                            </children>
-                        </GridPane>
-                    </body>
-                </Card>
-            </children>
-        </VBox>
-    </content>
+    <VBox spacing="10.0" styleClass="settings-page">
+        <Card maxWidth="Infinity" styleClass="settings-card">
+            <header>
+                <Label text="词汇本" styleClass="settings-card-title" />
+            </header>
+            <body>
+                <GridPane hgap="8.0" vgap="8.0">
+                    <Label text="词汇本：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                    <HBox alignment="CENTER_LEFT" spacing="6.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                        <ComboBox fx:id="vocabularyChoice" prefWidth="300.0" />
+                        <Button fx:id="importButton" text="导入" onAction="#importVocabulary" />
+                    </HBox>
+                    <Button text="重新加载"
+                            onAction="#reloadVocabulary"
+                            GridPane.columnIndex="1"
+                            GridPane.rowIndex="1" />
+                </GridPane>
+            </body>
+        </Card>
+    </VBox>
 </ScrollPane>

@@ -96,11 +96,7 @@ public final class AppSettings {
      * 整体替换播放进度。传入 null 视为清零；数值归一化由 {@link PlaybackProgress} 自身负责。
      */
     public void setPlaybackProgress(PlaybackProgress playbackProgress) {
-        if (playbackProgress == null) {
-            this.playbackProgress = PlaybackProgress.EMPTY;
-        } else {
-            this.playbackProgress = playbackProgress;
-        }
+        this.playbackProgress = playbackProgress != null ? playbackProgress : PlaybackProgress.EMPTY;
     }
 
     /**

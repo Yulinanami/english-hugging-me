@@ -5,12 +5,11 @@
 
 <StackPane xmlns="http://javafx.com/javafx/21"
            xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="me.englishhugging.desktop.overlay.DesktopOverlayController"
            stylesheets="@../styles/overlay.css"
            styleClass="overlay-card">
-    <children>
-        <TextFlow fx:id="wordFlow"
-                  maxHeight="Infinity"
-                  maxWidth="Infinity"
-                  styleClass="overlay-text-flow" />
-    </children>
+    <TextFlow fx:id="wordFlow"
+              maxHeight="Infinity"
+              maxWidth="Infinity"
+              styleClass="overlay-text-flow" />
 </StackPane>

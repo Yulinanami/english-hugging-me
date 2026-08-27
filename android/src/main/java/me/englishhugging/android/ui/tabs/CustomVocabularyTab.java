@@ -125,7 +125,7 @@ public final class CustomVocabularyTab {
     private void refreshList() {
         this.binding.listContainer.removeAllViews();
         List<WordEntry> words = AndroidSettingsStore.loadCustomWords(this.activity);
-        boolean isEmpty = words == null || words.isEmpty();
+        boolean isEmpty = words.isEmpty();
         this.binding.emptyText.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
         if (isEmpty) {
             return;
@@ -145,7 +145,17 @@ public final class CustomVocabularyTab {
         );
         item.wordText.setText(entry.word());
 
-        // 将释义、短语和例句整理为适合列表快速浏览的多行文字。
+        String details = formatDetails(entry);
+        item.detailsText.setText(details);
+        item.detailsText.setVisibility(details.isEmpty() ? View.GONE : View.VISIBLE);
+
+        item.editButton.setOnClickListener(view -> editWord(entry));
+        item.deleteButton.setOnClickListener(view -> showDeleteConfirmation(entry.word()));
+        return item.getRoot();
+    }
+
+    /** 将单词的释义、短语和例句整理为适合列表快速浏览的多行文字。 */
+    private String formatDetails(WordEntry entry) {
         List<String> details = new ArrayList<>();
         if (!entry.translations().isEmpty()) {
             Translation translation = entry.translations().get(0);
@@ -158,12 +168,7 @@ public final class CustomVocabularyTab {
                 details.add("词组: " + phrase.phrase() + " (" + phrase.translation() + ")");
             }
         }
-        item.detailsText.setText(String.join("\n", details));
-        item.detailsText.setVisibility(details.isEmpty() ? View.GONE : View.VISIBLE);
-
-        item.editButton.setOnClickListener(view -> editWord(entry));
-        item.deleteButton.setOnClickListener(view -> showDeleteConfirmation(entry.word()));
-        return item.getRoot();
+        return String.join("\n", details);
     }
 
     /** 把已有单词内容回填到顶部表单，供用户修改后再次保存。 */
@@ -206,11 +211,9 @@ public final class CustomVocabularyTab {
     /** 从本地词库删除所有同名条目，并刷新页面列表。 */
     private void deleteWord(String word) {
         List<WordEntry> words = AndroidSettingsStore.loadCustomWords(this.activity);
-        if (words != null) {
-            words.removeIf(entry -> entry.word().equals(word));
-            AndroidSettingsStore.saveCustomWords(this.activity, words);
-            refreshList();
-            Toast.makeText(this.activity, "已删除", Toast.LENGTH_SHORT).show();
-        }
+        words.removeIf(entry -> entry.word().equals(word));
+        AndroidSettingsStore.saveCustomWords(this.activity, words);
+        refreshList();
+        Toast.makeText(this.activity, "已删除", Toast.LENGTH_SHORT).show();
     }
 }

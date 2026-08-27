@@ -20,6 +20,7 @@ import me.englishhugging.core.settings.OverlayMode;
 import me.englishhugging.desktop.settings.DesktopSettingsStore;
 import me.englishhugging.desktop.ui.DesktopUi;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -380,19 +381,7 @@ public final class DesktopOverlayController {
      * @param wordEntry 要渲染的单词条目
      */
     private void renderWord(WordEntry wordEntry) {
-        this.wordFlow.getChildren().clear();
-        
-        for (WordDisplaySegment segment : this.wordDisplayFormatter.format(wordEntry, this.settings.getDisplayMode())) {
-            if (segment.type() == WordDisplaySegment.Type.WORD) {
-                appendText(segment.text(), this.settings.getWordColor(), this.settings.getWordFontSize(), FontWeight.BOLD);
-            } else if (segment.type() == WordDisplaySegment.Type.TYPE) {
-                appendText(segment.text(), this.settings.getTypeColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
-            } else if (segment.type() == WordDisplaySegment.Type.PHRASE) {
-                appendText(segment.text(), this.settings.getPhraseColor(), this.settings.getDetailFontSize(), FontWeight.BOLD);
-            } else {
-                appendText(segment.text(), this.settings.getTranslationColor(), this.settings.getDetailFontSize(), FontWeight.NORMAL);
-            }
-        }
+        renderSegments(this.wordDisplayFormatter.format(wordEntry, this.settings.getDisplayMode()));
     }
 
     /**
@@ -405,9 +394,16 @@ public final class DesktopOverlayController {
      */
     public void updateFillBlankWord(String displayWord, WordEntry originalEntry, boolean hidePhrases, boolean hideTranslation) {
         WordEntry tempEntry = new WordEntry(displayWord, originalEntry.translations(), originalEntry.phrases());
+        renderSegments(this.wordDisplayFormatter.format(tempEntry, this.settings.getDisplayMode(), hidePhrases, hideTranslation));
+        ensureOverlayFitsText();
+    }
+
+    /**
+     * 将解析后的富文本片段逐一渲染并应用对应样式。
+     */
+    private void renderSegments(List<WordDisplaySegment> segments) {
         this.wordFlow.getChildren().clear();
-        
-        for (WordDisplaySegment segment : this.wordDisplayFormatter.format(tempEntry, this.settings.getDisplayMode(), hidePhrases, hideTranslation)) {
+        for (WordDisplaySegment segment : segments) {
             if (segment.type() == WordDisplaySegment.Type.WORD) {
                 appendText(segment.text(), this.settings.getWordColor(), this.settings.getWordFontSize(), FontWeight.BOLD);
             } else if (segment.type() == WordDisplaySegment.Type.TYPE) {
@@ -418,8 +414,6 @@ public final class DesktopOverlayController {
                 appendText(segment.text(), this.settings.getTranslationColor(), this.settings.getDetailFontSize(), FontWeight.NORMAL);
             }
         }
-        
-        ensureOverlayFitsText();
     }
 
     /**

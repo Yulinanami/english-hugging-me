@@ -1,22 +1,17 @@
 package me.englishhugging.desktop.settings;
 
-import me.englishhugging.core.model.WordEntry;
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.core.settings.SettingsMapper;
 import me.englishhugging.core.settings.SettingsStorage;
-import me.englishhugging.core.vocabulary.VocabularyJsonLoader;
-import com.google.gson.GsonBuilder;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 /**
- * 桌面端本地配置与自定义生词存储工具。
+ * 桌面端本地配置存储工具。
  *
- * <p>负责将应用设置与自定义生词保存到用户家目录下的配置文件中。
+ * <p>负责将应用设置与各词库的背诵进度保存到用户家目录下的配置文件中。
  *
  * <p><b>Usage Example:</b>
  * <pre><code>
@@ -24,21 +19,12 @@ import java.util.Properties;
  * 
  * // 启动时加载本地保存的配置数据
  * AppSettings settings = store.load();
- * 
- * // 追加一个用户手敲的自定义单词
- * store.appendCustomWord(new WordEntry("awesome", ...));
  * </code></pre>
  */
 public final class DesktopSettingsStore {
 
-    /** 跨平台的自定义词库虚拟键名标识 */
-    public static final String CUSTOM_VOCABULARY_FILE_NAME = SettingsMapper.CUSTOM_VOCABULARY_FILE_NAME;
-
     /** 桌面端全局配置保存位置：用户家目录下的隐藏属性文件 */
     private static final File SETTINGS_FILE = new File(System.getProperty("user.home"), ".english-hugging-me.properties");
-    
-    /** 桌面端自定义生词本保存位置：用户家目录下的隐藏 JSON 文件 */
-    private static final File CUSTOM_WORDS_FILE = new File(System.getProperty("user.home"), ".english-hugging-me-custom.json");
 
     /**
      * 默认构造函数。
@@ -201,15 +187,6 @@ public final class DesktopSettingsStore {
     }
 
     /**
-     * 获取所有词库的背诵进度总结文本，供设置界面的“播放记录”面板展示。
-     *
-     * @return 包含每本词库学习进度的一组文本行
-     */
-    public String[] playbackRecordLines() {
-        return SettingsMapper.playbackRecordLines(new PropertiesStorage(), hasCustomVocabulary());
-    }
-
-    /**
      * 获取单个词库的一行背诵进度描述。
      *
      * @param vocabularyKey 词库文件名
@@ -218,70 +195,5 @@ public final class DesktopSettingsStore {
      */
     public String playbackRecordLine(String vocabularyKey, String label) {
         return SettingsMapper.playbackRecordLine(new PropertiesStorage(), vocabularyKey, label);
-    }
-
-    /**
-     * 从本地 JSON 文件加载用户自定义的生词列表。
-     *
-     * @return 自定义生词列表；如果文件不存在或损坏则返回空列表
-     */
-    public List<WordEntry> loadCustomWords() {
-        if (!CUSTOM_WORDS_FILE.exists()) {
-            return new ArrayList<>();
-        }
-        
-        try (InputStreamReader reader = new InputStreamReader(new FileInputStream(CUSTOM_WORDS_FILE), StandardCharsets.UTF_8)) {
-            VocabularyJsonLoader loader = new VocabularyJsonLoader();
-            return new ArrayList<>(loader.load(reader));
-        } catch (Exception ignored) {
-            return new ArrayList<>();
-        }
-    }
-
-    /**
-     * 往自定义生词本中添加一个新单词。如果单词已存在（拼写相同），则覆盖旧条目。
-     *
-     * @param wordEntry 要添加的单词对象
-     */
-    public void appendCustomWord(WordEntry wordEntry) {
-        List<WordEntry> words = loadCustomWords();
-        
-        // 删除已经存在的同拼写单词
-        words.removeIf(w -> w.word().equals(wordEntry.word()));
-        words.add(wordEntry);
-        
-        saveCustomWords(words);
-    }
-
-    /**
-     * 保存完整的自定义单词列表到本地 JSON 文件中。
-     *
-     * @param words 待保存的单词列表
-     */
-    public void saveCustomWords(List<WordEntry> words) {
-        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(CUSTOM_WORDS_FILE), StandardCharsets.UTF_8)) {
-            new GsonBuilder().setPrettyPrinting().create().toJson(words, writer);
-        } catch (Exception ignored) {
-            // 保存异常时忽略
-        }
-    }
-
-    /**
-     * 判断指定的文件名是否为“自定义词汇”。
-     *
-     * @param fileName 候选文件名
-     * @return 如果是自定义词库则返回 true
-     */
-    public boolean isCustomVocabulary(String fileName) {
-        return CUSTOM_VOCABULARY_FILE_NAME.equals(fileName);
-    }
-
-    /**
-     * 检查本地是否存在非空的自定义生词本文件。
-     *
-     * @return 如果存在有效生词本文件返回 true
-     */
-    private boolean hasCustomVocabulary() {
-        return CUSTOM_WORDS_FILE.exists() && CUSTOM_WORDS_FILE.length() > 0;
     }
 }

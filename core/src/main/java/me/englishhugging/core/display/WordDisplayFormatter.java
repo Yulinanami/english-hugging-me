@@ -90,13 +90,13 @@ public final class WordDisplayFormatter {
             String type = safe(translation.type());
             String meaning = safe(translation.translation());
             
-            if (type.length() == 0 && meaning.length() == 0) {
+            if (type.isEmpty() && meaning.isEmpty()) {
                 continue;
             }
             
             segments.add(new WordDisplaySegment(WordDisplaySegment.Type.LINE_BREAK, "\n"));
             
-            if (type.length() > 0) {
+            if (!type.isEmpty()) {
                 segments.add(new WordDisplaySegment(WordDisplaySegment.Type.TYPE, type + ". "));
             }
             
@@ -114,14 +114,14 @@ public final class WordDisplayFormatter {
             String phraseText = safe(phrase.phrase());
             String phraseTranslation = safe(phrase.translation());
             
-            if (phraseText.length() == 0 && phraseTranslation.length() == 0) {
+            if (phraseText.isEmpty() && phraseTranslation.isEmpty()) {
                 continue;
             }
             
             segments.add(new WordDisplaySegment(WordDisplaySegment.Type.LINE_BREAK, "\n"));
             segments.add(new WordDisplaySegment(WordDisplaySegment.Type.PHRASE, phraseText));
             
-            if (phraseTranslation.length() > 0) {
+            if (!phraseTranslation.isEmpty()) {
                 segments.add(new WordDisplaySegment(WordDisplaySegment.Type.PHRASE_TRANSLATION, "： " + phraseTranslation));
             }
             

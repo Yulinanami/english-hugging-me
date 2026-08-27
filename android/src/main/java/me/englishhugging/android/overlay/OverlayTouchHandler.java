@@ -160,10 +160,10 @@ public final class OverlayTouchHandler {
                 this.initialResizeTouchY = event.getRawY();
                 return true;
             case MotionEvent.ACTION_MOVE:
-                float rdx = event.getRawX() - this.initialResizeTouchX;
-                float rdy = event.getRawY() - this.initialResizeTouchY;
+                float internalDx = event.getRawX() - this.initialResizeTouchX;
+                float internalDy = event.getRawY() - this.initialResizeTouchY;
 
-                if (!this.isResizing && Math.hypot(rdx, rdy) > this.touchSlop) {
+                if (!this.isResizing && Math.hypot(internalDx, internalDy) > this.touchSlop) {
                     this.isResizing = true;
                     WordScheduler scheduler = this.schedulerSupplier.get();
                     if (scheduler != null) {
@@ -176,8 +176,8 @@ public final class OverlayTouchHandler {
                     int minWidth = (int) (180 * metrics.density + 0.5f);
                     int minHeight = (int) (60 * metrics.density + 0.5f);
 
-                    int newWidth = Math.max(minWidth, this.initialWidth + (int) rdx);
-                    int newHeight = Math.max(minHeight, this.initialHeight + (int) rdy);
+                    int newWidth = Math.max(minWidth, this.initialWidth + (int) internalDx);
+                    int newHeight = Math.max(minHeight, this.initialHeight + (int) internalDy);
 
                     settings.setWidth(newWidth / metrics.density);
                     settings.setHeight(newHeight / metrics.density);
@@ -225,10 +225,10 @@ public final class OverlayTouchHandler {
                 this.initialResizeTouchY = event.getRawY();
                 return true;
             case MotionEvent.ACTION_MOVE:
-                float erdx = event.getRawX() - this.initialResizeTouchX;
-                float erdy = event.getRawY() - this.initialResizeTouchY;
+                float externalDx = event.getRawX() - this.initialResizeTouchX;
+                float externalDy = event.getRawY() - this.initialResizeTouchY;
 
-                if (!this.isResizing && Math.hypot(erdx, erdy) > this.touchSlop) {
+                if (!this.isResizing && Math.hypot(externalDx, externalDy) > this.touchSlop) {
                     this.isResizing = true;
                     WordScheduler scheduler = this.schedulerSupplier.get();
                     if (scheduler != null) {
@@ -241,8 +241,8 @@ public final class OverlayTouchHandler {
                     int minWidth = (int) (180 * metrics.density + 0.5f);
                     int minHeight = (int) (60 * metrics.density + 0.5f);
 
-                    int newWidth = Math.max(minWidth, this.initialWidth + (int) erdx);
-                    int newHeight = Math.max(minHeight, this.initialHeight + (int) erdy);
+                    int newWidth = Math.max(minWidth, this.initialWidth + (int) externalDx);
+                    int newHeight = Math.max(minHeight, this.initialHeight + (int) externalDy);
 
                     settings.setWidth(newWidth / metrics.density);
                     settings.setHeight(newHeight / metrics.density);

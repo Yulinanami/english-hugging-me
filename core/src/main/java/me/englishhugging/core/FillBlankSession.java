@@ -12,15 +12,6 @@ import java.util.List;
  * <p>这个类负责记录一个单词在挖空复习时的过程：
  * 从一开始被挖掉几个字母（如 "a_p_e"），到每次调用 {@link #nextFrame()} 时逐步恢复一个字母，
  * 直到所有字母全部恢复完毕。
- *
- * <p><b>Usage Example:</b>
- * <pre><code>
- * FillBlankSession session = new FillBlankSession(wordEntry, new FillBlankGenerator());
- * String frame1 = session.nextFrame(); // 初始挖空: "a__le"
- * String frame2 = session.nextFrame(); // 揭开一个字母: "ap_le"
- * String frame3 = session.nextFrame(); // 全部揭开: "apple"
- * String frame4 = session.nextFrame(); // 结束返回 null
- * </code></pre>
  */
 final class FillBlankSession {
 

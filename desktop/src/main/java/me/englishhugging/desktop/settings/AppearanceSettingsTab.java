@@ -4,6 +4,7 @@ import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.paint.Color;
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.desktop.overlay.DesktopOverlayController;
@@ -14,7 +15,7 @@ import me.englishhugging.desktop.ui.DesktopUi;
  *
  * <p>用户在界面上修改任意颜色或字号后，会自动保存并实时刷新桌面悬浮窗。
  */
-final class AppearanceSettingsTab {
+public final class AppearanceSettingsTab {
     /** 应用配置 */
     private final AppSettings settings;
     /** 配置存储 */
@@ -77,8 +78,8 @@ final class AppearanceSettingsTab {
         this.typeColor.setValue(Color.web(this.settings.getTypeColor()));
         this.translationColor.setValue(Color.web(this.settings.getTranslationColor()));
         this.phraseColor.setValue(Color.web(this.settings.getPhraseColor()));
-        this.wordFontSize.getValueFactory().setValue(this.settings.getWordFontSize());
-        this.detailFontSize.getValueFactory().setValue(this.settings.getDetailFontSize());
+        this.wordFontSize.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(16, 72, this.settings.getWordFontSize()));
+        this.detailFontSize.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(12, 60, this.settings.getDetailFontSize()));
 
         // 颜色修改后立即保存并刷新悬浮窗
         this.wordColor.setOnAction(event -> {

@@ -47,9 +47,9 @@ public final class OverlayWindowManager {
      * @param settings                   当前应用配置
      * @param overlayTouchListener       主卡片拖拽平移手势监听
      * @param internalResizeTouchListener 内置把手缩放手势监听
-     * @return 构建完成的悬浮窗根布局容器
      */
-    public FrameLayout createOverlayView(
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    public void createOverlayView(
             AppSettings settings,
             View.OnTouchListener overlayTouchListener,
             View.OnTouchListener internalResizeTouchListener
@@ -72,8 +72,6 @@ public final class OverlayWindowManager {
 
         this.overlayRoot.setOnTouchListener(overlayTouchListener);
         this.internalResizeHandle.setOnTouchListener(internalResizeTouchListener);
-
-        return this.overlayRoot;
     }
 
     /**
@@ -83,15 +81,15 @@ public final class OverlayWindowManager {
      * @param settings 当前应用配置
      * @return 计算得到的窗口布局参数对象
      */
-    public WindowManager.LayoutParams createLayoutParams(AppSettings settings) {
+    private WindowManager.LayoutParams createLayoutParams(AppSettings settings) {
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
         if (settings.getOverlayMode() == OverlayMode.CLICK_THROUGH) {
             flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
         }
 
         DisplayMetrics metrics = this.context.getResources().getDisplayMetrics();
-        int width = settings.getWidth() > 0 ? (int) (settings.getWidth() * metrics.density + 0.5f) : WindowManager.LayoutParams.WRAP_CONTENT;
-        int height = settings.getHeight() > 0 ? (int) (settings.getHeight() * metrics.density + 0.5f) : WindowManager.LayoutParams.WRAP_CONTENT;
+        int width = toPixelSize(settings.getWidth(), metrics);
+        int height = toPixelSize(settings.getHeight(), metrics);
 
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 width, height,
@@ -100,8 +98,14 @@ public final class OverlayWindowManager {
         params.x = (int) settings.getX();
         params.y = (int) settings.getY();
 
-        this.layoutParams = params;
         return params;
+    }
+
+    /**
+     * 将 dp 尺寸转换为像素 px；若小于等于 0 则返回 WRAP_CONTENT。
+     */
+    private int toPixelSize(double dpValue, DisplayMetrics metrics) {
+        return dpValue > 0 ? (int) (dpValue * metrics.density + 0.5f) : WindowManager.LayoutParams.WRAP_CONTENT;
     }
 
     /**
@@ -197,9 +201,5 @@ public final class OverlayWindowManager {
 
     public WindowManager.LayoutParams getLayoutParams() {
         return this.layoutParams;
-    }
-
-    public WindowManager getWindowManager() {
-        return this.windowManager;
     }
 }

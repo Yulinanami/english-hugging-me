@@ -1,7 +1,9 @@
 package me.englishhugging.desktop.settings;
 
+import atlantafx.base.theme.Styles;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -19,7 +21,7 @@ import java.nio.file.Paths;
  *
  * <p>支持选择内置词库、自定义生词库或导入外部 JSON 词库文件。
  */
-final class VocabularySettingsTab {
+public final class VocabularySettingsTab {
     /** 自定义词库在下拉选择框中的专用显示名称 */
     static final String CUSTOM_VOCABULARY_LABEL = "自定义词汇";
 
@@ -35,6 +37,9 @@ final class VocabularySettingsTab {
     /** 词库选择下拉框 */
     @FXML
     private ComboBox<String> vocabularyChoice;
+    /** 导入词库按钮 */
+    @FXML
+    private Button importButton;
 
     /**
      * 创建词库设置页面。
@@ -57,15 +62,6 @@ final class VocabularySettingsTab {
     }
 
     /**
-     * 获取词库下拉框。
-     *
-     * @return 词库下拉框
-     */
-    ComboBox<String> getVocabularyChoice() {
-        return this.vocabularyChoice;
-    }
-
-    /**
      * 加载词库设置界面。
      *
      * @return 词库设置界面的根节点
@@ -79,6 +75,7 @@ final class VocabularySettingsTab {
      */
     @FXML
     private void initialize() {
+        this.importButton.getStyleClass().add(Styles.ACCENT);
         this.vocabularyChoice.getItems().addAll(VocabularyCatalog.fileNames());
         if (Files.exists(customVocabularyPath())) {
             this.vocabularyChoice.getItems().add(CUSTOM_VOCABULARY_LABEL);

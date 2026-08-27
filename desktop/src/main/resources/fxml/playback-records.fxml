@@ -8,28 +8,23 @@
 
 <ScrollPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="me.englishhugging.desktop.settings.PlaybackRecordsTab"
             fitToWidth="true"
             styleClass="settings-scroll">
-    <content>
-        <VBox spacing="14.0" styleClass="settings-page">
-            <children>
-                <Card maxWidth="Infinity" styleClass="settings-card">
-                    <header>
-                        <Label text="播放记录" styleClass="settings-card-title" />
-                    </header>
-                    <body>
-                        <VBox spacing="6.0">
-                            <children>
-                                <Label text="记录各词汇本当前顺序位置和随机播放数量。" />
-                                <VBox fx:id="recordsBox" spacing="6.0" />
-                            </children>
-                        </VBox>
-                    </body>
-                </Card>
-                <Button text="清除所有记录"
-                        styleClass="danger"
-                        onAction="#clearRecords" />
-            </children>
-        </VBox>
-    </content>
+    <VBox spacing="14.0" styleClass="settings-page">
+        <Card maxWidth="Infinity" styleClass="settings-card">
+            <header>
+                <Label text="播放记录" styleClass="settings-card-title" />
+            </header>
+            <body>
+                <VBox spacing="6.0">
+                    <Label text="记录各词汇本当前顺序位置和随机播放数量。" />
+                    <VBox fx:id="recordsBox" spacing="6.0" />
+                </VBox>
+            </body>
+        </Card>
+        <Button fx:id="clearButton"
+                text="清除所有记录"
+                onAction="#clearRecords" />
+    </VBox>
 </ScrollPane>

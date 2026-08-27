@@ -6,6 +6,7 @@ import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
 import me.englishhugging.core.settings.AppSettings;
 import me.englishhugging.core.settings.DisplayMode;
@@ -19,7 +20,7 @@ import me.englishhugging.desktop.ui.DesktopUi;
  *
  * <p>用户在界面上调整设置后，会自动保存并实时刷新悬浮窗或重启播放。
  */
-final class GeneralSettingsTab {
+public final class GeneralSettingsTab {
     /** 应用配置 */
     private final AppSettings settings;
     /** 配置存储 */
@@ -109,12 +110,12 @@ final class GeneralSettingsTab {
         this.overlayMode.getItems().setAll(OverlayMode.values());
         this.overlayMode.setValue(this.settings.getOverlayMode());
 
-        this.interval.getValueFactory().setValue(this.settings.getIntervalSeconds());
+        this.interval.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(2, 300, this.settings.getIntervalSeconds()));
         this.opacity.setValue(this.settings.getOpacity());
         this.startingPrefix.setText(this.settings.getStartingPrefix());
         this.loopPlayback.setSelected(this.settings.isLoopPlayback());
         this.fillBlankMode.setSelected(this.settings.isFillBlankMode());
-        this.fillBlankInterval.getValueFactory().setValue(this.settings.getFillBlankIntervalSeconds());
+        this.fillBlankInterval.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 30, this.settings.getFillBlankIntervalSeconds()));
         this.fillBlankHidePhrases.setSelected(this.settings.isFillBlankHidePhrases());
         this.fillBlankShowTranslation.setSelected(this.settings.isFillBlankShowTranslation());
 

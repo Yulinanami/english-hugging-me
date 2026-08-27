@@ -86,6 +86,7 @@ public final class OverlayResizeHandleManager {
     /**
      * 初始化或更新点击穿透模式下的独立外部调整把手窗口。
      */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
     public void setupExternalHandle(View.OnTouchListener externalTouchListener) {
         if (this.externalResizeHandleView == null) {
             OverlayResizeHandleBinding resizeBinding = OverlayResizeHandleBinding.inflate(LayoutInflater.from(this.context));
@@ -198,9 +199,5 @@ public final class OverlayResizeHandleManager {
 
     public TextView getExternalResizeHandleView() {
         return this.externalResizeHandleView;
-    }
-
-    public WindowManager.LayoutParams getExternalResizeHandleParams() {
-        return this.externalResizeHandleParams;
     }
 }

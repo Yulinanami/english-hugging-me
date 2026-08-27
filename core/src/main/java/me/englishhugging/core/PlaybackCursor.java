@@ -9,25 +9,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.StringJoiner;
 
 /**
  * 单词播放顺序与进度计算。
  *
  * <p>负责计算在顺序播放、完全随机或乱序不重复模式下，下一个应该播放词库里的哪个单词。
  * 本类不包含任何后台定时或多线程操作，仅负责单词播放顺序与位置计算。
- *
- * <p><b>Usage Example:</b>
- * <pre><code>
- * PlaybackCursor cursor = new PlaybackCursor(
- *         100,
- *         PlaybackMode.SEQUENTIAL,
- *         true,
- *         PlaybackProgress.EMPTY,
- *         new Random()
- * );
- * int firstIndex = cursor.next(); // 返回 0
- * int secondIndex = cursor.next(); // 返回 1
- * </code></pre>
  */
 final class PlaybackCursor {
 
@@ -162,7 +150,7 @@ final class PlaybackCursor {
                     yield -1;
                 }
 
-                int position = Math.floorMod(this.nextWordIndex, this.wordCount);
+                int position = this.nextWordIndex;
                 this.nextWordIndex = position + 1;
 
                 if (this.loopPlayback) {
@@ -179,7 +167,7 @@ final class PlaybackCursor {
      * 如果字符串为空或内容格式错误，则重新生成一组打乱的序号列表。
      */
     private List<Integer> parseShuffleOrder(String value, int wordCount) {
-        if (value == null || value.trim().length() == 0) {
+        if (value == null || value.trim().isEmpty()) {
             return newShuffleOrder(wordCount);
         }
 
@@ -221,13 +209,10 @@ final class PlaybackCursor {
      * 将乱序列表拼接为逗号分隔的字符串，便于保存到本地配置。
      */
     private String serializeShuffleOrder(List<Integer> order) {
-        StringBuilder builder = new StringBuilder();
+        StringJoiner joiner = new StringJoiner(",");
         for (Integer index : order) {
-            if (builder.length() > 0) {
-                builder.append(',');
-            }
-            builder.append(index);
+            joiner.add(String.valueOf(index));
         }
-        return builder.toString();
+        return joiner.toString();
     }
 }

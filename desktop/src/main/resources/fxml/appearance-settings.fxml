@@ -5,54 +5,40 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Spinner?>
-<?import javafx.scene.control.SpinnerValueFactory.IntegerSpinnerValueFactory?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.VBox?>
 
 <ScrollPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="me.englishhugging.desktop.settings.AppearanceSettingsTab"
             fitToWidth="true"
             styleClass="settings-scroll">
-    <content>
-        <VBox spacing="10.0" styleClass="settings-page">
-            <children>
-                <Card maxWidth="Infinity" styleClass="settings-card">
-                    <header>
-                        <Label text="外观" styleClass="settings-card-title" />
-                    </header>
-                    <body>
-                        <GridPane hgap="8.0" vgap="8.0">
-                            <children>
-                                <Label text="单词颜色：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                                <ColorPicker fx:id="wordColor" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+    <VBox spacing="10.0" styleClass="settings-page">
+        <Card maxWidth="Infinity" styleClass="settings-card">
+            <header>
+                <Label text="外观" styleClass="settings-card-title" />
+            </header>
+            <body>
+                <GridPane hgap="8.0" vgap="8.0">
+                    <Label text="单词颜色：" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                    <ColorPicker fx:id="wordColor" GridPane.columnIndex="1" GridPane.rowIndex="0" />
 
-                                <Label text="词性颜色：" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                                <ColorPicker fx:id="typeColor" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                    <Label text="词性颜色：" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                    <ColorPicker fx:id="typeColor" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
-                                <Label text="释义颜色：" GridPane.columnIndex="0" GridPane.rowIndex="2" />
-                                <ColorPicker fx:id="translationColor" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                    <Label text="释义颜色：" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                    <ColorPicker fx:id="translationColor" GridPane.columnIndex="1" GridPane.rowIndex="2" />
 
-                                <Label text="短语颜色：" GridPane.columnIndex="0" GridPane.rowIndex="3" />
-                                <ColorPicker fx:id="phraseColor" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                    <Label text="短语颜色：" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+                    <ColorPicker fx:id="phraseColor" GridPane.columnIndex="1" GridPane.rowIndex="3" />
 
-                                <Label text="单词字号：" GridPane.columnIndex="0" GridPane.rowIndex="4" />
-                                <Spinner fx:id="wordFontSize" editable="true" prefWidth="92.0" GridPane.columnIndex="1" GridPane.rowIndex="4">
-                                    <valueFactory>
-                                        <SpinnerValueFactory.IntegerSpinnerValueFactory min="16" max="72" />
-                                    </valueFactory>
-                                </Spinner>
+                    <Label text="单词字号：" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+                    <Spinner fx:id="wordFontSize" editable="true" prefWidth="92.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
 
-                                <Label text="释义字号：" GridPane.columnIndex="0" GridPane.rowIndex="5" />
-                                <Spinner fx:id="detailFontSize" editable="true" prefWidth="92.0" GridPane.columnIndex="1" GridPane.rowIndex="5">
-                                    <valueFactory>
-                                        <SpinnerValueFactory.IntegerSpinnerValueFactory min="12" max="60" />
-                                    </valueFactory>
-                                </Spinner>
-                            </children>
-                        </GridPane>
-                    </body>
-                </Card>
-            </children>
-        </VBox>
-    </content>
+                    <Label text="释义字号：" GridPane.columnIndex="0" GridPane.rowIndex="5" />
+                    <Spinner fx:id="detailFontSize" editable="true" prefWidth="92.0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                </GridPane>
+            </body>
+        </Card>
+    </VBox>
 </ScrollPane>

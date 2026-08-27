@@ -124,7 +124,7 @@ english-hugging-me/
 
 ```bash
 # Windows
-gradlew.bat :desktop:run
+.\gradlew.bat :desktop:run
 
 # macOS / Linux
 ./gradlew :desktop:run

@@ -1,8 +1,10 @@
 package me.englishhugging.desktop.settings;
 
+import atlantafx.base.theme.Styles;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
@@ -18,7 +20,7 @@ import java.nio.file.Path;
  *
  * <p>用户可以在此查看每个词库已播放的单词数，并支持一键重置所有进度。
  */
-final class PlaybackRecordsTab {
+public final class PlaybackRecordsTab {
     /** 应用配置 */
     private final AppSettings settings;
     /** 配置存储 */
@@ -29,6 +31,9 @@ final class PlaybackRecordsTab {
     /** 记录列表垂直布局 */
     @FXML
     private VBox recordsBox;
+    /** 清除所有记录按钮 */
+    @FXML
+    private Button clearButton;
 
     /**
      * 创建学习记录页面。
@@ -61,6 +66,7 @@ final class PlaybackRecordsTab {
      */
     @FXML
     private void initialize() {
+        this.clearButton.getStyleClass().add(Styles.DANGER);
         refresh();
     }
 

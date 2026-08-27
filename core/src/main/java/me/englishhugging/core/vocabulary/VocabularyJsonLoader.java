@@ -75,9 +75,8 @@ public final class VocabularyJsonLoader {
      *
      * @param reader 字符输入流读取对象
      * @return 只读的单词列表
-     * @throws IOException 如果解析或读取出错
      */
-    public List<WordEntry> load(Reader reader) throws IOException {
+    public List<WordEntry> load(Reader reader) {
         List<WordEntry> parsed = this.gson.fromJson(reader, WORD_LIST_TYPE);
         
         // 如果文件内容为空或无法解析为列表，返回空列表
@@ -95,7 +94,7 @@ public final class VocabularyJsonLoader {
             if (entry.word() == null) {
                 continue;
             }
-            if (entry.word().trim().length() == 0) {
+            if (entry.word().trim().isEmpty()) {
                 continue;
             }
 

@@ -1,11 +1,13 @@
 package me.englishhugging.desktop.settings;
 
+import atlantafx.base.theme.Styles;
 import com.google.gson.GsonBuilder;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import me.englishhugging.core.model.Phrase;
@@ -27,7 +29,7 @@ import java.util.List;
  *
  * <p>用户录入的生词会自动保存到本地文件（`~/.english-hugging-me/custom-vocabulary.json`）。
  */
-final class CustomVocabularyTab {
+public final class CustomVocabularyTab {
     /** 词库变更时的刷新回调 */
     private final Runnable onVocabularyChanged;
     /** 表格数据列表 */
@@ -51,6 +53,12 @@ final class CustomVocabularyTab {
     /** 英文例句输入框 */
     @FXML
     private TextField customExample;
+    /** 保存生词按钮 */
+    @FXML
+    private Button saveButton;
+    /** 删除选中生词按钮 */
+    @FXML
+    private Button deleteButton;
     /** 自定义生词列表表格 */
     @FXML
     private TableView<WordItem> tableView;
@@ -78,6 +86,8 @@ final class CustomVocabularyTab {
      */
     @FXML
     private void initialize() {
+        this.saveButton.getStyleClass().add(Styles.ACCENT);
+        this.deleteButton.getStyleClass().add(Styles.DANGER);
         this.tableView.setItems(this.wordItems);
         loadCustomWords();
     }
@@ -186,24 +196,7 @@ final class CustomVocabularyTab {
                 words.addAll(new VocabularyJsonLoader().load(path));
             }
 
-            String type = this.customType.getText().trim();
-            String meaning = this.customMeaning.getText().trim();
-            String phrase = this.customPhrase.getText().trim();
-            String phraseMeaning = this.customPhraseMeaning.getText().trim();
-            String example = this.customExample.getText().trim();
-
-            List<Translation> translations = meaning.isEmpty() && type.isEmpty()
-                    ? Collections.emptyList()
-                    : Collections.singletonList(new Translation(meaning, type));
-            List<Phrase> phrases = new ArrayList<>();
-            if (!phrase.isEmpty()) {
-                phrases.add(new Phrase(phrase, phraseMeaning));
-            }
-            if (!example.isEmpty()) {
-                phrases.add(new Phrase(example, ""));
-            }
-
-            WordEntry newEntry = new WordEntry(word, translations, phrases);
+            WordEntry newEntry = buildWordEntry(word);
             words.removeIf(entry -> entry.word().equals(word));
             words.add(newEntry);
             saveCustomWords(path, words);
@@ -212,13 +205,36 @@ final class CustomVocabularyTab {
             clearForm();
         } catch (Exception exception) {
             System.err.println("Failed to add custom word: " + exception.getMessage());
-            exception.printStackTrace();
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("添加失败");
             alert.setHeaderText("无法保存自定义词汇");
             alert.setContentText(exception.getMessage());
             alert.show();
         }
+    }
+
+    /**
+     * 从当前输入框表单中构建一个新的单词条目对象。
+     */
+    private WordEntry buildWordEntry(String word) {
+        String type = this.customType.getText().trim();
+        String meaning = this.customMeaning.getText().trim();
+        String phrase = this.customPhrase.getText().trim();
+        String phraseMeaning = this.customPhraseMeaning.getText().trim();
+        String example = this.customExample.getText().trim();
+
+        List<Translation> translations = meaning.isEmpty() && type.isEmpty()
+                ? Collections.emptyList()
+                : Collections.singletonList(new Translation(meaning, type));
+        List<Phrase> phrases = new ArrayList<>();
+        if (!phrase.isEmpty()) {
+            phrases.add(new Phrase(phrase, phraseMeaning));
+        }
+        if (!example.isEmpty()) {
+            phrases.add(new Phrase(example, ""));
+        }
+
+        return new WordEntry(word, translations, phrases);
     }
 
     /**

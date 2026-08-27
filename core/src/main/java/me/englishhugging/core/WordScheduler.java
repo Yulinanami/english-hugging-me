@@ -278,23 +278,6 @@ public final class WordScheduler implements AutoCloseable {
     }
 
     /**
-     * 恢复播放并在指定延迟时间后切换到下一个单词。
-     * 
-     * <p>常用于用户交互（如拖动或缩放悬浮窗）结束后恢复播放，
-     * 避免松手瞬间立刻跳词，让屏幕上的当前单词获得完整的阅读展示时间。
-     *
-     * @param delaySeconds 延迟秒数；若小于等于 0 则使用默认的切换间隔 intervalSeconds
-     */
-    public synchronized void resumeWithDelay(long delaySeconds) {
-        if (!this.paused || this.executor == null) {
-            return;
-        }
-        this.paused = false;
-        long delay = delaySeconds > 0 ? delaySeconds * 1000L : this.intervalSeconds * 1000L;
-        scheduleNextMillis(delay);
-    }
-
-    /**
      * 查询当前是否处于暂停状态。
      *
      * @return 如果处于暂停状态返回 true
@@ -442,7 +425,7 @@ public final class WordScheduler implements AutoCloseable {
             // 通知界面展示填空单词
             boolean hideTranslation = !this.fillBlankShowTranslation;
             this.listener.onFillBlankWord(blankedWordToEmit, originalBlankEntry, this.fillBlankHidePhrases, hideTranslation);
-        } else if (wordToEmit != null) {
+        } else {
             // 通知界面展示正常完整单词，并汇报进度
             this.listener.onWord(wordToEmit);
             publishProgress();

@@ -146,7 +146,7 @@ public final class FloatingWordsDesktopApp extends Application {
             List<WordEntry> words = DesktopVocabularyLoader.load(this.settings.getVocabularyPath());
             startScheduler(words);
         } catch (Exception e) {
-            showError("词库加载失败", e.getMessage());
+            showError(e.getMessage());
             this.overlayController.showLoadingError();
         }
     }
@@ -177,9 +177,7 @@ public final class FloatingWordsDesktopApp extends Application {
                     
                     @Override 
                     public void onPlaybackFinished() {
-                        Platform.runLater(() -> {
-                            overlayController.showPlaybackFinished();
-                        });
+                        Platform.runLater(overlayController::showPlaybackFinished);
                     }
                 },
                 progress -> {
@@ -190,7 +188,7 @@ public final class FloatingWordsDesktopApp extends Application {
                     settingsStore.savePlaybackProgress(settings, settings.getVocabularyPath());
 
                     // 刷新学习记录
-                    Platform.runLater(() -> settingsPanel.refreshPlaybackRecords());
+                    Platform.runLater(settingsPanel::refreshPlaybackRecords);
                 }
         );
         this.scheduler.start();
@@ -202,7 +200,7 @@ public final class FloatingWordsDesktopApp extends Application {
     private void installTrayIcon() {
         this.trayController = new DesktopTrayController(
                 this.overlayController.getOverlayStage(), 
-                () -> this.settingsPanel.show(), 
+                this.settingsPanel::show, 
                 this::exitApplication
         );
         
@@ -234,21 +232,14 @@ public final class FloatingWordsDesktopApp extends Application {
     /**
      * 错误弹窗，向用户提示文件读取失败等异常信息。
      *
-     * @param title   错误主标题
      * @param message 错误详细信息
      */
-    private void showError(String title, String message) {
+    private void showError(String message) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle(title);
-            alert.setHeaderText(title);
-            
-            if (message == null) {
-                alert.setContentText("未知错误");
-            } else {
-                alert.setContentText(message);
-            }
-            
+            alert.setTitle("词库加载失败");
+            alert.setHeaderText("词库加载失败");
+            alert.setContentText(message != null ? message : "未知错误");
             alert.showAndWait();
         });
     }

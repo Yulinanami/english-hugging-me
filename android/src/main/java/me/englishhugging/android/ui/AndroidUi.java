@@ -6,6 +6,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Filter;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 
 import java.util.ArrayList;
@@ -96,11 +98,12 @@ public final class AndroidUi {
      */
     public void bindDropdown(MaterialAutoCompleteTextView dropdown, String[] values) {
         // 禁用输入过滤，确保每次点击都展示全部选项
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this.context,
                 R.layout.item_dropdown,
                 new ArrayList<>(Arrays.asList(values))
         ) {
+            @NonNull
             @Override
             public Filter getFilter() {
                 return new Filter() {

@@ -1,8 +1,10 @@
 package me.englishhugging.desktop.settings;
 
+import atlantafx.base.theme.Styles;
 import javafx.fxml.FXML;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Tab;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
@@ -60,6 +62,9 @@ public final class DesktopSettingsPanel {
     /** 学习记录页 */
     @FXML
     private Tab recordsTabContainer;
+    /** 退出程序按钮 */
+    @FXML
+    private Button exitButton;
 
     /** 设置窗口 */
     private Stage settingsStage;
@@ -139,6 +144,7 @@ public final class DesktopSettingsPanel {
         });
 
         Parent root = DesktopUi.loadFxml("/fxml/settings-panel.fxml", this);
+        this.exitButton.getStyleClass().add(Styles.DANGER);
 
         GeneralSettingsTab generalController = new GeneralSettingsTab(
                 this.settings,

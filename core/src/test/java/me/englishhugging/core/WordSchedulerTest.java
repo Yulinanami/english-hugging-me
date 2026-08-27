@@ -231,39 +231,6 @@ class WordSchedulerTest {
     }
 
     @Test
-    void resumeWithDelayPostponesNextWordEmission() throws InterruptedException {
-        RecordingListener listener = new RecordingListener(1, 0);
-        try (WordScheduler scheduler = new WordScheduler(
-                words("apple", "banana"),
-                config(PlaybackMode.SEQUENTIAL, PlaybackProgress.EMPTY, "", true, false),
-                listener, progress -> { })) {
-            scheduler.start();
-            assertTrue(listener.wordLatch.await(2, TimeUnit.SECONDS), "第一个单词应当立即展示");
-            assertEquals("apple", listener.words.peek());
-
-            // 模拟用户拖拽时暂停
-            scheduler.pause();
-            assertTrue(scheduler.isPaused());
-
-            // 模拟用户松手，以延时 2 秒恢复
-            scheduler.resumeWithDelay(2);
-            assertFalse(scheduler.isPaused());
-
-            // 500ms 内不应立即发射新单词（避免松手闪跳）
-            Thread.sleep(500);
-            assertEquals(1, listener.words.size(), "延时恢复时不应立即切词");
-
-            // 等待延时结束后应当正常发射下一个单词
-            long deadline = System.currentTimeMillis() + 2500;
-            while (listener.words.size() < 2 && System.currentTimeMillis() < deadline) {
-                Thread.sleep(50);
-            }
-            assertEquals(2, listener.words.size(), "延时结束后应当切换到下一个单词");
-            assertEquals("banana", listener.words.toArray()[1]);
-        }
-    }
-
-    @Test
     void resumeWithRemainingInheritsRemainingTime() throws InterruptedException {
         RecordingListener listener = new RecordingListener(1, 0);
         try (WordScheduler scheduler = new WordScheduler(

@@ -9,7 +9,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -217,24 +216,30 @@ public final class OverlayService extends Service {
             this.resizeHandleManager.manageHandles(this.settings, this.touchHandler::onExternalResizeTouch);
         }
 
-        // 播放参数发生变化后立即用已保存进度重建，避免等到下一轮才生效。
-        boolean vocabularyChanged = previous == null || !previous.getVocabularyFileName().equals(this.settings.getVocabularyFileName());
-        boolean playbackModeChanged = previous == null || previous.getPlaybackMode() != this.settings.getPlaybackMode();
-        boolean schedulerSettingsChanged = previous == null
-                || vocabularyChanged
-                || playbackModeChanged
-                || !Objects.equals(previous.getStartingPrefix(), this.settings.getStartingPrefix())
-                || previous.isLoopPlayback() != this.settings.isLoopPlayback()
-                || previous.getIntervalSeconds() != this.settings.getIntervalSeconds()
-                || previous.isFillBlankMode() != this.settings.isFillBlankMode()
-                || previous.getFillBlankIntervalSeconds() != this.settings.getFillBlankIntervalSeconds()
-                || previous.isFillBlankHidePhrases() != this.settings.isFillBlankHidePhrases()
-                || previous.isFillBlankShowTranslation() != this.settings.isFillBlankShowTranslation();
-
-        if (schedulerSettingsChanged) {
+        if (hasSchedulerSettingsChanged(previous, this.settings)) {
             List<WordEntry> words = loadWords(this.settings.getVocabularyFileName());
             startScheduler(words);
         }
+    }
+
+    /**
+     * 判断影响播放控制的核心配置是否发生了变更。
+     */
+    private boolean hasSchedulerSettingsChanged(AppSettings previous, AppSettings current) {
+        if (previous == null || current == null) {
+            return true;
+        }
+        boolean vocabularyChanged = !previous.getVocabularyFileName().equals(current.getVocabularyFileName());
+        boolean playbackModeChanged = previous.getPlaybackMode() != current.getPlaybackMode();
+        return vocabularyChanged
+                || playbackModeChanged
+                || !Objects.equals(previous.getStartingPrefix(), current.getStartingPrefix())
+                || previous.isLoopPlayback() != current.isLoopPlayback()
+                || previous.getIntervalSeconds() != current.getIntervalSeconds()
+                || previous.isFillBlankMode() != current.isFillBlankMode()
+                || previous.getFillBlankIntervalSeconds() != current.getFillBlankIntervalSeconds()
+                || previous.isFillBlankHidePhrases() != current.isFillBlankHidePhrases()
+                || previous.isFillBlankShowTranslation() != current.isFillBlankShowTranslation();
     }
 
     /**
@@ -332,7 +337,7 @@ public final class OverlayService extends Service {
         Intent openIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this, 0, openIntent,
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
+                PendingIntent.FLAG_IMMUTABLE
         );
 
         return new Notification.Builder(this, CHANNEL_ID)
@@ -345,14 +350,12 @@ public final class OverlayService extends Service {
     }
 
     /**
-     * 注册 Android 8.0 必需的通知渠道。
+     * 注册 Android 8.0+ 必需的通知渠道。
      */
     private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            if (manager.getNotificationChannel(CHANNEL_ID) == null) {
-                manager.createNotificationChannel(new NotificationChannel(CHANNEL_ID, "Floating Words", NotificationManager.IMPORTANCE_LOW));
-            }
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (manager != null && manager.getNotificationChannel(CHANNEL_ID) == null) {
+            manager.createNotificationChannel(new NotificationChannel(CHANNEL_ID, "Floating Words", NotificationManager.IMPORTANCE_LOW));
         }
     }
 }

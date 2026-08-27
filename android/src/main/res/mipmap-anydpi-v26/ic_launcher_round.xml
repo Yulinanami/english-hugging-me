@@ -6,4 +6,5 @@
             android:drawable="@mipmap/ic_launcher_img"
             android:inset="8%" />
     </foreground>
+    <monochrome android:drawable="@mipmap/ic_launcher_img" />
 </adaptive-icon>
