@@ -59,6 +59,21 @@ class PlaybackCursorTest {
     }
 
     @Test
+    void sequentialSnapshotDoesNotCreateShuffleState() {
+        PlaybackCursor cursor = cursor(
+                3,
+                PlaybackMode.SEQUENTIAL,
+                true,
+                new PlaybackProgress(0, "2,1,0", 2, 0)
+        );
+
+        PlaybackProgress snapshot = cursor.snapshot();
+
+        assertEquals("", snapshot.shuffleOrder());
+        assertEquals(0, snapshot.shufflePosition());
+    }
+
+    @Test
     void shuffleNoRepeatCoversAllWordsExactlyOnceThenFinishes() {
         PlaybackCursor cursor = cursor(5, PlaybackMode.SHUFFLE_NO_REPEAT, false, PlaybackProgress.EMPTY);
 
@@ -110,6 +125,19 @@ class PlaybackCursorTest {
     }
 
     @Test
+    void shuffleSnapshotKeepsSameOrderWhilePositionAdvances() {
+        PlaybackCursor cursor = cursor(5, PlaybackMode.SHUFFLE_NO_REPEAT, false, PlaybackProgress.EMPTY);
+
+        cursor.next();
+        PlaybackProgress first = cursor.snapshot();
+        cursor.next();
+        PlaybackProgress second = cursor.snapshot();
+
+        assertEquals(first.shuffleOrder(), second.shuffleOrder(), "同一轮播放不应重复生成乱序列表");
+        assertEquals(first.shufflePosition() + 1, second.shufflePosition());
+    }
+
+    @Test
     void corruptedShuffleOrderIsRebuilt() {
         // 长度不符、重复或超出范围的乱序字符串都应当被丢弃并重新生成，而不是报错崩溃
         PlaybackCursor cursor = cursor(3, PlaybackMode.SHUFFLE_NO_REPEAT, false,
@@ -134,6 +162,22 @@ class PlaybackCursorTest {
         }
         assertEquals(-1, cursor.next(), "随机模式本轮播满词库数量后应当结束");
         assertEquals(3, cursor.snapshot().randomPlayedCount());
+    }
+
+    @Test
+    void randomSnapshotDoesNotCreateShuffleState() {
+        PlaybackCursor cursor = cursor(
+                3,
+                PlaybackMode.RANDOM,
+                true,
+                new PlaybackProgress(0, "2,1,0", 2, 0)
+        );
+
+        cursor.next();
+        PlaybackProgress snapshot = cursor.snapshot();
+
+        assertEquals("", snapshot.shuffleOrder());
+        assertEquals(0, snapshot.shufflePosition());
     }
 
     @Test

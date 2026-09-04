@@ -76,6 +76,11 @@ public final class OverlayService extends Service {
     /** 应用配置 */
     private AppSettings settings;
 
+    /** 本次服务运行期间可重复使用的内置词库；自定义词库不会保存在这里 */
+    private List<WordEntry> cachedWords = Collections.emptyList();
+    /** 当前可重复使用的内置词库文件名；没有可用词库时为 null */
+    private String cachedVocabularyFileName;
+
     /** 当前屏幕上显示的单词条目 */
     private WordEntry displayedWord;
     /** 当前是否隐藏短语 */
@@ -158,6 +163,9 @@ public final class OverlayService extends Service {
             this.scheduler = null;
         }
 
+        this.cachedWords = Collections.emptyList();
+        this.cachedVocabularyFileName = null;
+
         this.resizeHandleManager.removeExternalHandle();
         this.windowManagerHelper.removeFromWindow();
 
@@ -176,7 +184,7 @@ public final class OverlayService extends Service {
     private void startOverlay() {
         this.settings = AndroidSettingsStore.load(this);
         AndroidSettingsStore.loadPlaybackProgress(this, this.settings, this.settings.getVocabularyFileName());
-        List<WordEntry> words = loadWords(this.settings.getVocabularyFileName());
+        List<WordEntry> words = loadWordsFor(this.settings.getVocabularyFileName());
 
         this.windowManagerHelper.removeFromWindow();
         this.windowManagerHelper.createOverlayView(
@@ -216,30 +224,33 @@ public final class OverlayService extends Service {
             this.resizeHandleManager.manageHandles(this.settings, this.touchHandler::onExternalResizeTouch);
         }
 
-        if (hasSchedulerSettingsChanged(previous, this.settings)) {
-            List<WordEntry> words = loadWords(this.settings.getVocabularyFileName());
-            startScheduler(words);
-        }
-    }
+        // 没有播放任务，或词库、播放顺序发生变化时，需要重新开始播放；间隔和填空设置可直接更新。
+        boolean playbackNeedsRestart = this.scheduler == null
+                || previous == null
+                || !Objects.equals(previous.getVocabularyFileName(), this.settings.getVocabularyFileName())
+                || previous.getPlaybackMode() != this.settings.getPlaybackMode()
+                || !Objects.equals(previous.getStartingPrefix(), this.settings.getStartingPrefix())
+                || previous.isLoopPlayback() != this.settings.isLoopPlayback();
 
-    /**
-     * 判断影响播放控制的核心配置是否发生了变更。
-     */
-    private boolean hasSchedulerSettingsChanged(AppSettings previous, AppSettings current) {
-        if (previous == null || current == null) {
-            return true;
+        if (playbackNeedsRestart) {
+            startScheduler(loadWordsFor(this.settings.getVocabularyFileName()));
+            return;
         }
-        boolean vocabularyChanged = !previous.getVocabularyFileName().equals(current.getVocabularyFileName());
-        boolean playbackModeChanged = previous.getPlaybackMode() != current.getPlaybackMode();
-        return vocabularyChanged
-                || playbackModeChanged
-                || !Objects.equals(previous.getStartingPrefix(), current.getStartingPrefix())
-                || previous.isLoopPlayback() != current.isLoopPlayback()
-                || previous.getIntervalSeconds() != current.getIntervalSeconds()
-                || previous.isFillBlankMode() != current.isFillBlankMode()
-                || previous.getFillBlankIntervalSeconds() != current.getFillBlankIntervalSeconds()
-                || previous.isFillBlankHidePhrases() != current.isFillBlankHidePhrases()
-                || previous.isFillBlankShowTranslation() != current.isFillBlankShowTranslation();
+
+        if (previous.getIntervalSeconds() != this.settings.getIntervalSeconds()) {
+            this.scheduler.updateIntervalSeconds(this.settings.getIntervalSeconds());
+        }
+        if (previous.isFillBlankMode() != this.settings.isFillBlankMode()
+                || previous.getFillBlankIntervalSeconds() != this.settings.getFillBlankIntervalSeconds()
+                || previous.isFillBlankHidePhrases() != this.settings.isFillBlankHidePhrases()
+                || previous.isFillBlankShowTranslation() != this.settings.isFillBlankShowTranslation()) {
+            this.scheduler.updateFillBlankSettings(
+                    this.settings.isFillBlankMode(),
+                    this.settings.getFillBlankIntervalSeconds(),
+                    this.settings.isFillBlankHidePhrases(),
+                    this.settings.isFillBlankShowTranslation()
+            );
+        }
     }
 
     /**
@@ -250,9 +261,12 @@ public final class OverlayService extends Service {
             this.scheduler.stop();
         }
 
+        // 记住本次播放使用的设置；重新加载设置后，旧回调仍从原对象保存进度。
+        AppSettings playbackSettings = this.settings;
+
         this.scheduler = new WordScheduler(
                 words,
-                WordSchedulerConfig.fromAppSettings(this.settings),
+                WordSchedulerConfig.fromAppSettings(playbackSettings),
                 new WordScheduler.Listener() {
                     @Override
                     public void onWord(WordEntry wordEntry) {
@@ -280,8 +294,12 @@ public final class OverlayService extends Service {
                     }
                 },
                 progress -> {
-                    settings.setPlaybackProgress(progress);
-                    AndroidSettingsStore.savePlaybackProgress(this, settings, settings.getVocabularyFileName());
+                    playbackSettings.setPlaybackProgress(progress);
+                    AndroidSettingsStore.savePlaybackProgress(
+                            this,
+                            playbackSettings,
+                            playbackSettings.getVocabularyFileName()
+                    );
                 }
         );
 
@@ -326,6 +344,29 @@ public final class OverlayService extends Service {
         } catch (Exception ignored) {
             return Collections.singletonList(new WordEntry("词库加载失败", Collections.emptyList(), Collections.emptyList()));
         }
+    }
+
+    /**
+     * 读取当前播放使用的词库。
+     *
+     * <p>同一个内置词库在本次服务运行期间只解析一次；自定义词库每次重新读取，
+     * 确保用户编辑后立即生效。
+     */
+    private List<WordEntry> loadWordsFor(String vocabularyFileName) {
+        if (AndroidSettingsStore.isCustomVocabulary(vocabularyFileName)) {
+            this.cachedVocabularyFileName = null;
+            this.cachedWords = Collections.emptyList();
+            return loadWords(vocabularyFileName);
+        }
+
+        if (Objects.equals(this.cachedVocabularyFileName, vocabularyFileName)
+                && !this.cachedWords.isEmpty()) {
+            return this.cachedWords;
+        }
+
+        this.cachedWords = loadWords(vocabularyFileName);
+        this.cachedVocabularyFileName = vocabularyFileName;
+        return this.cachedWords;
     }
 
     /**

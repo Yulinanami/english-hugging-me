@@ -160,6 +160,9 @@ public final class FloatingWordsDesktopApp extends Application {
         if (this.scheduler != null) {
             this.scheduler.stop();
         }
+
+        // 记住本次播放使用的词库路径，切换词库后旧播放任务仍把进度写回原词库。
+        String schedulerVocabularyPath = this.settings.getVocabularyPath();
         
         this.scheduler = new WordScheduler(
                 words,
@@ -181,14 +184,9 @@ public final class FloatingWordsDesktopApp extends Application {
                     }
                 },
                 progress -> {
-                    // 收到进度更新时，保存到配置文件
-                    settings.setPlaybackProgress(progress);
-
-                    settingsStore.save(settings);
-                    settingsStore.savePlaybackProgress(settings, settings.getVocabularyPath());
-
-                    // 刷新学习记录
-                    Platform.runLater(settingsPanel::refreshPlaybackRecords);
+                    // 收到进度更新时，只保存对应词库的进度，避免重复写入完整设置。
+                    this.settings.setPlaybackProgress(progress);
+                    this.settingsStore.savePlaybackProgress(this.settings, schedulerVocabularyPath);
                 }
         );
         this.scheduler.start();

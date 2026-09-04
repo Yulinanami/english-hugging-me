@@ -110,13 +110,18 @@ public final class DesktopSettingsPanel {
         this.settingsStage.show();
         this.settingsStage.setIconified(false);
         this.settingsStage.toFront();
+        refreshPlaybackRecordsIfVisible();
     }
 
     /**
-     * 刷新学习记录页中的数据列表。
+     * 设置窗口可见且学习记录页被选中时，刷新其中的数据列表。
      */
-    public void refreshPlaybackRecords() {
-        if (this.recordsTab != null) {
+    private void refreshPlaybackRecordsIfVisible() {
+        if (this.recordsTab != null
+                && this.settingsStage != null
+                && this.settingsStage.isShowing()
+                && this.recordsTabContainer != null
+                && this.recordsTabContainer.isSelected()) {
             this.recordsTab.refresh();
         }
     }
@@ -178,6 +183,9 @@ public final class DesktopSettingsPanel {
         this.customVocabularyTab.setContent(customController.createContent());
         this.appearanceTab.setContent(appearanceController.createContent());
         this.recordsTabContainer.setContent(this.recordsTab.createContent());
+        this.recordsTabContainer.setOnSelectionChanged(
+                event -> refreshPlaybackRecordsIfVisible()
+        );
 
         Scene scene = new Scene(root, 720, 600);
         stage.setScene(scene);

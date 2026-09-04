@@ -32,6 +32,8 @@ final class PlaybackCursor {
     private int nextWordIndex;
     /** 乱序不重复模式下打乱的单词序号列表 */
     private List<Integer> shuffleOrder;
+    /** 乱序列表对应的逗号分隔文本，只在生成或读取乱序列表时更新 */
+    private String serializedShuffleOrder;
     /** 乱序不重复模式下当前播放到列表的第几个位置 */
     private int shufflePosition;
     /** 完全随机模式下已累计播放的单词次数 */
@@ -65,9 +67,18 @@ final class PlaybackCursor {
             }
         }
 
-        // 乱序播放状态
-        this.shuffleOrder = parseShuffleOrder(initial.shuffleOrder(), wordCount);
-        this.shufflePosition = Math.min(Math.max(0, initial.shufflePosition()), wordCount);
+        // 只有乱序不重复模式需要创建和持有完整乱序列表。
+        if (this.playbackMode == PlaybackMode.SHUFFLE_NO_REPEAT) {
+            setShuffleOrder(parseShuffleOrder(initial.shuffleOrder(), wordCount));
+            this.shufflePosition = Math.min(
+                    Math.max(0, initial.shufflePosition()),
+                    wordCount
+            );
+        } else {
+            this.shuffleOrder = Collections.emptyList();
+            this.serializedShuffleOrder = "";
+            this.shufflePosition = 0;
+        }
         this.randomPlayedCount = Math.max(0, initial.randomPlayedCount());
     }
 
@@ -106,7 +117,7 @@ final class PlaybackCursor {
     PlaybackProgress snapshot() {
         return new PlaybackProgress(
                 this.nextWordIndex,
-                serializeShuffleOrder(this.shuffleOrder),
+                this.serializedShuffleOrder,
                 this.shufflePosition,
                 this.randomPlayedCount
         );
@@ -126,7 +137,7 @@ final class PlaybackCursor {
             case SHUFFLE_NO_REPEAT -> {
                 // 乱序列表为空或长度不匹配时重新打乱生成
                 if (this.shuffleOrder.size() != this.wordCount) {
-                    this.shuffleOrder = newShuffleOrder(this.wordCount);
+                    setShuffleOrder(newShuffleOrder(this.wordCount));
                     this.shufflePosition = 0;
                 }
 
@@ -136,7 +147,7 @@ final class PlaybackCursor {
                         yield -1;
                     }
                     // 如果开启循环播放，重新生成乱序列表并从头开始
-                    this.shuffleOrder = newShuffleOrder(this.wordCount);
+                    setShuffleOrder(newShuffleOrder(this.wordCount));
                     this.shufflePosition = 0;
                 }
 
@@ -203,6 +214,14 @@ final class PlaybackCursor {
         }
         Collections.shuffle(order, this.random);
         return order;
+    }
+
+    /**
+     * 同时更新乱序列表和保存播放进度时使用的逗号分隔文本。
+     */
+    private void setShuffleOrder(List<Integer> order) {
+        this.shuffleOrder = order;
+        this.serializedShuffleOrder = serializeShuffleOrder(order);
     }
 
     /**

@@ -36,6 +36,11 @@ import me.englishhugging.core.settings.PlaybackMode;
  * </code></pre>
  */
 public final class SettingsTab {
+    /** 文本输入或透明度滑块停止变化后再保存的等待时间，单位：毫秒 */
+    private static final long INPUT_DEBOUNCE_MILLIS = 250L;
+    /** 字号加减按钮每次调整的大小，单位：dp */
+    private static final int FONT_SIZE_STEP = 2;
+
     /** 预设颜色列表（包含代码与中文说明） */
     private static final String[] PRESET_COLORS = {
         "#FFFFFF (纯白)", "#FDE68A (淡黄)", "#7DD3FC (浅蓝)", "#86EFAC (浅绿)",
@@ -57,8 +62,23 @@ public final class SettingsTab {
     /** 标记是否正在批量更新开关状态，防止触发多余的保存 */
     private boolean isUpdatingSwitches;
 
-    /** 刷新悬浮窗服务的延迟任务 */
-    private final Runnable delayedServiceReload = this::notifyServiceReload;
+    /** 是否还有一次文本或滑块修改等待保存 */
+    private boolean isInputSavePending;
+
+    /** 是否还有一次开关修改等待通知悬浮窗重新读取设置 */
+    private boolean isServiceReloadPending;
+
+    /** 开关动画结束后通知悬浮窗重新读取设置 */
+    private final Runnable delayedServiceReload = () -> {
+        this.isServiceReloadPending = false;
+        notifyServiceReload();
+    };
+
+    /** 用户停止连续输入后保存页面内容，并通知悬浮窗重新读取设置 */
+    private final Runnable delayedSaveAndReload = () -> {
+        this.isInputSavePending = false;
+        saveAndReload();
+    };
 
     /**
      * 创建设置页面对象。
@@ -79,6 +99,7 @@ public final class SettingsTab {
      * @return 设置页根视图
      */
     public View getView() {
+        flushPendingCallbacks();
         this.binding = PageSettingsBinding.inflate(this.activity.getLayoutInflater());
         this.ui.styleIcon(this.binding.backIcon);
         this.binding.backIcon.setOnClickListener(view -> this.goHome.run());
@@ -97,7 +118,6 @@ public final class SettingsTab {
                 this.binding.wordFontMinus,
                 this.binding.wordFontPlus,
                 this.binding.wordFontSize,
-                2,
                 10,
                 72
         );
@@ -105,7 +125,6 @@ public final class SettingsTab {
                 this.binding.detailFontMinus,
                 this.binding.detailFontPlus,
                 this.binding.detailFontSize,
-                2,
                 8,
                 60
         );
@@ -142,12 +161,15 @@ public final class SettingsTab {
             MaterialButton minusButton,
             MaterialButton plusButton,
             EditText input,
-            int step,
             int min,
             int max
     ) {
-        minusButton.setOnClickListener(view -> adjustNumber(input, -step, min, max));
-        plusButton.setOnClickListener(view -> adjustNumber(input, step, min, max));
+        minusButton.setOnClickListener(
+                view -> adjustNumber(input, -FONT_SIZE_STEP, min, max)
+        );
+        plusButton.setOnClickListener(
+                view -> adjustNumber(input, FONT_SIZE_STEP, min, max)
+        );
     }
 
     /** 按指定步长调整数字输入框，并确保结果不会超出允许范围。 */
@@ -206,24 +228,68 @@ public final class SettingsTab {
      * <p>该方法会被多个输入事件回调调用，因此每次都先读取最新设置，只修改页面负责的字段。</p>
      */
     private void saveAndReload() {
-        if (this.binding != null) {
-            this.binding.getRoot().removeCallbacks(this.delayedServiceReload);
-        }
+        cancelPendingCallbacks();
         saveSettings(true);
     }
 
-    /** 立即保存开关状态，并在开关动画结束后刷新悬浮窗，避免界面卡顿。 */
+    /** 用户停止连续输入达到设定毫秒数后，合并保存并通知悬浮窗重新读取设置。 */
+    private void saveAndReloadDebounced() {
+        if (this.binding == null) {
+            return;
+        }
+
+        // 输入变化与等待中的开关刷新合并，避免连续两次通知悬浮窗重新读取设置。
+        this.binding.getRoot().removeCallbacks(this.delayedServiceReload);
+        this.isServiceReloadPending = false;
+        this.binding.getRoot().removeCallbacks(this.delayedSaveAndReload);
+        this.isInputSavePending = true;
+        this.binding.getRoot().postDelayed(
+                this.delayedSaveAndReload,
+                INPUT_DEBOUNCE_MILLIS
+        );
+    }
+
+    /** 立即保存开关状态，并在开关动画结束后通知悬浮窗重新读取设置。 */
     private void saveSwitchAndReload() {
+        cancelPendingCallbacks();
         saveSettings(false);
         if (this.binding == null) {
             return;
         }
 
-        this.binding.getRoot().removeCallbacks(this.delayedServiceReload);
         int animationDuration = this.activity.getResources().getInteger(
                 android.R.integer.config_shortAnimTime
         );
+        this.isServiceReloadPending = true;
         this.binding.getRoot().postDelayed(this.delayedServiceReload, animationDuration);
+    }
+
+    /** 取消当前设置页上尚未执行的延迟任务。 */
+    private void cancelPendingCallbacks() {
+        if (this.binding != null) {
+            this.binding.getRoot().removeCallbacks(this.delayedSaveAndReload);
+            this.binding.getRoot().removeCallbacks(this.delayedServiceReload);
+        }
+        this.isInputSavePending = false;
+        this.isServiceReloadPending = false;
+    }
+
+    /** 重新创建设置页前提交上一页尚未执行的最后一次变更。 */
+    private void flushPendingCallbacks() {
+        if (this.binding == null) {
+            return;
+        }
+
+        this.binding.getRoot().removeCallbacks(this.delayedSaveAndReload);
+        this.binding.getRoot().removeCallbacks(this.delayedServiceReload);
+        if (this.isInputSavePending) {
+            this.isInputSavePending = false;
+            this.isServiceReloadPending = false;
+            saveSettings(true);
+        } else if (this.isServiceReloadPending) {
+            this.isServiceReloadPending = false;
+            notifyServiceReload();
+        }
     }
 
     /** 把页面中的当前设置写入本地，并按需立即刷新悬浮窗。 */
@@ -378,7 +444,7 @@ public final class SettingsTab {
 
             @Override
             public void afterTextChanged(Editable text) {
-                saveAndReload();
+                saveAndReloadDebounced();
             }
         };
         this.binding.intervalSeconds.addTextChangedListener(textChangeListener);
@@ -433,7 +499,7 @@ public final class SettingsTab {
                             boolean fromUser
                     ) {
                         if (fromUser) {
-                            saveAndReload();
+                            saveAndReloadDebounced();
                         }
                     }
 
@@ -443,6 +509,7 @@ public final class SettingsTab {
 
                     @Override
                     public void onStopTrackingTouch(SeekBar seekBar) {
+                        saveAndReload();
                     }
                 }
         );
